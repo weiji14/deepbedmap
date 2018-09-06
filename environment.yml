@@ -1,0 +1,6 @@
+name: deepbedmap
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+  - pdal=1.7.2
