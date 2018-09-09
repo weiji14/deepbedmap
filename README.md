@@ -29,10 +29,10 @@ Also note that the [.env](https://pipenv.readthedocs.io/en/latest/advanced/#conf
     source activate deepbedmap
     pip install pipenv==2018.7.1
     
-    export LD_LIBRARY_PATH=~/.conda/envs/deepbedmap/lib/
-    pipenv install --python ~/.conda/envs/deepbedmap/bin/python
+    export LD_LIBRARY_PATH=$CONDA_PREFIX/lib/
+    pipenv install --python $CONDA_PREFIX/bin/python
     #or just
-    LD_LIBRARY_PATH=~/.conda/envs/deepbedmap/lib/ pipenv install --python ~/.conda/envs/deepbedmap/bin/python
+    LD_LIBRARY_PATH=$CONDA_PREFIX/lib/ pipenv install --python $CONDA_PREFIX/bin/python
 
 Now you can check to see if all the libraries have been installed
 

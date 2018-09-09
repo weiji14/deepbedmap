@@ -1,3 +1,5 @@
+#!/bin/bash
+source activate root
 pip install pipenv==2018.7.1
-export LD_LIBRARY_PATH=~/.conda/envs/deepbedmap/lib/
-pipenv install --python ~/.conda/envs/deepbedmap/bin/python
+export LD_LIBRARY_PATH=$CONDA_PREFIX/lib
+pipenv install --python $CONDA_PREFIX/bin/python
