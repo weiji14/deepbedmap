@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "53fdb6fff7430517b79952b4689395f012123e38ff94317fd628981981ff16dd"
+            "sha256": "082dbb6f6e5ed948d177380ead525255ee55a6fbdb2e667de5c41ac07d80f991"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -152,11 +152,11 @@
         },
         "jupyterlab": {
             "hashes": [
-                "sha256:86854ad08e10aac67d2092051caba7831600c75df8c8ded3e0ddf96861242048",
-                "sha256:a85dcbf06febeaaaeace5a324e672e380738ac98c088792f675bef94420f23e2"
+                "sha256:6b6994f29b204e26078c9f8fdd83abc42641804513348c2861866674534be304",
+                "sha256:75aa2e928ea945eced06bd308d2f54604d8279c78b165b6d046dfa923669a8f8"
             ],
             "index": "pypi",
-            "version": "==0.34.7"
+            "version": "==0.34.8"
         },
         "jupyterlab-launcher": {
             "hashes": [
@@ -230,7 +230,7 @@
                 "sha256:e3660744cda0d94b90141cdd0db9308b958a372cfeee8d7188fdf5ad9108ea82",
                 "sha256:f2362d0ca3e16c37782c1054d7972b8ad2729169567e3f0f4e5dd3cdf85f188e"
             ],
-            "markers": "python_version != '3.0.*' and python_version != '3.3.*' and python_version != '3.1.*' and python_version >= '2.7' and python_version != '3.2.*'",
+            "markers": "python_version != '3.3.*' and python_version != '3.0.*' and python_version >= '2.7' and python_version != '3.2.*' and python_version != '3.1.*'",
             "version": "==1.15.1"
         },
         "packaging": {
@@ -348,7 +348,7 @@
                 "sha256:e9767c7ab2eb552796440168d5c6e23a99ecaade08dda16266d43ad461730192",
                 "sha256:ebf8b800d42d217e4710d1582b0c8bff20cdcb4faad7c7213e52644034300924"
             ],
-            "markers": "python_version != '3.2*' and python_version >= '2.7' and python_version != '3.0*' and python_version != '3.1*'",
+            "markers": "python_version != '3.0*' and python_version != '3.1*' and python_version != '3.2*' and python_version >= '2.7'",
             "version": "==17.1.2"
         },
         "send2trash": {
@@ -376,6 +376,7 @@
                 "sha256:55abf9ade563b8f9be1f34e4233c7b7bde726059947a593322e8a553cc4c067a",
                 "sha256:65011551baff97f5414c67018e908110693143cfbaeb16831b743fe7cad8b927"
             ],
+            "markers": "python_version != '3.3.*' and python_version != '3.0.*' and python_version >= '2.7' and python_version != '3.2.*' and python_version != '3.1.*'",
             "version": "==0.8.1"
         },
         "testpath": {
@@ -395,7 +396,7 @@
                 "sha256:c58757e37c4a3172949c99099d4d5106e4d7b63aa0617f9bb24bfbff712c7866",
                 "sha256:d8984742ce86c0855cccecd5c6f54a9f7532c983947cff06f3a0e2115b47f85c"
             ],
-            "markers": "python_version != '3.0.*' and python_version != '3.3.*' and python_version != '3.1.*' and python_version >= '2.7' and python_version != '3.2.*'",
+            "markers": "python_version != '3.3.*' and python_version != '3.0.*' and python_version >= '2.7' and python_version != '3.2.*' and python_version != '3.1.*'",
             "version": "==5.1"
         },
         "traitlets": {
