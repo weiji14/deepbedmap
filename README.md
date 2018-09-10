@@ -8,7 +8,7 @@ A flat file data repository for high resolution bed elevation datasets around An
 
 Launch Binder (Interactive jupyter notebook in the cloud).
 
-[![Binder](https://mybinder.org/badge.svg)](https://mybinder.org/v2/gh/weiji14/deepbedmap/master)
+[![Binder](https://mybinder.org/badge.svg)](https://mybinder.org/v2/gh/weiji14/deepbedmap/master?urlpath=lab)
 
 ## Installation
 
@@ -38,15 +38,18 @@ Now you can check to see if all the libraries have been installed
 
     pipenv graph
 
-### Updating the dependencies
+### Syncing/Updating to new dependencies
 
     conda env update -f environment.yml
-    pipenv update
+    pipenv sync
 
 ## Running jupyter lab
 
     source activate deepbedmap
-    python -m ipykernel install --user  #to install conda env properly
-    jupyter kernelspec list --json      #see if kernel is installed
-    jupyter lab
+    pipenv shell
+    export LD_LIBRARY_PATH=$CONDA_PREFIX/lib/
+    
+    python -m ipykernel install --user --name deepbedmap  #to install conda env properly
+    jupyter kernelspec list --json                        #see if kernel is installed
+    jupyter lab &
 
