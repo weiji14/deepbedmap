@@ -2,6 +2,28 @@
 
 A flat file data repository for high resolution bed elevation datasets around Antarctica.
 
+## Directory structure
+
+```
+  deepbedmap/
+    ├── highres/ (contains high resolution localized DEMs)
+    │    ├── *.grd/las/txt/... (input vector/raster file containing the data)
+    │    ├── *.json (the pdal pipeline file)
+    │    ├── *.tif (output raster geotiff file)
+    │    └── README.md (markdown information on highres data sources)
+    ├── lowres/ (contains low resolution whole-continent DEMs)
+    │    ├── bedmap2_bed.tif (the low resolution DEM!)
+    │    └── README.md (markdown information on lowres data sources)
+    ├── .<something>ignore (files ignored by a particular piece of software)
+    ├── environment.yml (conda packages to install, used by binder)
+    ├── LICENSE.md (the license covering this repository)
+    ├── Pipfile (what you want, the minimal core dependencies)
+    ├── Pipfile.lock (what you need, all the pinned dependencies for full reproducibility)
+    ├── postBuild (shell script used by binder after environment.yml packages are installed)
+    └── README.md (the markdown file you're reading now)
+    
+```
+
 # Getting started
 
 ## Quickstart
