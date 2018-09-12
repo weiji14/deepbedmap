@@ -14,6 +14,10 @@ A flat file data repository for high resolution bed elevation datasets around An
     ├── lowres/ (contains low resolution whole-continent DEMs)
     │    ├── bedmap2_bed.tif (the low resolution DEM!)
     │    └── README.md (markdown information on lowres data sources)
+    ├── model/ (neural network model related files)
+    │    └── train
+    │        │── X_data.npy (highres numpy arrays)
+    │        └── Y_data.npy (lowres numpy arrays)
     ├── .<something>ignore (files ignored by a particular piece of software)
     ├── environment.yml (conda packages to install, used by binder)
     ├── LICENSE.md (the license covering this repository)

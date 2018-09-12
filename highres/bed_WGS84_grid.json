@@ -1,0 +1,18 @@
+{
+    "pipeline":[
+        {
+          "type":"readers.text",
+          "filename":"bed_WGS84_grid.txt",
+          "separator":"\t",
+          "skip":20,
+          "header":"x\ty\tz\tcolumn\trow"
+        },
+        {
+          "type":"writers.gdal",
+          "filename":"bed_WGS84_grid.tif",
+          "resolution": 125,
+          "data_type": "float",
+          "output_type": "mean"
+        }
+    ]
+}
