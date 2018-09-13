@@ -5,6 +5,7 @@ name = "pypi"
 
 [packages]
 cython = "==0.28.5"
+ipython = "==6.4.0"
 jupyterlab = "==0.34.9"
 keras = "==2.2.2"
 matplotlib = "==3.0.0rc2"
@@ -13,6 +14,7 @@ PDAL = "==2.0.0"
 quilt = "==2.9.11"
 rasterio = "==1.0.3.post1"
 requests = "==2.19.1"
+scikit-image = "==0.14.0"
 shapely = "==1.7a1"
 tensorflow = "==1.10.1"
 tqdm = "==4.26.0"
@@ -21,3 +23,6 @@ tqdm = "==4.26.0"
 
 [requires]
 python_version = "3.6"
+
+[pipenv]
+allow_prereleases = true
