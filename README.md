@@ -14,17 +14,21 @@ A flat file data repository for high resolution bed elevation datasets around An
     ├── lowres/ (contains low resolution whole-continent DEMs)
     │    ├── bedmap2_bed.tif (the low resolution DEM!)
     │    └── README.md (markdown information on lowres data sources)
-    ├── model/ (neural network model related files)
-    │    └── train
-    │        │── X_data.npy (highres numpy arrays)
+    ├── model/ (*hidden in git, neural network model related files)
+    │    ├── logs/ (directory for tensorboard log files)
+    │    └── train/ (a place to store the model training data)
+    │        ├── X_data.npy (highres numpy arrays)
     │        └── Y_data.npy (lowres numpy arrays)
+    ├── .env (environment config file used by pipenv, supposedly)
     ├── .<something>ignore (files ignored by a particular piece of software)
-    ├── environment.yml (conda packages to install, used by binder)
     ├── LICENSE.md (the license covering this repository)
     ├── Pipfile (what you want, the minimal core dependencies)
     ├── Pipfile.lock (what you need, all the pinned dependencies for full reproducibility)
+    ├── README.md (the markdown file you're reading now)
+    ├── data_prep.ipynb (jupyter notebook that prepares the data)
+    ├── environment.yml (conda packages to install, used by binder)
     ├── postBuild (shell script used by binder after environment.yml packages are installed)
-    └── README.md (the markdown file you're reading now)
+    └── srcnn_train.ipynb (jupyter notebook that trains the Super Resolution ConvNet model)
     
 ```
 
