@@ -6,7 +6,7 @@ name = "pypi"
 [packages]
 cython = "==0.28.5"
 ipython = "==6.4.0"
-jupyterlab = "==0.34.9"
+jupyterlab = "==0.34.10"
 keras = "==2.2.2"
 matplotlib = "==3.0.0rc2"
 packaging = "==17.1"
