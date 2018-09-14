@@ -2,16 +2,17 @@
     "pipeline":[
         {
           "type":"readers.text",
-          "filename":"bed_WGS84_grid.txt",
+          "filename":"2010tr.txt",
           "separator":"\t",
-          "skip":20,
-          "header":"x\ty\tz\tcolumn\trow"
+          "skip":1,
+          "header":"x\ty\tz_surf\ttime\th\th_fc\tz_bed\tz_bed_fc\tz-surf"
         },
         {
           "type":"writers.gdal",
-          "filename":"bed_WGS84_grid.tif",
+          "filename":"2010tr.tif",
           "resolution": 250,
           "data_type": "float",
+          "dimension": "z_bed_fc",
           "output_type": "idw",
           "window_size": 0
         }
