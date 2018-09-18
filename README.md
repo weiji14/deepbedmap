@@ -21,6 +21,7 @@ A flat file data repository for high resolution bed elevation datasets around An
     │        └── Y_data.npy (lowres numpy arrays)
     ├── .env (environment config file used by pipenv, supposedly)
     ├── .<something>ignore (files ignored by a particular piece of software)
+    ├── Dockerfile (set of commands to reproduce the software stack here into a docker image)
     ├── LICENSE.md (the license covering this repository)
     ├── Pipfile (what you want, the minimal core dependencies)
     ├── Pipfile.lock (what you need, all the pinned dependencies for full reproducibility)
