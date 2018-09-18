@@ -54,7 +54,6 @@ The conda environment will also be created with [pipenv](https://pipenv.readthed
 
 Once you have the PDAL binary installed, you can install the python libraries using pipenv.
 Make sure that `which pipenv` returns something like ~/.conda/envs/deepbedmap/bin/pipenv 
-Also note that the [.env](https://pipenv.readthedocs.io/en/latest/advanced/#configuration-with-environment-variables) file stores some environment variables.
 
     source activate deepbedmap
     pip install pipenv==2018.7.1
@@ -73,11 +72,18 @@ Now you can check to see if all the libraries have been installed
     conda env update -f environment.yml
     pipenv sync
 
+### Common problems
+
+Note that the [.env](https://pipenv.readthedocs.io/en/latest/advanced/#configuration-with-environment-variables) file stores some environment variables.
+However, it only works when running `pipenv shell` or `pipenv run <cmd>`.
+So after running `source activate deepbedmap`, and you see an `...error while loading shared libraries: libpython3.6m.so.1.0...`, you may need to run this:
+
+    export LD_LIBRARY_PATH=$CONDA_PREFIX/lib/
+
 ## Running jupyter lab
 
     source activate deepbedmap
     pipenv shell
-    export LD_LIBRARY_PATH=$CONDA_PREFIX/lib/
     
     python -m ipykernel install --user --name deepbedmap  #to install conda env properly
     jupyter kernelspec list --json                        #see if kernel is installed
