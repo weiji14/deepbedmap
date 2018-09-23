@@ -6,7 +6,7 @@ name = "pypi"
 [packages]
 cython = "==0.28.5"
 ipython = "==6.4.0"
-jupyterlab = "==0.34.11"
+jupyterlab = "==0.34.12"
 keras = "==2.2.2"
 livelossplot = "==0.2.0"
 matplotlib = "==3.0.0"
