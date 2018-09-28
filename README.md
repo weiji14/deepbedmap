@@ -15,7 +15,7 @@ A flat file data repository for high resolution bed elevation datasets around An
     │    ├── bedmap2_bed.tif (the low resolution DEM!)
     │    └── README.md (markdown information on lowres data sources)
     ├── misc/ (miscellaneous raster datasets)
-    │    ├── REMA_200m_dem_filled.tif (high resolution surface DEM)
+    │    ├── *.tif (Surface DEMs, Ice Flow Velocity, etc. See list in Issue #9)
     │    └── README.md (markdown information on miscellaneous data sources)
     ├── model/ (*hidden in git, neural network model related files)
     │    ├── logs/ (directory for tensorboard log files)
