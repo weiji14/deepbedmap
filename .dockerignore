@@ -1,5 +1,6 @@
 .git
 **/.ipynb_checkpoints
+**/*.csv
 **/*.txt
 **/*.tif
 **/*.grd

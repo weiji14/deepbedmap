@@ -7,7 +7,7 @@ A flat file data repository for high resolution bed elevation datasets around An
 ```
   deepbedmap/
     ├── highres/ (contains high resolution localized DEMs)
-    │    ├── *.grd/las/txt/... (input vector/raster file containing the data)
+    │    ├── *.grd/las/txt/csv... (input vector file containing the point-based data)
     │    ├── *.json (the pdal pipeline file)
     │    ├── *.tif (output raster geotiff file)
     │    └── README.md (markdown information on highres data sources)
