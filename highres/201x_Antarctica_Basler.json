@@ -1,0 +1,25 @@
+{
+    "pipeline":[
+        {
+          "type":"readers.text",
+          "filename":"201?_Antarctica_Basler.csv",
+          "separator":",",
+          "skip":1,
+          "header":"Y,X,TIME,THICK,ELEVATION,FRAME,SURFACE,BOTTOM,QUALITY"
+        },
+        {
+          "type":"filters.reprojection",
+          "in_srs":"EPSG:4326",
+          "out_srs":"EPSG:3031"
+        },
+        {
+          "type":"writers.gdal",
+          "filename":"201x_Antarctica_Basler.tif",
+          "resolution": 250,
+          "data_type": "float",
+          "dimension": "BOTTOM",
+          "output_type": "idw",
+          "window_size": 2
+        }
+    ]
+}
