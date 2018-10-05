@@ -8,6 +8,12 @@
           "header":"Y,X,TIME,THICK,ELEVATION,FRAME,SURFACE,BOTTOM,QUALITY"
         },
         {
+          "type":"filters.python",
+          "script":"custom_filters.py",
+          "function":"bottom_minus_surface_elevation",
+          "module":"anything"
+        },
+        {
           "type":"filters.reprojection",
           "in_srs":"EPSG:4326",
           "out_srs":"EPSG:3031"
