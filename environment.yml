@@ -3,4 +3,5 @@ channels:
   - conda-forge
   - nodefaults
 dependencies:
+  - pip=18.0
   - pdal=1.7.2
