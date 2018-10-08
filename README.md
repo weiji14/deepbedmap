@@ -1,6 +1,11 @@
 # DeepBedMap
 
-A flat file data repository for high resolution bed elevation datasets around Antarctica.
+Going beyond BEDMAP2 using a super resolution deep neural network.
+Also a convenient [flat file](https://en.wikipedia.org/wiki/Flat-file_database) data repository for high resolution bed elevation datasets around Antarctica.
+
+[![Codefresh build status](https://g.codefresh.io/api/badges/pipeline/weiji14/weiji14%2Fdeepbedmap%2Fdeepbedmap?branch=master&type=cf-1)](https://g.codefresh.io/repositories/weiji14/deepbedmap/builds?filter=trigger:build;branch:master;service:5ba0a56ad135d41499359a13~deepbedmap)
+[![Dependabot Status](https://api.dependabot.com/badges/status?host=github&repo=weiji14/deepbedmap)](https://dependabot.com)
+[![Libraries.io for GitHub](https://img.shields.io/librariesio/github/weiji14/deepbedmap.svg)](https://libraries.io/github/weiji14/deepbedmap)
 
 ## Directory structure
 
@@ -40,7 +45,7 @@ A flat file data repository for high resolution bed elevation datasets around An
 
 ## Quickstart
 
-Launch Binder (Interactive jupyter notebook in the cloud).
+Launch Binder (Interactive jupyter notebook/lab environment in the cloud).
 
 [![Binder](https://mybinder.org/badge.svg)](https://mybinder.org/v2/gh/weiji14/deepbedmap/master?urlpath=lab)
 
@@ -51,17 +56,17 @@ Start by cloning this [repo-url](/../../)
     git clone <repo-url>
 
 Then I recommend [using conda to install the PDAL binary](https://pdal.io/download.html#conda).
-The conda environment will also be created with [pipenv](https://pipenv.readthedocs.io) installed.
 
     cd deepbedmap
     conda env create -f environment.yml
 
-Once you have the PDAL binary installed, you can install the python libraries using pipenv.
-Make sure that `which pipenv` returns something like ~/.conda/envs/deepbedmap/bin/pipenv 
+Once you have the PDAL binary installed, install [pipenv](https://pipenv.readthedocs.io) into the conda environment.
+Check that `which pipenv` returns something similar to ~/.conda/envs/deepbedmap/bin/pipenv.
+After that, you can install the python libraries using pipenv.
 
-    source activate deepbedmap
+    conda activate deepbedmap
     pip install pipenv==2018.7.1
-    
+
     export LD_LIBRARY_PATH=$CONDA_PREFIX/lib/
     pipenv install --python $CONDA_PREFIX/bin/python
     #or just
@@ -80,16 +85,15 @@ Now you can check to see if all the libraries have been installed
 
 Note that the [.env](https://pipenv.readthedocs.io/en/latest/advanced/#configuration-with-environment-variables) file stores some environment variables.
 However, it only works when running `pipenv shell` or `pipenv run <cmd>`.
-So after running `source activate deepbedmap`, and you see an `...error while loading shared libraries: libpython3.6m.so.1.0...`, you may need to run this:
+So after running `conda activate deepbedmap`, and you see an `...error while loading shared libraries: libpython3.6m.so.1.0...`, you may need to run this:
 
     export LD_LIBRARY_PATH=$CONDA_PREFIX/lib/
 
 ## Running jupyter lab
 
-    source activate deepbedmap
+    conda activate deepbedmap
     pipenv shell
     
     python -m ipykernel install --user --name deepbedmap  #to install conda env properly
     jupyter kernelspec list --json                        #see if kernel is installed
     jupyter lab &
-
