@@ -51,29 +51,31 @@ Launch Binder (Interactive jupyter notebook/lab environment in the cloud).
 
 ## Installation
 
+![Installation steps](http://yuml.me/diagram/scruffy/class/[Git|clone-repo]->[Conda|install-binaries-and-pipenv],[Conda]->[Pipenv|install-python-libs])
+
 Start by cloning this [repo-url](/../../)
 
     git clone <repo-url>
 
-Then I recommend [using conda to install the PDAL binary](https://pdal.io/download.html#conda).
+Then I recommend [using conda](https://pdal.io/download.html#conda) to install the PDAL binary.
+The conda virtual environment will also be created with Python and [pipenv](https://pipenv.readthedocs.io) installed.
 
     cd deepbedmap
     conda env create -f environment.yml
 
-Once you have the PDAL binary installed, install [pipenv](https://pipenv.readthedocs.io) into the conda environment.
-Check that `which pipenv` returns something similar to ~/.conda/envs/deepbedmap/bin/pipenv.
-After that, you can install the python libraries using pipenv.
+Activate the conda environment first, and then use pipenv to install the necessary python libraries.
+Note that `pipenv install` won't work directly (see Common problems below).
+You may want to check that `which pipenv` returns something similar to ~/.conda/envs/deepbedmap/bin/pipenv.
 
     conda activate deepbedmap
-    pip install pipenv==2018.7.1
-
+    
     export LD_LIBRARY_PATH=$CONDA_PREFIX/lib/
     pipenv install --python $CONDA_PREFIX/bin/python
     #or just
     LD_LIBRARY_PATH=$CONDA_PREFIX/lib/ pipenv install --python $CONDA_PREFIX/bin/python
-
-Now you can check to see if all the libraries have been installed
-
+    
+Finally, double-check that the libraries have been installed.
+    
     pipenv graph
 
 ### Syncing/Updating to new dependencies

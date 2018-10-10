@@ -1,5 +1,5 @@
 #!/bin/bash
 source activate deepbedmap
-pip install pipenv==2018.7.1
 export LD_LIBRARY_PATH=$CONDA_PREFIX/lib
 pipenv install --python $CONDA_PREFIX/bin/python
+pipenv graph
