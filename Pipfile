@@ -19,6 +19,7 @@ requests = "==2.19.1"
 scikit-image = "==0.14.1"
 shapely = "==1.7a1"
 tensorflow = "==1.11.0"
+tensorflow-gpu = "==1.11.0"
 tqdm = "==4.26.0"
 
 [dev-packages]
