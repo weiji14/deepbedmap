@@ -6,6 +6,6 @@ dependencies:
   - anaconda::cudnn=7.1.2
   - pip=18.0
   - pdal=1.7.2
-  - python=3.6.6
+  - conda-forge::python=3.6.6
   - pip:
     - pipenv==2018.10.9
