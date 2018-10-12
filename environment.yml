@@ -3,9 +3,9 @@ channels:
   - conda-forge
   - nodefaults
 dependencies:
-  - anaconda::cudnn=7.1.2
-  - pip=18.0
-  - pdal=1.7.2
-  - conda-forge::python=3.6.6
+  - anaconda::cudnn=7.1.2[md5=4a402b88bb77e6ab2dcf3bfe6522f9cf]
+  - pip=18.0[md5=d2e17dfb46ea577f973569128bd1a4d5]
+  - pdal=1.7.2[md5=92efaecd2e21c7a3af7e988b37931277]
+  - conda-forge::python=3.6.6[md5=fe9f54422cdaf8779147b6a02cab2dd1]
   - pip:
     - pipenv==2018.10.9
