@@ -2,4 +2,5 @@
 source activate deepbedmap
 export LD_LIBRARY_PATH=$CONDA_PREFIX/lib
 pipenv install --python $CONDA_PREFIX/bin/python
+rm -r ~/.cache/pipenv
 pipenv graph
