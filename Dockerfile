@@ -1,4 +1,4 @@
-FROM buildpack-deps:bionic@sha256:b1cede2fe7fc26d4e2f59e93e67741d142fb87446d748f0667b1158175e1054f
+FROM buildpack-deps:bionic-scm@sha256:36ed20d054e7a9c42bfc67d66226d444ae48bf3844c94860440c0a1d2c3a4f8c
 LABEL maintainer "https://github.com/weiji14"
 ENV LANG C.UTF-8
 ENV LC_ALL C.UTF-8
@@ -30,22 +30,30 @@ RUN cd /tmp && \
     conda clean -tipsy && \
     rm -rf /home/${NB_USER}/.cache/yarn
 
-# Copy files in repository to $HOME
-COPY . ${HOME}
+# Setup $HOME directory with correct permissions
 USER root
 RUN chown -R ${NB_UID} ${HOME}
 USER ${NB_USER}
-
-# Install dependencies using conda and pipenv
 WORKDIR ${HOME}
+
+# Install dependencies in environment.yml file using conda
+COPY environment.yml ${HOME}
 RUN conda env create -n deepbedmap -f environment.yml && \
     conda clean -tipsy && \
     conda list -n deepbedmap
 
-RUN chmod +x postBuild
-RUN ./postBuild
+# Install dependencies in Pipfile.lock using pipenv
+COPY Pipfile* ${HOME}/
+SHELL ["/bin/bash", "-c"]
+RUN source activate deepbedmap && \
+    export LD_LIBRARY_PATH=$CONDA_PREFIX/lib && \
+    pipenv install --python $CONDA_PREFIX/bin/python && \
+    rm --recursive ~/.cache/pipenv && \
+    pipenv graph
+
+# Copy remaining files to $HOME
+COPY . ${HOME}
 
 # Run Jupyter Lab via pipenv in conda environment
 EXPOSE 8888
-SHELL ["/bin/bash", "-c"]
 CMD source activate deepbedmap && pipenv run jupyter lab --ip 0.0.0.0

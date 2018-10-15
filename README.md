@@ -36,7 +36,6 @@ Also a convenient [flat file](https://en.wikipedia.org/wiki/Flat-file_database) 
     ├── README.md (the markdown file you're reading now)
     ├── data_prep.ipynb (jupyter notebook that prepares the data)
     ├── environment.yml (conda packages to install, used by binder)
-    ├── postBuild (shell script used by binder after environment.yml packages are installed)
     └── srcnn_train.ipynb (jupyter notebook that trains the Super Resolution ConvNet model)
     
 ```
