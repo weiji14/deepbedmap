@@ -7,8 +7,11 @@ Also a convenient [flat file](https://en.wikipedia.org/wiki/Flat-file_database) 
 [![Dependabot Status](https://api.dependabot.com/badges/status?host=github&repo=weiji14/deepbedmap)](https://dependabot.com)
 [![Libraries.io for GitHub](https://img.shields.io/librariesio/github/weiji14/deepbedmap.svg)](https://libraries.io/github/weiji14/deepbedmap)
 
-## Directory structure
+![DeepBedMap Pipeline](https://yuml.me/diagram/scruffy;dir:LR/class/[Data|Highres/Lowres/Misc]->[Preprocessing|data_prep.ipynb],[Preprocessing]->[Model-Training|srgan_train.ipynb])
 
+<details>
+<summary>Directory structure</summary>
+  
 ```
   deepbedmap/
     ├── highres/ (contains high resolution localized DEMs)
@@ -37,8 +40,8 @@ Also a convenient [flat file](https://en.wikipedia.org/wiki/Flat-file_database) 
     ├── data_prep.ipynb (jupyter notebook that prepares the data)
     ├── environment.yml (conda packages to install, used by binder)
     └── srgan_train.ipynb (jupyter notebook that trains the Super Resolution Generative Adversarial Network model)
-    
 ```
+</details>
 
 # Getting started
 
@@ -50,7 +53,7 @@ Launch Binder (Interactive jupyter notebook/lab environment in the cloud).
 
 ## Installation
 
-![Installation steps](http://yuml.me/diagram/scruffy/class/[Git|clone-repo]->[Conda|install-binaries-and-pipenv],[Conda]->[Pipenv|install-python-libs])
+![Installation steps](https://yuml.me/diagram/scruffy/class/[Git|clone-repo]->[Conda|install-binaries-and-pipenv],[Conda]->[Pipenv|install-python-libs])
 
 Start by cloning this [repo-url](/../../)
 
