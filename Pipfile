@@ -23,6 +23,8 @@ toolz = "==0.9.0"
 tqdm = "==4.27.0"
 
 [dev-packages]
+nbval = "==0.9.1"
+pytest = "==3.9.1"
 
 [requires]
 python_version = "3.6"
