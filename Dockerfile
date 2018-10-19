@@ -28,13 +28,19 @@ RUN cd /tmp && \
     $CONDA_DIR/bin/conda config --system --set auto_update_conda false && \
     $CONDA_DIR/bin/conda config --system --set show_channel_urls true && \
     conda clean -tipsy && \
-    rm -rf /home/${NB_USER}/.cache/yarn
+    rm -rf /home/${NB_USER}/.cache/yarn && \
+    ln -s $CONDA_DIR/etc/profile.d/conda.sh /etc/profile.d/conda.sh && \
+    echo ". $CONDA_DIR/etc/profile.d/conda.sh" >> ~/.bashrc && \
+    echo "conda activate" >> ~/.bashrc
 
 # Setup $HOME directory with correct permissions
 USER root
 RUN chown -R ${NB_UID} ${HOME}
 USER ${NB_USER}
 WORKDIR ${HOME}
+
+# Change to bash shell
+SHELL ["/bin/bash", "-c"]
 
 # Install dependencies in environment.yml file using conda
 COPY environment.yml ${HOME}
@@ -44,7 +50,6 @@ RUN conda env create -n deepbedmap -f environment.yml && \
 
 # Install dependencies in Pipfile.lock using pipenv
 COPY Pipfile* ${HOME}/
-SHELL ["/bin/bash", "-c"]
 RUN source activate deepbedmap && \
     export LD_LIBRARY_PATH=$CONDA_PREFIX/lib && \
     pipenv install --python $CONDA_PREFIX/bin/python && \
