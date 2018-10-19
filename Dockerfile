@@ -52,7 +52,7 @@ RUN source activate deepbedmap && \
     pipenv graph
 
 # Copy remaining files to $HOME
-COPY . ${HOME}
+COPY --chown=1000:1000 . ${HOME}
 
 # Run Jupyter Lab via pipenv in conda environment
 EXPOSE 8888
