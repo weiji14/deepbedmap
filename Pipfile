@@ -24,7 +24,7 @@ tqdm = "==4.28.1"
 
 [dev-packages]
 nbval = "==0.9.1"
-pytest = "==3.9.1"
+pytest = "==3.9.2"
 
 [requires]
 python_version = "3.6"
