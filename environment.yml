@@ -5,6 +5,7 @@ channels:
 dependencies:
   - defaults::cudnn=7.1.2[md5=4a402b88bb77e6ab2dcf3bfe6522f9cf]
   - hcc::cuda_driver=390.46[md5=8fb0b6c39a9bf6128b1191db53ed903e]
+  - defaults::cudatoolkit=9.0[md5=5d0febed868b80a18e74077d5d0f17bc]
   - pip=18.1[md5=d68c7e5109ba0bf4b1cfe60f0f47870a]
   - pdal=1.7.2[md5=92efaecd2e21c7a3af7e988b37931277]
   - conda-forge::python=3.6.6[md5=fe9f54422cdaf8779147b6a02cab2dd1]
