@@ -1,4 +1,16 @@
 template: |
   ## What's Changed
-
+  
+  ### :building_construction: Model Improvements
+  
+  * 
+  
+  ### :card_file_box: Dataset Changes
+  
+  * 
+  
+  ### :package: Software Revisions
+  
   $CHANGES
+  
+  Full list of commits made since last release viewable at [compare view](https://github.com/weiji14/deepbedmap/compare/v0.2.0...v0.3.0).
