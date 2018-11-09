@@ -1,12 +1,7 @@
-# Low Resolution Antarctic DEM
+# Low Resolution Antarctic datasets
 
-| Filename           | Name                    | Resolution | Literature Citation | Data Citation/Link |
-|:-------------------|:----------------------- | ----------:|:-------------------:|:------------------:|
-| bedmap2_bed.tif    | BEDMAP2                 |      1000m | [Fretwell2013]      |  [BAS] [PGC]       |
+Note: This file was automatically generated from [data_list.yml](/data_list.yml) using [data_prep.ipynb](/data_prep.ipynb)
 
-
-
-[BAS]: https://secure.antarctica.ac.uk/data/bedmap2/
-[PGC]: https://data.pgc.umn.edu/elev/dem/bedmap2/
-
-[Fretwell2013]: https://doi.org/10.5194/tc-7-375-2013
+Filename|Location|Resolution|Literature Citation|Data Citation
+---|---|---|---|---
+bedmap2_bed.tif|Antarctica|1000m|[Fretwell2013BEDMAP2](https://doi.org/10.5194/tc-7-375-2013)|[DOI](https://doi.org/10.7488/ds/1916)
