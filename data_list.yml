@@ -1,0 +1,154 @@
+- 
+  citekey: Fretwell2013BEDMAP2
+  folder: lowres
+  location: Antarctica
+  resolution: 1000m
+  doi: 
+    dataset: "https://doi.org/10.7488/ds/1916"
+    literature: "https://doi.org/10.5194/tc-7-375-2013"
+  files: 
+    - 
+      filename: bedmap2_bed.tif
+      url: "http://data.pgc.umn.edu/elev/dem/bedmap2/bedmap2_bed.tif"
+      sha256: 28e2ca7656d61b0bc7f8f8c1db41914023e0cab1634e0ee645f38a87d894b416
+- 
+  citekey: Noh2018REMA
+  folder: misc
+  location: Antarctica
+  resolution: 200m
+  doi: 
+    dataset: "https://doi.org/10.7910/DVN/SAIK8B"
+    literature: "https://doi.org/10.1016/j.isprsjprs.2017.12.008"
+  files: 
+    - 
+      filename: REMA_200m_dem_filled.tif
+      url: "http://data.pgc.umn.edu/elev/dem/setsm/REMA/mosaic/v1.0/200m/REMA_200m_dem_filled.tif"
+      sha256: 8ac252e40810ac5e59934879a066f496c847936771f318dab2ab4a257052d964
+- 
+  citekey: Rignot2011MEASURES
+  folder: misc
+  location: Antarctica
+  resolution: 450m
+  doi: 
+    dataset: "https://doi.org/10.5067/D7GK8F5J8M8R"
+    literature: "https://doi.org/10.1126/science.1208336"
+  files: 
+    - 
+      filename: MEaSUREs_IceFlowSpeed_450m.tif
+      url: "http://data.pgc.umn.edu/gis/packages/quantarctica/Quantarctica3/Glaciology/MEaSUREs%20Ice%20Flow%20Velocity/MEaSUREs_IceFlowSpeed_450m.tif"
+      sha256: 4a4efc3a84204c3d67887e8d7fa1186467b51e696451f2832ebbea3ca491c8a8
+- 
+  citekey: King2016Rutford
+  folder: highres
+  location: Rutford Ice Stream
+  resolution: nan
+  doi: 
+    dataset: "https://doi.org/10.5285/54757cbe-0b13-4385-8b31-4dfaa1dab55e"
+    literature: "https://doi.org/10.5194/essd-8-151-2016"
+  files: 
+    - 
+      filename: bed_WGS84_grid.txt
+      url: "http://ramadda.nerc-bas.ac.uk/repository/entry/get/Polar%20Data%20Centre/DOI/Rutford%20Ice%20Stream%20bed%20elevation%20DEM%20from%20radar%20data/bed_WGS84_grid.txt?entryid=synth%3A54757cbe-0b13-4385-8b31-4dfaa1dab55e%3AL2JlZF9XR1M4NF9ncmlkLnR4dA%3D%3D"
+      sha256: 0d3e98ca727fc1201b436170af5a63f23348aaf146a3ac6234f6c4da283e8b34
+- 
+  citekey: Bingham2018PIG
+  folder: highres
+  location: Pine Island Glacier
+  resolution: nan
+  doi: 
+    dataset: nan
+    literature: "https://doi.org/10.1038/s41467-017-01597-y"
+  files: 
+    - 
+      filename: 2007t1.txt
+      url: nan
+      sha256: 04bdbd3c8e814cbc8f0d324277e339a46cc90a8dc23434d11815a8966951e766
+    - 
+      filename: 2007tr.txt
+      url: nan
+      sha256: 3858a1e58e17b2816920e1b309534cee0391f72a6a0aa68d57777b030e70e9a3
+    - 
+      filename: 2010tr.txt
+      url: nan
+      sha256: 751ea56acc5271b3fb54893ed59e05ff485187a6fc5daaedf75946d730805b80
+    - 
+      filename: istar08.txt
+      url: nan
+      sha256: ed03c64332e8d406371c74a66f3cd21fb3f78ee498ae8408c355879bb89eb13d
+    - 
+      filename: istar18.txt
+      url: nan
+      sha256: 3e69d86f28e26810d29b0b9309090684dcb295c0dd39007fe9ee0d1285c57804
+    - 
+      filename: istar15.txt
+      url: nan
+      sha256: 59c981e8c96f73f3a5bd98be6570e101848b4f67a12d98a577292e7bcf776b17
+    - 
+      filename: istar13.txt
+      url: nan
+      sha256: f5bcf80c7ea5095e2eabf72b69a264bf36ed56af5cb67976f9428f560e5702a2
+    - 
+      filename: istar17.txt
+      url: nan
+      sha256: f51a674dc27d6e0b99d199949a706ecf96ea807883c1901fea186efc799a36e8
+    - 
+      filename: istar07.txt
+      url: nan
+      sha256: c81ec04290433f598ce4368e4aae088adeeabb546913edc44c54a5a5d7593e93
+- 
+  citekey: Shi2010CRESIS
+  folder: highres
+  location: Antarctica
+  resolution: nan
+  doi: 
+    dataset: "https://doi.org/10.5067/GDQ0CUCVTE2Q"
+    literature: "https://doi.org/10.1109/IGARSS.2010.5649518"
+  files: 
+    - 
+      filename: 2009_Antarctica_DC8.csv
+      url: "https://data.cresis.ku.edu/data/rds/2009_Antarctica_DC8/csv_good/2009_Antarctica_DC8.csv"
+      sha256: 1b9fe0faf4ef217794c2a1de9ef8cfa45f5949efdc4e925930d31c0554cf0ca2
+    - 
+      filename: 2009_Antarctica_TO.csv
+      url: "https://data.cresis.ku.edu/data/rds/2009_Antarctica_TO/csv_good/2009_Antarctica_TO.csv"
+      sha256: 7a90c5955fa881b4fb88e45ff11629e60ff9ad045c07bf4c6e3aa1f7d1a9361d
+    - 
+      filename: 2009_Antarctica_TO_Gambit.csv
+      url: "https://data.cresis.ku.edu/data/rds/2009_Antarctica_TO_Gambit/csv_good/2009_Antarctica_TO_Gambit.csv"
+      sha256: 93da613223733a4850283b700060afdb14f1002fe5613b8d78c6d3be83e34072
+    - 
+      filename: 2010_Antarctica_DC8.csv
+      url: "https://data.cresis.ku.edu/data/rds/2010_Antarctica_DC8/csv_good/2010_Antarctica_DC8.csv"
+      sha256: f725a8dbc21d31601b99ccaf9f5282ecd516f2ff966d268b4e735ea1af2014e6
+    - 
+      filename: 2011_Antarctica_DC8.csv
+      url: "https://data.cresis.ku.edu/data/rds/2011_Antarctica_DC8/csv_good/2011_Antarctica_DC8.csv"
+      sha256: 38aba2a39b0d58b72827f25cfcd667fc943f25c0024d3c52cb1b9e65e9e76163
+    - 
+      filename: 2011_Antarctica_TO.csv
+      url: "https://data.cresis.ku.edu/data/rds/2011_Antarctica_TO/csv_good/2011_Antarctica_TO.csv"
+      sha256: 4bf37750b9986ce582c9fd1f3a6ac622fc17f3b3ecb07b7a7132eb3797ee31d1
+    - 
+      filename: 2012_Antarctica_DC8.csv
+      url: "https://data.cresis.ku.edu/data/rds/2012_Antarctica_DC8/csv_good/2012_Antarctica_DC8.csv"
+      sha256: 5c6701b8c34bd57517b93e8e18f32e4579d6e2f56e4796bd7140b3e338544007
+    - 
+      filename: 2013_Antarctica_Basler.csv
+      url: "https://data.cresis.ku.edu/data/rds/2013_Antarctica_Basler/csv_good/2013_Antarctica_Basler.csv"
+      sha256: 56609027b4af04ba078ae093772916341bd1d6ab5f110de11b21294507733cc8
+    - 
+      filename: 2013_Antarctica_P3.csv
+      url: "https://data.cresis.ku.edu/data/rds/2013_Antarctica_P3/csv_good/2013_Antarctica_P3.csv"
+      sha256: 9de95030f49ce0bbf107eb72418db2845c39822872a6c9aa10f023148262f658
+    - 
+      filename: 2014_Antarctica_DC8.csv
+      url: "https://data.cresis.ku.edu/data/rds/2014_Antarctica_DC8/csv_good/2014_Antarctica_DC8.csv"
+      sha256: bd8c8674ba66508c64303725bfe45b3365467d01f69cfa8ec4258a3ced05e5bf
+    - 
+      filename: 2016_Antarctica_DC8.csv
+      url: "https://data.cresis.ku.edu/data/rds/2016_Antarctica_DC8/csv_good/2016_Antarctica_DC8.csv"
+      sha256: ec3b514dfcae265f5b8643eeb3503be8a0a6531e563faf9f12cb67f2b618a741
+    - 
+      filename: 2017_Antarctica_P3.csv
+      url: "https://data.cresis.ku.edu/data/rds/2017_Antarctica_P3/csv_good/2017_Antarctica_P3.csv"
+      sha256: 9208a64fefe2f4a6e7f08d44c0af0c35400cd814590c32b8eb02f1545bfc8bec
