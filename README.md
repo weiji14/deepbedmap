@@ -14,6 +14,9 @@ Also a convenient [flat file](https://en.wikipedia.org/wiki/Flat-file_database) 
   
 ```
   deepbedmap/
+    ├── features/ (files describing the high level behaviour of various features)
+    │    ├── *.feature... (easily understandable specifications written using the Given-When-Then gherkin language)
+    │    └── README.md (markdown information on the feature files)
     ├── highres/ (contains high resolution localized DEMs)
     │    ├── *.grd/las/txt/csv... (input vector file containing the point-based data)
     │    ├── *.json (the pdal pipeline file)
