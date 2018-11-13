@@ -52,7 +52,7 @@ RUN conda env create -n deepbedmap -f environment.yml && \
 COPY Pipfile* ${HOME}/
 RUN source activate deepbedmap && \
     export LD_LIBRARY_PATH=$CONDA_PREFIX/lib && \
-    pipenv install --python $CONDA_PREFIX/bin/python && \
+    pipenv install --python $CONDA_PREFIX/bin/python --dev && \
     rm --recursive ~/.cache/pipenv && \
     pipenv graph
 
