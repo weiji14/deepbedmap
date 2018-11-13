@@ -4,6 +4,7 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
+behave = "==1.2.6"
 cython = "==0.29"
 ipython = "==7.1.1"
 jupyterlab = "==0.35.4"
