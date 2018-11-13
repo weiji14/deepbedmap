@@ -3,7 +3,7 @@
 Going beyond BEDMAP2 using a super resolution deep neural network.
 Also a convenient [flat file](https://en.wikipedia.org/wiki/Flat-file_database) data repository for high resolution bed elevation datasets around Antarctica.
 
-[![Codefresh build status](https://g.codefresh.io/api/badges/pipeline/weiji14/weiji14%2Fdeepbedmap%2Fdeepbedmap?branch=master&type=cf-1)](https://g.codefresh.io/repositories/weiji14/deepbedmap/builds?filter=trigger:build;branch:master;service:5ba0a56ad135d41499359a13~deepbedmap)
+[![Codefresh build status](https://g.codefresh.io/api/badges/pipeline/weiji14_marketplace/weiji14%2Fdeepbedmap%2Fdeepbedmap?type=cf-1)](https://g.codefresh.io/public/accounts/weiji14_marketplace/pipelines/weiji14/deepbedmap/deepbedmap)
 [![Dependabot Status](https://api.dependabot.com/badges/status?host=github&repo=weiji14/deepbedmap)](https://dependabot.com)
 [![Libraries.io for GitHub](https://img.shields.io/librariesio/github/weiji14/deepbedmap.svg)](https://libraries.io/github/weiji14/deepbedmap)
 
