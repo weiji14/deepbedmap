@@ -13,6 +13,7 @@ matplotlib = "==3.0.2"
 numpy = "==1.14.5"
 packaging = "==18.0"
 pandas = "==0.23.4"
+pdal = {editable = true, ref = "abi_fix", git = "https://github.com/weiji14/pdal-python.git"}
 quilt = "==2.9.12"
 rasterio = "==1.0.9"
 requests = "==2.20.1"

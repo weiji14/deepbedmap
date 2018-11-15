@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "e93f292e7815f0044587e87091cdf3be82516f04668362b69a807653f9361d0b"
+            "sha256": "c9c10722dfa7df04e17f60b731e5d39b53679175a22b15a3275d528f5374d9ba"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -577,6 +577,11 @@
                 "sha256:895c63e93b94ac1e1690f5fdd40b65f07c8171e3e53cbd7793b5b96c0e0a7f24"
             ],
             "version": "==0.3.1"
+        },
+        "pdal": {
+            "editable": true,
+            "git": "https://github.com/weiji14/pdal-python.git",
+            "ref": "b00fa5ffb74fe67db41ab43319507aad10c80d85"
         },
         "pexpect": {
             "hashes": [
