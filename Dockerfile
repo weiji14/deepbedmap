@@ -1,4 +1,4 @@
-FROM buildpack-deps:bionic-scm@sha256:f37982278d0dfd71d282ee551a927a44294876d07b98ea9c001087282e482817
+FROM buildpack-deps:bionic@sha256:b3514c949630fd6accaac959387e66dc42fc32894c5ef9f275b267e5d1c971d4
 LABEL maintainer "https://github.com/weiji14"
 ENV LANG C.UTF-8
 ENV LC_ALL C.UTF-8
@@ -24,6 +24,7 @@ RUN cd /tmp && \
     echo "e1045ee415162f944b6aebfe560b8fee *Miniconda3-${MINICONDA_VERSION}-Linux-x86_64.sh" | md5sum -c - && \
     /bin/bash Miniconda3-${MINICONDA_VERSION}-Linux-x86_64.sh -f -b -p $CONDA_DIR && \
     rm Miniconda3-${MINICONDA_VERSION}-Linux-x86_64.sh && \
+    $CONDA_DIR/bin/conda config --prepend channels conda-forge/label/dev && \
     $CONDA_DIR/bin/conda config --system --prepend channels conda-forge && \
     $CONDA_DIR/bin/conda config --system --set auto_update_conda false && \
     $CONDA_DIR/bin/conda config --system --set show_channel_urls true && \
