@@ -1,0 +1,12 @@
+{
+    "pipeline":[
+        {
+          "type":"readers.text",
+          "filename":"2007t?.txt",
+          "separator":"\t",
+          "skip":1,
+          "header":"x\ty\tz_surf\ttime\th\th_fc\tz\tz_fc",
+          "usecols":"x\ty\tz_fc"
+        }
+    ]
+}

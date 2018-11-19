@@ -5,27 +5,15 @@
           "filename":"20??_Antarctica_DC8.csv",
           "separator":",",
           "skip":1,
-          "header":"Y,X,TIME,THICK,ELEVATION,FRAME,SURFACE,BOTTOM,QUALITY"
-        },
-        {
-          "type":"filters.python",
-          "script":"custom_filters.py",
-          "function":"bottom_minus_surface_elevation",
-          "module":"anything"
+          "header":"Y,X,TIME,THICK,ELEVATION,FRAME,SURFACE,BOTTOM,QUALITY",
+          "usecols":"X,Y,ELEVATION,BOTTOM",
+          "converters": {"Z": "ELEVATION-BOTTOM"},
+          "dropcols":"ELEVATION,BOTTOM"
         },
         {
           "type":"filters.reprojection",
           "in_srs":"EPSG:4326",
           "out_srs":"EPSG:3031"
-        },
-        {
-          "type":"writers.gdal",
-          "filename":"20xx_Antarctica_DC8.tif",
-          "resolution": 250,
-          "data_type": "float",
-          "dimension": "BOTTOM",
-          "output_type": "idw",
-          "window_size": 2
         }
     ]
 }

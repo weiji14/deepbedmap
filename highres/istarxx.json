@@ -5,16 +5,8 @@
           "filename":"istar??.txt",
           "separator":"\t",
           "skip":1,
-          "header":"x\ty\tz_surf\ttime\th\th_fc\tz_bed\tz_bed_fc"
-        },
-        {
-          "type":"writers.gdal",
-          "filename":"istarxx.tif",
-          "resolution": 250,
-          "data_type": "float",
-          "dimension": "z_bed_fc",
-          "output_type": "idw",
-          "window_size": 0
+          "header":"x\ty\tz_surf\ttime\th\th_fc\tz_bed\tz_bed_fc",
+          "usecols":"x\ty\tz_bed_fc"
         }
     ]
 }

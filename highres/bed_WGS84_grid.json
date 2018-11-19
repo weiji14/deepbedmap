@@ -5,15 +5,8 @@
           "filename":"bed_WGS84_grid.txt",
           "separator":"\t",
           "skip":20,
-          "header":"x\ty\tz\tcolumn\trow"
-        },
-        {
-          "type":"writers.gdal",
-          "filename":"bed_WGS84_grid.tif",
-          "resolution": 250,
-          "data_type": "float",
-          "output_type": "idw",
-          "window_size": 0
+          "header":"x\ty\tz\tcolumn\trow",
+          "usecols":"x\ty\tz"
         }
     ]
 }
