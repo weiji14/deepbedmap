@@ -152,3 +152,7 @@
       filename: 2017_Antarctica_P3.csv
       url: "https://data.cresis.ku.edu/data/rds/2017_Antarctica_P3/csv_good/2017_Antarctica_P3.csv"
       sha256: 9208a64fefe2f4a6e7f08d44c0af0c35400cd814590c32b8eb02f1545bfc8bec
+    -
+      filename: 2017_Antarctica_Basler.csv
+      url: "https://data.cresis.ku.edu/data/rds/2017_Antarctica_P3/csv_good/2017_Antarctica_Basler.csv"
+      sha256: 7260b41d1abd8c2240f5b5ed0c7cff71dc40a656ecbb0fad56d2ac8e252aa923
