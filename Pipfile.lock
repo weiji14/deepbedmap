@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "9e11b37d59d124baccca3a4e2f9800f58aabb695f6852cfccd11c82e93a8a700"
+            "sha256": "37046967ee65a975af5fa1fabbc739cc42ac44ed29e2e5548714441b6533521f"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -546,10 +546,10 @@
         },
         "notebook": {
             "hashes": [
-                "sha256:b85e4de3d54cf4f14fe1d0515a980ccb49ddd4cdd21250cc0d4fb6374d50b1a7",
-                "sha256:ddb713d15a3205d7d3beab11f7fa9e3b10dbe0a2fff034a7db22ec8a2bc47a8b"
+                "sha256:661341909008d1e7bfa1541904006f9789fa3de1cbec8379d2879819454cc04b",
+                "sha256:91705b109fc785198faed892489cddb233265564d5e2dad5e4f7974af05ee8dd"
             ],
-            "version": "==5.7.0"
+            "version": "==5.7.2"
         },
         "numpy": {
             "hashes": [
@@ -756,11 +756,18 @@
             ],
             "version": "==2.3.0"
         },
+        "pyproj": {
+            "hashes": [
+                "sha256:53fa54c8fa8a1dfcd6af4bf09ce1aae5d4d949da63b90570ac5ec849efaf3ea8"
+            ],
+            "index": "pypi",
+            "version": "==1.9.5.1"
+        },
         "pyrsistent": {
             "hashes": [
-                "sha256:f64dd1b706c31f7aa24495a7da58c0407c072981289b675331e2a16364355102"
+                "sha256:5a31f6b093da3401fefdeb53a0980e3145bb9d2bf852b579cc7b39c7f0016c87"
             ],
-            "version": "==0.14.5"
+            "version": "==0.14.6"
         },
         "python-dateutil": {
             "hashes": [
@@ -1102,11 +1109,11 @@
         },
         "wheel": {
             "hashes": [
-                "sha256:196c9842d79262bb66fcf59faa4bd0deb27da911dbc7c6cdca931080eb1f0783",
-                "sha256:c93e2d711f5f9841e17f53b0e6c0ff85593f3b416b6eec7a9452041a59a42688"
+                "sha256:029703bf514e16c8271c3821806a1c171220cc5bdd325cbf4e7da1e056a01db6",
+                "sha256:1e53cdb3f808d5ccd0df57f964263752aa74ea7359526d3da6c02114ec1e1d44"
             ],
             "markers": "python_version >= '3'",
-            "version": "==0.32.2"
+            "version": "==0.32.3"
         },
         "xarray": {
             "hashes": [
@@ -1339,9 +1346,9 @@
         },
         "pyrsistent": {
             "hashes": [
-                "sha256:f64dd1b706c31f7aa24495a7da58c0407c072981289b675331e2a16364355102"
+                "sha256:5a31f6b093da3401fefdeb53a0980e3145bb9d2bf852b579cc7b39c7f0016c87"
             ],
-            "version": "==0.14.5"
+            "version": "==0.14.6"
         },
         "pytest": {
             "hashes": [
