@@ -5,12 +5,13 @@ name = "pypi"
 
 [packages]
 cython = "==0.29"
-gmt = {editable = true, ref = "0.1a3-126-g4617492", git = "https://github.com/GenericMappingTools/gmt-python.git"}
+gmt = {editable = true, ref = "0.1a3-131-g9772fa3", git = "https://github.com/weiji14/gmt-python.git"}
 ipython = "==7.1.1"
 jupyterlab = "==0.35.4"
 keras = "==2.2.4"
 livelossplot = "==0.2.0"
 matplotlib = "==3.0.2"
+netcdf4 = "==1.4.1"
 numpy = "==1.14.5"
 packaging = "==18.0"
 pandas = "==0.23.4"
