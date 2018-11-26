@@ -1,5 +1,4 @@
 linters:
-  flake8:
-    fixer: true
-fixers:
-  enable: true
+  black:
+    py36: true
+    fixer: false
