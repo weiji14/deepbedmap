@@ -1,6 +1,7 @@
 # ---
 # jupyter:
 #   jupytext:
+#     formats: ipynb,py:percent
 #     text_representation:
 #       extension: .py
 #       format_name: percent
@@ -46,21 +47,21 @@ import shapely.geometry
 import skimage.util.shape
 import xarray as xr
 
-print('Python       :', sys.version.split('\n')[0])
-print('GMT          :', gmt.__version__)
-print('Numpy        :', np.__version__)
-print('Rasterio     :', rasterio.__version__)
-print('Scikit-image :', skimage.__version__)
-print('Xarray       :', xr.__version__)
+print("Python       :", sys.version.split("\n")[0])
+print("GMT          :", gmt.__version__)
+print("Numpy        :", np.__version__)
+print("Rasterio     :", rasterio.__version__)
+print("Scikit-image :", skimage.__version__)
+print("Xarray       :", xr.__version__)
 
 # %% [markdown]
 # ## 1. Get Data!
 
 # %%
-def download_to_path(path:str, url:str):
+def download_to_path(path: str, url: str):
     r"""
     Download from a url to a path
-    
+
     >>> download_to_path(path="highres/Data_20171204_02.csv",
     ...                  url="https://data.cresis.ku.edu/data/rds/2017_Antarctica_Basler/csv_good/Data_20171204_02.csv")
     <Response [200]>
@@ -68,18 +69,19 @@ def download_to_path(path:str, url:str):
     ['LAT,LON,UTCTIMESOD,THICK,ELEVATION,FRAME,SURFACE,BOTTOM,QUALITY\n']
     >>> os.remove(path="highres/Data_20171204_02.csv")
     """
-    #if not os.path.exists(path=path):
+    # if not os.path.exists(path=path):
     r = requests.get(url=url, stream=True)
-    with open(file=path, mode='wb') as fd:
+    with open(file=path, mode="wb") as fd:
         for chunk in r.iter_content(chunk_size=1024):
             fd.write(chunk)
     return r
+
 
 # %%
 def check_sha256(path: str):
     """
     Returns SHA256 checksum of a file
-    
+
     >>> download_to_path(path="highres/Data_20171204_02.csv",
     ...                  url="https://data.cresis.ku.edu/data/rds/2017_Antarctica_Basler/csv_good/Data_20171204_02.csv")
     <Response [200]>
@@ -91,6 +93,7 @@ def check_sha256(path: str):
         sha = hashlib.sha256(afile.read())
 
     return sha.hexdigest()
+
 
 # %% [markdown]
 # ## Parse [data_list.yml](/data_list.yml)
@@ -120,6 +123,7 @@ def parse_datalist(
 
     return datalist
 
+
 # %%
 # Pretty print table with nice column order and clickable url links
 pprint_table = (
@@ -132,58 +136,66 @@ dataframe = parse_datalist()
 # %%
 # Code to autogenerate README.md files in highres/lowres/misc folders from data_list.yml
 columns = ["Filename", "Location", "Resolution", "Literature Citation", "Data Citation"]
-for folder, md_header in [("lowres", "Low Resolution"),
-                          ("highres", "High Resolution"),
-                          ("misc", "Miscellaneous")]:
-    assert(folder in pd.unique(dataframe["folder"]))
+for folder, md_header in [
+    ("lowres", "Low Resolution"),
+    ("highres", "High Resolution"),
+    ("misc", "Miscellaneous"),
+]:
+    assert folder in pd.unique(dataframe["folder"])
     md_name = f"{folder}/README.md"
-    
+
     with open(file=md_name, mode="w") as md_file:
         md_file.write(f"# {md_header} Antarctic datasets\n\n")
         md_file.write("Note: This file was automatically generated from ")
         md_file.write("[data_list.yml](/data_list.yml) using ")
         md_file.write("[data_prep.ipynb](/data_prep.ipynb)\n\n")
-        
+
     md_table = pd.DataFrame(columns=columns)
-    md_table.loc[0] = ['---','---','---','---','---']
-    
+    md_table.loc[0] = ["---", "---", "---", "---", "---"]
+
     keydf = dataframe.groupby("citekey").aggregate(lambda x: set(x).pop())
     for row in keydf.loc[keydf["folder"] == folder].itertuples():
         filecount = len(dataframe[dataframe["citekey"] == row.Index])
         extension = os.path.splitext(row.filename)[-1]
-        row_dict = {"Filename": row.filename if filecount == 1 else f"{filecount} *{extension} files",
-                    "Location": row.location,
-                    "Resolution": row.resolution,
-                    "Literature Citation": f"[{row.Index}]({row.doi_literature})",
-                    "Data Citation": f"[DOI]({row.doi_dataset})" if row.doi_dataset!='nan' else None}
+        row_dict = {
+            "Filename": row.filename
+            if filecount == 1
+            else f"{filecount} *{extension} files",
+            "Location": row.location,
+            "Resolution": row.resolution,
+            "Literature Citation": f"[{row.Index}]({row.doi_literature})",
+            "Data Citation": f"[DOI]({row.doi_dataset})"
+            if row.doi_dataset != "nan"
+            else None,
+        }
         md_table = md_table.append(other=row_dict, ignore_index=True)
-    
-    md_table.to_csv(path_or_buf=md_name, mode='a', sep="|", index=False)
+
+    md_table.to_csv(path_or_buf=md_name, mode="a", sep="|", index=False)
 
 # %% [markdown]
 # ### Download Low Resolution bed elevation data (e.g. [BEDMAP2](https://doi.org/10.5194/tc-7-375-2013))
 
 # %%
 for dataset in dataframe.loc[dataframe["folder"] == "lowres"].itertuples():
-    path = f"{dataset.folder}/{dataset.filename}" #path to download the file to
+    path = f"{dataset.folder}/{dataset.filename}"  # path to download the file to
     if not os.path.exists(path=path):
         download_to_path(path=path, url=dataset.url)
-    assert(check_sha256(path=path) == dataset.sha256)
+    assert check_sha256(path=path) == dataset.sha256
 pprint_table(dataframe, "lowres")
 
 # %%
 with rasterio.open("lowres/bedmap2_bed.tif") as raster_source:
-    rasterio.plot.show(source=raster_source, cmap='BrBG_r')
+    rasterio.plot.show(source=raster_source, cmap="BrBG_r")
 
 # %% [markdown]
 # ### Download miscellaneous data (e.g. [REMA](https://doi.org/10.7910/DVN/SAIK8B), [MEaSUREs Ice Flow](https://doi.org/10.5067/OC7B04ZM9G6Q))
 
 # %%
 for dataset in dataframe.loc[dataframe["folder"] == "misc"].itertuples():
-    path = f"{dataset.folder}/{dataset.filename}" #path to download the file to
+    path = f"{dataset.folder}/{dataset.filename}"  # path to download the file to
     if not os.path.exists(path=path):
         download_to_path(path=path, url=dataset.url)
-    assert(check_sha256(path=path) == dataset.sha256)
+    assert check_sha256(path=path) == dataset.sha256
 pprint_table(dataframe, "misc")
 
 # %% [markdown]
@@ -191,10 +203,10 @@ pprint_table(dataframe, "misc")
 
 # %%
 for dataset in dataframe.loc[dataframe["folder"] == "highres"].itertuples():
-    path = f"{dataset.folder}/{dataset.filename}" #path to download the file to
+    path = f"{dataset.folder}/{dataset.filename}"  # path to download the file to
     if not os.path.exists(path=path):
         download_to_path(path=path, url=dataset.url)
-    assert(check_sha256(path=path) == dataset.sha256)
+    assert check_sha256(path=path) == dataset.sha256
 pprint_table(dataframe, "highres")
 
 # %% [markdown]
@@ -285,10 +297,11 @@ def ascii_to_xyz(pipeline_file: str) -> pd.DataFrame:
 
     return df
 
+
 # %%
 xyz_dict = {}
 for pf in sorted(glob.glob("highres/*.json")):
-    print(f"Processing {pf} pipeline", end=' ... ')
+    print(f"Processing {pf} pipeline", end=" ... ")
     name = os.path.splitext(os.path.basename(pf))[0]
     xyz_dict[name] = ascii_to_xyz(pipeline_file=pf)
     print(f"{len(xyz_dict[name])} datapoints")
@@ -304,7 +317,7 @@ def get_region(xyz_data: pd.DataFrame) -> str:
     Gets the bounding box region of an xyz pandas.DataFrame in string
     format xmin/xmax/ymin/ymax rounded to 5 decimal places.
     Used for the -R 'region of interest' parameter in GMT.
-    
+
     >>> xyz_data = pd.DataFrame(np.random.RandomState(seed=42).rand(30).reshape(10, 3))
     >>> get_region(xyz_data=xyz_data)
     '0.05808/0.83244/0.02058/0.95071'
@@ -312,6 +325,7 @@ def get_region(xyz_data: pd.DataFrame) -> str:
     xmin, ymin, _ = xyz_data.min(axis="rows")
     xmax, ymax, _ = xyz_data.max(axis="rows")
     return f"{xmin:.5f}/{xmax:.5f}/{ymin:.5f}/{ymax:.5f}"
+
 
 # %%
 def xyz_to_grid(
@@ -368,13 +382,16 @@ def xyz_to_grid(
 
     return grid
 
+
 # %%
 grid_dict = {}
 for name in xyz_dict.keys():
-    print(f"Gridding {name}", end=' ... ')
+    print(f"Gridding {name}", end=" ... ")
     xyz_data = xyz_dict[name]
     region = get_region(xyz_data)
-    grid_dict[name] = xyz_to_grid(xyz_data=xyz_data, region=region, outfile=f"highres/{name}.nc")
+    grid_dict[name] = xyz_to_grid(
+        xyz_data=xyz_data, region=region, outfile=f"highres/{name}.nc"
+    )
     print(f"done! {grid_dict[name].to_array().shape}")
 
 # %% [markdown]
@@ -382,11 +399,15 @@ for name in xyz_dict.keys():
 
 # %%
 grids = sorted(glob.glob("highres/*.nc"))
-fig, axarr = plt.subplots(nrows=1+((len(grids)-1)//3), ncols=3, squeeze=False, figsize=(15,15))
+fig, axarr = plt.subplots(
+    nrows=1 + ((len(grids) - 1) // 3), ncols=3, squeeze=False, figsize=(15, 15)
+)
 
 for i, grid in enumerate(grids):
     with rasterio.open(grid) as raster_source:
-        rasterio.plot.show(source=raster_source, cmap='BrBG_r', ax=axarr[i//3,i%3], title=grid)
+        rasterio.plot.show(
+            source=raster_source, cmap="BrBG_r", ax=axarr[i // 3, i % 3], title=grid
+        )
 
 # %% [markdown]
 # ## 3. Tile data
@@ -402,7 +423,7 @@ def get_window_bounds(
     Reads in a raster and finds tiles for them according to a stepped moving window.
     Returns a list of bounding box coordinates corresponding to a tile that looks like
     [(minx, miny, maxx, maxy), (minx, miny, maxx, maxy), ...]
-    
+
     >>> xr.DataArray(
     ...     data=np.zeros(shape=(36, 32)),
     ...     coords={"x": np.arange(1, 37), "y": np.arange(1, 33)},
@@ -455,17 +476,20 @@ def get_window_bounds(
 
     return window_bounds
 
+
 # %%
 filepaths = sorted([g for g in glob.glob("highres/*.nc") if g != "highres/2007tx.nc"])
 window_bounds = [get_window_bounds(filepath=grid) for grid in filepaths]
 window_bounds_concat = np.concatenate([w for w in window_bounds]).tolist()
-print(f'Total number of tiles: {len(window_bounds_concat)}')
+print(f"Total number of tiles: {len(window_bounds_concat)}")
 
 # %% [markdown]
 # ### Show tiles
 
 # %%
-shapely.geometry.MultiPolygon([shapely.geometry.box(*bound) for bound in window_bounds_concat])
+shapely.geometry.MultiPolygon(
+    [shapely.geometry.box(*bound) for bound in window_bounds_concat]
+)
 
 # %% [markdown]
 # ### Tile High Resolution data
@@ -530,8 +554,12 @@ def selective_tile(
 
     return np.stack(arrays=array_list)
 
+
 # %%
-hireses = [selective_tile(filepath=f, window_bounds=w) for f, w in zip(filepaths, window_bounds)]
+hireses = [
+    selective_tile(filepath=f, window_bounds=w)
+    for f, w in zip(filepaths, window_bounds)
+]
 hires = np.concatenate(hireses)
 print(hires.shape, hires.dtype)
 
@@ -539,18 +567,26 @@ print(hires.shape, hires.dtype)
 # ### Tile low resolution data
 
 # %%
-lores = selective_tile(filepath="lowres/bedmap2_bed.tif", window_bounds=window_bounds_concat)
+lores = selective_tile(
+    filepath="lowres/bedmap2_bed.tif", window_bounds=window_bounds_concat
+)
 print(lores.shape, lores.dtype)
 
 # %% [markdown]
 # ### Tile miscellaneous data
 
 # %%
-rema = selective_tile(filepath="misc/REMA_200m_dem_filled.tif", window_bounds=window_bounds_concat)
+rema = selective_tile(
+    filepath="misc/REMA_200m_dem_filled.tif", window_bounds=window_bounds_concat
+)
 print(rema.shape, rema.dtype)
 
 # %%
-measuresiceflow = selective_tile(filepath="misc/MEaSUREs_IceFlowSpeed_450m.tif", window_bounds=window_bounds_concat, out_shape=(16,16))
+measuresiceflow = selective_tile(
+    filepath="misc/MEaSUREs_IceFlowSpeed_450m.tif",
+    window_bounds=window_bounds_concat,
+    out_shape=(16, 16),
+)
 print(measuresiceflow.shape, measuresiceflow.dtype)
 
 # %% [markdown]
@@ -580,10 +616,10 @@ np.save(file="model/train/Y_data.npy", arr=hires)
 quilt.login()
 
 # %%
-quilt.build(package='weiji14/deepbedmap/model/train/W1_data', path=rema)
-quilt.build(package='weiji14/deepbedmap/model/train/W2_data', path=measuresiceflow)
-quilt.build(package='weiji14/deepbedmap/model/train/X_data', path=lores)
-quilt.build(package='weiji14/deepbedmap/model/train/Y_data', path=hires)
+quilt.build(package="weiji14/deepbedmap/model/train/W1_data", path=rema)
+quilt.build(package="weiji14/deepbedmap/model/train/W2_data", path=measuresiceflow)
+quilt.build(package="weiji14/deepbedmap/model/train/X_data", path=lores)
+quilt.build(package="weiji14/deepbedmap/model/train/Y_data", path=hires)
 
 # %%
-quilt.push(package='weiji14/deepbedmap', is_public=True)
+quilt.push(package="weiji14/deepbedmap", is_public=True)
