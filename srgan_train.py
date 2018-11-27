@@ -121,9 +121,9 @@ def generator_network(
 
     Parameters:
       input_shape -- shape of input tensor in tuple format (height, width, channels)
-      num_residual_blocks -- how many 'Conv2D-BatchNorm-PReLU-Conv2D-BatchNorm' blocks to use
+      num_residual_blocks -- how many Conv-BatchNorm-PReLU-Conv-BatchNorm blocks to use
       scaling -- even numbered integer to increase resolution (e.g. 0, 2, 4, 6, 8)
-      output_channels -- an integer representing number of output channels/filters/kernels
+      output_channels -- integer representing number of output channels/filters/kernels
 
     Example:
       An input_shape of (8,8,1) passing through 16 residual blocks with a scaling of 4
@@ -151,7 +151,7 @@ def generator_network(
     assert inp3.shape.ndims == 4  # needs to be shape like (?,16,16,1) for 16x16 grid
 
     # 0 part
-    # Resize inputs to right scale using convolution (hardcoded kernel_size and strides!)
+    # Resize inputs to right scale using convolution (hardcoded kernel_size and strides)
     inp1r = Conv2D(filters=32, kernel_size=(3, 3), strides=(1, 1), padding="same")(inp1)
     inp2r = Conv2D(filters=32, kernel_size=(15, 15), strides=(5, 5), padding="same")(
         inp2
@@ -267,7 +267,7 @@ def discriminator_network(
     X = LeakyReLU(alpha=0.2)(X)
     outp = Dense(units=1, activation="sigmoid", name="discriminator_output")(X)
 
-    # Create neural network with input highres/groundtruth images and output validity 0/1
+    # Create neural network with input highres/groundtruth images, output validity 0/1
     network = keras.engine.network.Network(
         inputs=[inp], outputs=[outp], name="discriminator_network"
     )
@@ -328,7 +328,11 @@ def compile_srgan_model(
     generator and discriminator component.
 
     >>> metrics = {"generator_network": 'mse', "discriminator_network": 'accuracy'}
-    >>> models = compile_srgan_model(g_network=generator_network(), d_network=discriminator_network(), metrics=metrics)
+    >>> models = compile_srgan_model(
+    ...     g_network=generator_network(),
+    ...     d_network=discriminator_network(),
+    ...     metrics=metrics,
+    ... )
     >>> models['discriminator_model'].trainable
     True
     >>> models['srgan_model'].get_layer(name='generator_network').trainable
@@ -363,7 +367,7 @@ def compile_srgan_model(
     g_out = g_network(inputs=g_network.inputs)  # g_in --(g_network)--> g_out
     d_out = d_network(inputs=g_out)  # g_out --(d_network)--> d_out
 
-    # Create and Compile the Super Resolution Generative Adversarial Network (SRGAN) Model!
+    # Create and Compile the Super Resolution Generative Adversarial Network Model!
     model = Model(inputs=g_network.inputs, outputs=[g_out, d_out])
     model.get_layer(
         name="discriminator_network"
@@ -390,9 +394,11 @@ def psnr(y_true: np.ndarray, y_pred: np.ndarray) -> np.ndarray:
     Peak Signal-Noise Ratio (PSNR) metric.
     See https://en.wikipedia.org/wiki/Peak_signal-to-noise_ratio#Definition
 
-    >>> K.eval(psnr(y_true=np.ones(shape=(3,3)), y_pred=np.full(shape=(3,3), fill_value=2)))
+    >>> y_true, y_pred = np.ones(shape=(3, 3)), np.full(shape=(3, 3), fill_value=2)
+    >>> K.eval(psnr(y_true=y_true, y_pred=y_pred))
     array([221.80709678, 221.80709678, 221.80709678])
     """
+
     mse = (
         K.mean(K.square(K.np.subtract(y_pred, y_true)), axis=-1) + K.epsilon()
     )  # add epsilon to prevent zero division
@@ -412,7 +418,7 @@ models["srgan_model"].summary()
 # %% [markdown]
 # ## 3. Train model
 #
-# [Gherkin](https://en.wikipedia.org/wiki/Cucumber_(software)#Gherkin_language)/Plain English statement at what the Super-Resolution Generative Adversarial Network below does
+# [Gherkin](https://en.wikipedia.org/wiki/Gherkin_(language))/Plain English statement at what the Super-Resolution Generative Adversarial Network below does
 #
 # ```gherkin
 #     # language: en
@@ -438,9 +444,10 @@ def train_discriminator(
     models: typing.Dict[str, keras.engine.training.Model],
     generator_inputs: typing.List[np.ndarray],
     groundtruth_images: np.ndarray,
+    verbose: int = 1,
 ) -> (typing.Dict[str, keras.engine.training.Model], list):
     """
-    Trains the Discriminator within a Super Resolution Generative Adversarial Network (SRGAN).
+    Trains the Discriminator within a Super Resolution Generative Adversarial Network.
     Discriminator is trainable, Generator is not trained (only produces predictions).
 
     Steps:
@@ -448,15 +455,24 @@ def train_discriminator(
     - Fake images combined with real groundtruth images
     - Discriminator trained with these images and their Fake(0)/Real(1) labels
 
-    >>> generator_inputs = [np.random.RandomState(seed=42).rand(32,s,s,1) for s in [8,40,16]]
+    >>> generator_inputs = [
+    ...     np.random.RandomState(seed=42).rand(32, s, s, 1) for s in [8, 40, 16]
+    ... ]
     >>> groundtruth_images = np.random.RandomState(seed=42).rand(32,32,32,1)
-    >>> models = compile_srgan_model(g_network=generator_network(), d_network=discriminator_network())
+    >>> models = compile_srgan_model(
+    ...     g_network=generator_network(), d_network=discriminator_network()
+    ... )
 
     >>> d_weight0 = K.eval(models['discriminator_model'].weights[0][0,0,0,0])
-    >>> _, _ = train_discriminator(models=models, generator_inputs=generator_inputs, groundtruth_images=groundtruth_images)
+    >>> _, _ = train_discriminator(
+    ...     models=models,
+    ...     generator_inputs=generator_inputs,
+    ...     groundtruth_images=groundtruth_images,
+    ...     verbose=0,
+    ... )
     >>> d_weight1 = K.eval(models['discriminator_model'].weights[0][0,0,0,0])
 
-    >>> d_weight0 != d_weight1  #check that discriminator training has occurred (i.e. weights changed)
+    >>> d_weight0 != d_weight1  #check that training has occurred (i.e. weights changed)
     True
     """
 
@@ -486,10 +502,10 @@ def train_discriminator(
     images = np.concatenate([fake_images, real_images])
     labels = np.concatenate([fake_labels, real_labels])
     assert d_model.trainable == True
-    d_metrics = d_model.fit(x=images, y=labels, batch_size=32).history
+    d_metrics = d_model.fit(x=images, y=labels, batch_size=32, verbose=verbose).history
 
     # @then("the discriminator should know the fakes from the real images")
-    # assert(d_weight0 != d_weight1)  #check that training has occurred i.e. weights have changed
+    # assert d_weight0 != d_weight1  # check that training occurred i.e. weights changed
 
     return models, [m[0] for m in d_metrics.values()]
 
@@ -499,24 +515,34 @@ def train_generator(
     models: typing.Dict[str, keras.engine.training.Model],
     generator_inputs: typing.List[np.ndarray],
     groundtruth_images: np.ndarray,
+    verbose: int = 1,
 ) -> (typing.Dict[str, keras.engine.training.Model], list):
     """
-    Trains the Generator within a Super Resolution Generative Adversarial Network (SRGAN).
+    Trains the Generator within a Super Resolution Generative Adversarial Network.
     Discriminator is not trainable, Generator is trained.
 
     Steps:
     - Labels of the SRGAN output are set to Real(1)
     - Generator is trained to match these Real(1) labels
 
-    >>> generator_inputs = [np.random.RandomState(seed=42).rand(32,s,s,1) for s in [8,40,16]]
+    >>> generator_inputs = [
+    ...     np.random.RandomState(seed=42).rand(32, s, s, 1) for s in [8, 40, 16]
+    ... ]
     >>> groundtruth_images = np.random.RandomState(seed=42).rand(32,32,32,1)
-    >>> models = compile_srgan_model(g_network=generator_network(), d_network=discriminator_network())
+    >>> models = compile_srgan_model(
+    ...     g_network=generator_network(), d_network=discriminator_network()
+    ... )
 
     >>> g_weight0 = K.eval(models['generator_model'].weights[0][0,0,0,0])
-    >>> _, _ = train_generator(models=models, generator_inputs=generator_inputs, groundtruth_images=groundtruth_images)
+    >>> _, _ = train_generator(
+    ...     models=models,
+    ...     generator_inputs=generator_inputs,
+    ...     groundtruth_images=groundtruth_images,
+    ...     verbose=0,
+    ... )
     >>> g_weight1 = K.eval(models['generator_model'].weights[0][0,0,0,0])
 
-    >>> g_weight0 != g_weight1  #check that generator training has occurred (i.e. weights changed)
+    >>> g_weight0 != g_weight1  #check that training has occurred (i.e. weights changed)
     True
     """
 
@@ -535,10 +561,11 @@ def train_generator(
             "discriminator_network": true_labels,
         },
         batch_size=32,
+        verbose=verbose,
     ).history
 
     # @then("the generator should create a more authentic looking image")
-    # assert(g_weight0 != g_weight1)  #check that training has occurred i.e. weights have changed
+    # assert g_weight0 != g_weight1  # check that training occurred i.e. weights changed
 
     return models, [m[0] for m in g_metrics.values()]
 
@@ -610,6 +637,14 @@ for i in range(5):
             anti_aliasing=True,
             multichannel=False,
         )
+        psnr_bicubic = skimage.measure.compare_psnr(
+            im_true=Y_data[id][:, :, 0].astype(np.int32),
+            im_test=X_cube[:, :, 0].astype(np.int32),
+        )
+        psnr_srgan = skimage.measure.compare_psnr(
+            im_true=Y_data[id][:, :, 0].astype(np.int32),
+            im_test=Y_hat[id][:, :, 0].astype(np.int32),
+        )
 
         fig, axarr = plt.subplots(nrows=1, ncols=5, squeeze=False, figsize=(15, 15))
         axarr[0, 0].imshow(
@@ -622,13 +657,9 @@ for i in range(5):
 
         axarr[0, 0].set_title("BEDMAP2")
         axarr[0, 1].set_title("Bicubic")
-        axarr[0, 1].set_xlabel(
-            f"PSNR: {round(skimage.measure.compare_psnr(im_true=Y_data[id][:,:,0].astype(np.int32), im_test=X_cube[:,:,0].astype(np.int32)), 2)}"
-        )
+        axarr[0, 1].set_xlabel(f"PSNR: {psnr_bicubic:.2f}")
         axarr[0, 2].set_title("REMA")
-        axarr[0, 3].set_xlabel(
-            f"PSNR: {round(skimage.measure.compare_psnr(im_true=Y_data[id][:,:,0].astype(np.int32), im_test=Y_hat[id][:,:,0].astype(np.int32)),2)}"
-        )
+        axarr[0, 3].set_xlabel(f"PSNR: {psnr_srgan:.2f}")
         axarr[0, 3].set_title("SRGAN")
         axarr[0, 4].set_title("Groundtruth")
 
