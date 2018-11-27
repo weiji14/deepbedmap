@@ -74,7 +74,7 @@ K.tf.set_random_seed(seed=seed)
 # ## 1. Load data
 
 # %%
-hash = "4ec1f0a8f1b6bb0ad3f01243393aa807a7921531f5363d926b8fdd583c891f71"
+hash = "106bee100a2af5312c485a24259a70860aeac9143ac86b472a9ebb9f788fc8fc"
 quilt.install(package="weiji14/deepbedmap/model/train", hash=hash, force=False)
 pkg = quilt.load(pkginfo="weiji14/deepbedmap", hash=hash)
 
@@ -486,12 +486,12 @@ def train_discriminator(
     images = np.concatenate([fake_images, real_images])
     labels = np.concatenate([fake_labels, real_labels])
     assert d_model.trainable == True
-    d_metrics = d_model.train_on_batch(x=images, y=labels)
+    d_metrics = d_model.fit(x=images, y=labels, batch_size=32).history
 
     # @then("the discriminator should know the fakes from the real images")
     # assert(d_weight0 != d_weight1)  #check that training has occurred i.e. weights have changed
 
-    return models, [d_metrics]
+    return models, [m[0] for m in d_metrics.values()]
 
 
 # %%
@@ -528,22 +528,23 @@ def train_generator(
 
     # @when("our inputs are fed into the super resolution model")
     assert srgan_model.get_layer(name="discriminator_network").trainable == False
-    g_metrics = srgan_model.train_on_batch(
+    g_metrics = srgan_model.fit(
         x=generator_inputs,
         y={
             "generator_network": groundtruth_images,
             "discriminator_network": true_labels,
         },
-    )
+        batch_size=32,
+    ).history
 
     # @then("the generator should create a more authentic looking image")
     # assert(g_weight0 != g_weight1)  #check that training has occurred i.e. weights have changed
 
-    return models, g_metrics
+    return models, [m[0] for m in g_metrics.values()]
 
 
 # %%
-epochs = 250
+epochs = 50
 with tqdm.trange(epochs) as t:
     columns = ["discriminator_network_loss_actual"] + models[
         "srgan_model"
@@ -576,20 +577,17 @@ with tqdm.trange(epochs) as t:
 model = models["generator_model"]
 
 # %%
-raise ValueError("temp")
+os.makedirs(name="model/weights", exist_ok=True)
+# generator model's parameter weights and architecture
+model.save(filepath="model/weights/srgan_generator_model.hdf5")
+# just the model weights
+model.save_weights(filepath="model/weights/srgan_generator_model_weights.hdf5")
+# just the model architecture
+with open("model/weights/srgan_generator_model_architecture.json", "w") as json_file:
+    json_file.write(model.to_json(indent=2))
 
 # %%
-os.makedirs(name="model/weights", exist_ok=True)
-model.save(
-    filepath="model/weights/srgan_generator_model.hdf5"
-)  # generator model's parameter weights and architecture
-model.save_weights(
-    filepath="model/weights/srgan_generator_model_weights.hdf5"
-)  # just the model weights
-with open(
-    "model/weights/srgan_generator_model_architecture.json", "w"
-) as json_file:  # just the model architecture
-    json_file.write(model.to_json())
+raise ValueError("temp")
 
 # %% [markdown]
 # ## 4. Evaluate model
