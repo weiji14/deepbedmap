@@ -35,6 +35,7 @@ import tqdm
 import yaml
 
 import gmt
+import IPython.display
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -126,10 +127,11 @@ def parse_datalist(
 
 # %%
 # Pretty print table with nice column order and clickable url links
-pprint_table = (
-    lambda df, folder: df.loc[df["folder"] == folder]
+pprint_table = lambda df, folder: IPython.display.HTML(
+    df.query(expr="folder == @folder")
     .reindex(columns=["folder", "filename", "url", "sha256"])
     .style.format({"url": lambda url: f'<a target="_blank" href="{url}">{url}</a>'})
+    .render(uuid=f"{folder}")
 )
 dataframe = parse_datalist()
 
@@ -154,7 +156,7 @@ for folder, md_header in [
     md_table.loc[0] = ["---", "---", "---", "---", "---"]
 
     keydf = dataframe.groupby("citekey").aggregate(lambda x: set(x).pop())
-    for row in keydf.loc[keydf["folder"] == folder].itertuples():
+    for row in keydf.query(expr="folder == @folder").itertuples():
         filecount = len(dataframe[dataframe["citekey"] == row.Index])
         extension = os.path.splitext(row.filename)[-1]
         row_dict = {
@@ -176,7 +178,7 @@ for folder, md_header in [
 # ### Download Low Resolution bed elevation data (e.g. [BEDMAP2](https://doi.org/10.5194/tc-7-375-2013))
 
 # %%
-for dataset in dataframe.loc[dataframe["folder"] == "lowres"].itertuples():
+for dataset in dataframe.query(expr="folder == 'lowres'").itertuples():
     path = f"{dataset.folder}/{dataset.filename}"  # path to download the file to
     if not os.path.exists(path=path):
         download_to_path(path=path, url=dataset.url)
@@ -191,7 +193,7 @@ with rasterio.open("lowres/bedmap2_bed.tif") as raster_source:
 # ### Download miscellaneous data (e.g. [REMA](https://doi.org/10.7910/DVN/SAIK8B), [MEaSUREs Ice Flow](https://doi.org/10.5067/OC7B04ZM9G6Q))
 
 # %%
-for dataset in dataframe.loc[dataframe["folder"] == "misc"].itertuples():
+for dataset in dataframe.query(expr="folder == 'misc'").itertuples():
     path = f"{dataset.folder}/{dataset.filename}"  # path to download the file to
     if not os.path.exists(path=path):
         download_to_path(path=path, url=dataset.url)
@@ -202,7 +204,7 @@ pprint_table(dataframe, "misc")
 # ### Download High Resolution bed elevation data (e.g. some-DEM-name)
 
 # %%
-for dataset in dataframe.loc[dataframe["folder"] == "highres"].itertuples():
+for dataset in dataframe.query(expr="folder == 'highres'").itertuples():
     path = f"{dataset.folder}/{dataset.filename}"  # path to download the file to
     if not os.path.exists(path=path):
         download_to_path(path=path, url=dataset.url)

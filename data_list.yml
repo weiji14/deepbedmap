@@ -15,7 +15,7 @@
   citekey: Noh2018REMA
   folder: misc
   location: Antarctica
-  resolution: 200m
+  resolution: 100m
   doi:
     dataset: "https://doi.org/10.7910/DVN/SAIK8B"
     literature: "https://doi.org/10.1016/j.isprsjprs.2017.12.008"
