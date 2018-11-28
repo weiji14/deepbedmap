@@ -6,6 +6,8 @@ name = "pypi"
 [packages]
 black = "==18.9b0"
 cython = "==0.29.1"
+descartes = "==1.1.0"
+geopandas = {editable = true, ref = "0.4.0-26-g9e584cc", git = "https://github.com/geopandas/geopandas.git"}
 gmt = {editable = true, ref = "0.1a3-131-g9772fa3", git = "https://github.com/weiji14/gmt-python.git"}
 ipython = "==7.1.1"
 jupyterlab = "==0.35.4"
