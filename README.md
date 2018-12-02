@@ -12,7 +12,7 @@ Also a convenient [flat file](https://en.wikipedia.org/wiki/Flat-file_database) 
 
 <details>
 <summary>Directory structure</summary>
-  
+
 ```
   deepbedmap/
     ├── features/ (files describing the high level behaviour of various features)
@@ -30,11 +30,8 @@ Also a convenient [flat file](https://en.wikipedia.org/wiki/Flat-file_database) 
     │    ├── *.tif (Surface DEMs, Ice Flow Velocity, etc. See list in Issue #9)
     │    └── README.md (markdown information on miscellaneous data sources)
     ├── model/ (*hidden in git, neural network model related files)
-    │    ├── logs/ (directory for tensorboard log files)
-    │    └── train/ (a place to store the model training data)
-    │        ├── W*_data.npy (miscellaneous numpy arrays)
-    │        ├── X_data.npy (highres numpy arrays)
-    │        └── Y_data.npy (lowres numpy arrays)
+    │    ├── train/ (a place to store the raster tile bounds and model training data)
+    │    └── weights/ (contains the neural network model's architecture and weights)
     ├── .env (environment config file used by pipenv, supposedly)
     ├── .<something>ignore (files ignored by a particular piece of software)
     ├── Dockerfile (set of commands to reproduce the software stack here into a docker image)
@@ -77,14 +74,14 @@ Note that `pipenv install` won't work directly (see Common problems below).
 You may want to check that `which pipenv` returns something similar to ~/.conda/envs/deepbedmap/bin/pipenv.
 
     conda activate deepbedmap
-    
+
     export LD_LIBRARY_PATH=$CONDA_PREFIX/lib/
     pipenv install --python $CONDA_PREFIX/bin/python
     #or just
     LD_LIBRARY_PATH=$CONDA_PREFIX/lib/ pipenv install --python $CONDA_PREFIX/bin/python
-    
+
 Finally, double-check that the libraries have been installed.
-    
+
     pipenv graph
 
 ### Syncing/Updating to new dependencies
@@ -104,7 +101,7 @@ So after running `conda activate deepbedmap`, and you see an `...error while loa
 
     conda activate deepbedmap
     pipenv shell
-    
+
     python -m ipykernel install --user --name deepbedmap  #to install conda env properly
     jupyter kernelspec list --json                        #see if kernel is installed
     jupyter lab &

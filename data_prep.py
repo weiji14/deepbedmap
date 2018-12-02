@@ -34,6 +34,7 @@ import requests
 import tqdm
 import yaml
 
+import geopandas as gpd
 import gmt
 import IPython.display
 import matplotlib.pyplot as plt
@@ -49,6 +50,7 @@ import skimage.util.shape
 import xarray as xr
 
 print("Python       :", sys.version.split("\n")[0])
+print("Geopandas    :", gpd.__version__)
 print("GMT          :", gmt.__version__)
 print("Numpy        :", np.__version__)
 print("Rasterio     :", rasterio.__version__)
@@ -486,11 +488,27 @@ window_bounds_concat = np.concatenate([w for w in window_bounds]).tolist()
 print(f"Total number of tiles: {len(window_bounds_concat)}")
 
 # %% [markdown]
-# ### Show tiles
+# ### Show and save tiles
 
 # %%
-shapely.geometry.MultiPolygon(
-    [shapely.geometry.box(*bound) for bound in window_bounds_concat]
+gdf = pd.concat(
+    objs=[
+        gpd.GeoDataFrame(
+            pd.Series(
+                data=len(window_bound) * [os.path.basename(filepath)], name="grid_name"
+            ),
+            crs={"init": "epsg:3031"},
+            geometry=[shapely.geometry.box(*bound) for bound in window_bound],
+        )
+        for filepath, window_bound in zip(filepaths, window_bounds)
+    ]
+).reset_index(drop=True)
+gdf.plot()
+
+# %%
+gdf.to_file(filename="model/train/tiles_3031.geojson", driver="GeoJSON")
+gdf.to_crs(crs={"init": "epsg:4326"}).to_file(
+    filename="model/train/tiles_4326.geojson", driver="GeoJSON"
 )
 
 # %% [markdown]
