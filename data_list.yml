@@ -24,6 +24,10 @@
       filename: REMA_100m_dem.tif
       url: "http://data.pgc.umn.edu/elev/dem/setsm/REMA/mosaic/v1.1/100m/REMA_100m_dem.tif"
       sha256: 80c9fa41ccc69be1d2cd4a367d56168321d1079e7260a1996089810db25172f6
+    -
+      filename: REMA_200m_dem_filled.tif
+      url: "http://data.pgc.umn.edu/elev/dem/setsm/REMA/mosaic/v1.1/200m/REMA_200m_dem_filled.tif"
+      sha256: f750893861a1a268c8ffe0ba7db36c933223bbf5fcbb786ecef3f052b20f9b8a
 -
   citekey: Rignot2011MEASURES
   folder: misc
