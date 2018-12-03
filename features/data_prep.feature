@@ -24,3 +24,13 @@ Feature: Data preparation
   Examples: ASCII text files to grid
     | input_pattern | pipeline_file | output_file |
     | bed_WGS84_grid.txt | bed_WGS84_grid.json | bed_WGS84_grid.nc |
+
+  Scenario Outline: Tile datasets
+    Given a big <dataset_type> raster grid <raster_grid>
+      And a collection of square bounding boxes "model/train/tiles_3031.geojson"
+     When we crop the big raster grid using those bounding boxes
+     Then a stack of small raster tiles is returned
+
+  Examples: Raster grids to tile
+    | dataset_type | raster_grid |
+    | highres | 2010tr.nc |

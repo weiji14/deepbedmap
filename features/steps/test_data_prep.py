@@ -1,5 +1,7 @@
-from behave import given, when, then
 import os
+
+from behave import given, when, then
+import geopandas as gpd
 import rasterio
 
 
@@ -53,3 +55,36 @@ def interpolate_xyz_data_to_grid(context, output_file):
 def open_raster_grid_to_check(context):
     with rasterio.open(context.outfile) as raster_source:
         assert raster_source.closed == False  # check that it can be opened
+
+
+@given("a big {dataset_type} raster grid {raster_grid}")
+def get_a_raster_grid(context, dataset_type, raster_grid):
+    context.raster_grid = raster_grid
+    context.filepath = os.path.join(dataset_type, raster_grid)
+    url = (
+        f"https://github.com/weiji14/deepbedmap/releases/download/v0.4.0/{raster_grid}"
+    )
+    context.data_prep.download_to_path(path=context.filepath, url=url)
+
+
+@given('a collection of square bounding boxes "{geojson_file}"')
+def get_window_bounds(context, geojson_file):
+    geodataframe = gpd.read_file(geojson_file)
+    context.window_bounds = [
+        geom.bounds
+        for geom in geodataframe.query("grid_name == @context.raster_grid").geometry
+    ]
+    context.number_of_square_bounds = len(context.window_bounds)
+
+
+@when("we crop the big raster grid using those bounding boxes")
+def big_raster_grid_to_small_square_tiles(context):
+    context.tiles = context.data_prep.selective_tile(
+        filepath=context.filepath, window_bounds=context.window_bounds
+    )
+
+
+@then("a stack of small raster tiles is returned")
+def step_impl(context):
+    assert context.tiles.ndim == 4  # check that shape is like (m,height,width,channels)
+    assert len(context.tiles) == context.number_of_square_bounds  # check array length
