@@ -518,6 +518,7 @@ gdf.to_crs(crs={"init": "epsg:4326"}).to_file(
 def selective_tile(
     filepath: str,
     window_bounds: list,
+    padding: int = 0,
     out_shape: tuple = None,
     gapfill_raster_filepath: str = None,
 ) -> np.ndarray:
@@ -556,6 +557,15 @@ def selective_tile(
     with rasterio.open(filepath) as dataset:
         print(f"Tiling: {filepath}")
         for window_bound in window_bounds:
+
+            if padding > 0:
+                window_bound = (
+                    window_bound[0] - padding,  # minx
+                    window_bound[1] - padding,  # miny
+                    window_bound[2] + padding,  # maxx
+                    window_bound[3] + padding,  # maxy
+                )
+
             window = rasterio.windows.from_bounds(
                 *window_bound, transform=dataset.transform, precision=None
             ).round_offsets()
@@ -630,7 +640,7 @@ print(hires.shape, hires.dtype)
 
 # %%
 lores = selective_tile(
-    filepath="lowres/bedmap2_bed.tif", window_bounds=window_bounds_concat
+    filepath="lowres/bedmap2_bed.tif", window_bounds=window_bounds_concat, padding=1000
 )
 print(lores.shape, lores.dtype)
 
@@ -641,6 +651,7 @@ print(lores.shape, lores.dtype)
 rema = selective_tile(
     filepath="misc/REMA_100m_dem.tif",
     window_bounds=window_bounds_concat,
+    padding=1000,
     gapfill_raster_filepath="misc/REMA_200m_dem_filled.tif",
 )
 print(rema.shape, rema.dtype)
@@ -649,7 +660,8 @@ print(rema.shape, rema.dtype)
 measuresiceflow = selective_tile(
     filepath="misc/MEaSUREs_IceFlowSpeed_450m.tif",
     window_bounds=window_bounds_concat,
-    out_shape=(16, 16),
+    padding=1000,
+    out_shape=(20, 20),
 )
 print(measuresiceflow.shape, measuresiceflow.dtype)
 
