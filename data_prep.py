@@ -512,11 +512,14 @@ gdf.to_crs(crs={"init": "epsg:4326"}).to_file(
 )
 
 # %% [markdown]
-# ### Tile High Resolution data
+# ### Do the actual tiling
 
 # %%
 def selective_tile(
-    filepath: str, window_bounds: list, out_shape: tuple = None
+    filepath: str,
+    window_bounds: list,
+    out_shape: tuple = None,
+    gapfill_raster_filepath: str = None,
 ) -> np.ndarray:
     """
     Reads in raster and tiles them selectively.
@@ -568,7 +571,34 @@ def selective_tile(
                 a=array, axis=0, start=3
             )  # change to shape (height, width, 1)
 
-            assert not array.mask.any()
+            try:
+                assert not array.mask.any()  # check that there are no NAN values
+            except AssertionError:
+                # Replace pixels from another raster if available, else raise error
+                if gapfill_raster_filepath is not None:
+                    with rasterio.open(gapfill_raster_filepath) as dataset2:
+                        window2 = rasterio.windows.from_bounds(
+                            *window_bound, transform=dataset2.transform, precision=None
+                        ).round_offsets()
+
+                        array2 = dataset2.read(
+                            indexes=list(range(1, dataset2.count + 1)),
+                            masked=True,
+                            window=window2,
+                            out_shape=array.shape[:2],
+                        )
+                        array2 = np.rollaxis(a=array2, axis=0, start=3)
+
+                    np.copyto(
+                        dst=array, src=array2, where=array.mask
+                    )  # fill in gaps where mask is True
+                else:
+                    plt.imshow(array.data[:, :, 0])
+                    plt.show()
+                    raise ValueError(
+                        f"Tile has missing data, try passing in gapfill_raster_filepath"
+                    )
+
             assert array.shape[0] == array.shape[1]  # check that height==width
             array_list.append(array.data.astype(dtype=np.float32))
 
@@ -576,8 +606,20 @@ def selective_tile(
 
 
 # %%
+geodataframe = gpd.read_file("model/train/tiles_3031.geojson")
+filepaths = geodataframe.grid_name.unique()
+window_bounds = [
+    [geom.bounds for geom in geodataframe.query("grid_name == @filepath").geometry]
+    for filepath in filepaths
+]
+window_bounds_concat = np.concatenate([w for w in window_bounds]).tolist()
+
+# %% [markdown]
+# ### Tile High Resolution data
+
+# %%
 hireses = [
-    selective_tile(filepath=f, window_bounds=w)
+    selective_tile(filepath=f"highres/{f}", window_bounds=w)
     for f, w in zip(filepaths, window_bounds)
 ]
 hires = np.concatenate(hireses)
@@ -597,7 +639,9 @@ print(lores.shape, lores.dtype)
 
 # %%
 rema = selective_tile(
-    filepath="misc/REMA_200m_dem_filled.tif", window_bounds=window_bounds_concat
+    filepath="misc/REMA_100m_dem.tif",
+    window_bounds=window_bounds_concat,
+    gapfill_raster_filepath="misc/REMA_200m_dem_filled.tif",
 )
 print(rema.shape, rema.dtype)
 
