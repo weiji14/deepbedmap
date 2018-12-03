@@ -25,8 +25,8 @@
         "config": {
           "batch_input_shape": [
             null,
-            40,
-            40,
+            80,
+            80,
             1
           ],
           "dtype": "float32",
@@ -112,12 +112,12 @@
           "trainable": true,
           "filters": 32,
           "kernel_size": [
-            15,
-            15
+            30,
+            30
           ],
           "strides": [
-            5,
-            5
+            10,
+            10
           ],
           "padding": "same",
           "data_format": "channels_last",
@@ -4355,7 +4355,7 @@
           "name": "pixelshuffleup_1",
           "trainable": true,
           "function": [
-            "4wEAAAAAAAAAAQAAAAQAAABTAAAAcxAAAAB0AGoBagJ8AGQBZAKNAlMAKQNO6QIAAAApAtoFaW5w\ndXTaCmJsb2NrX3NpemUpA9oBS9oCdGbaDmRlcHRoX3RvX3NwYWNlKQHaBmltYWdlc6kAcggAAAD6\nHjxpcHl0aG9uLWlucHV0LTUtMjgzM2VkYTYzNzUwPtoIPGxhbWJkYT5XAAAAcwAAAAA=\n",
+            "4wEAAAAAAAAAAQAAAAQAAABTAAAAcxAAAAB0AGoBagJ8AGQBZAKNAlMAKQNO6QIAAAApAtoFaW5w\ndXTaCmJsb2NrX3NpemUpA9oBS9oCdGbaDmRlcHRoX3RvX3NwYWNlKQHaBmltYWdlc6kAcggAAAD6\nHjxpcHl0aG9uLWlucHV0LTUtYjBlNTU3YzZhMDZkPtoIPGxhbWJkYT5XAAAAcwAAAAA=\n",
             null,
             null
           ],
@@ -4460,7 +4460,7 @@
           "name": "pixelshuffleup_2",
           "trainable": true,
           "function": [
-            "4wEAAAAAAAAAAQAAAAQAAABTAAAAcxAAAAB0AGoBagJ8AGQBZAKNAlMAKQNO6QIAAAApAtoFaW5w\ndXTaCmJsb2NrX3NpemUpA9oBS9oCdGbaDmRlcHRoX3RvX3NwYWNlKQHaBmltYWdlc6kAcggAAAD6\nHjxpcHl0aG9uLWlucHV0LTUtMjgzM2VkYTYzNzUwPtoIPGxhbWJkYT5XAAAAcwAAAAA=\n",
+            "4wEAAAAAAAAAAQAAAAQAAABTAAAAcxAAAAB0AGoBagJ8AGQBZAKNAlMAKQNO6QIAAAApAtoFaW5w\ndXTaCmJsb2NrX3NpemUpA9oBS9oCdGbaDmRlcHRoX3RvX3NwYWNlKQHaBmltYWdlc6kAcggAAAD6\nHjxpcHl0aG9uLWlucHV0LTUtYjBlNTU3YzZhMDZkPtoIPGxhbWJkYT5XAAAAcwAAAAA=\n",
             null,
             null
           ],

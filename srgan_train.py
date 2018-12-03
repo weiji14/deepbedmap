@@ -74,7 +74,7 @@ K.tf.set_random_seed(seed=seed)
 # ## 1. Load data
 
 # %%
-hash = "106bee100a2af5312c485a24259a70860aeac9143ac86b472a9ebb9f788fc8fc"
+hash = "f4d7ff9b8c864721cfc1b4ad53901d9a491e8c72f656584ed5ec1e0bbf299915"
 quilt.install(package="weiji14/deepbedmap/model/train", hash=hash, force=False)
 pkg = quilt.load(pkginfo="weiji14/deepbedmap", hash=hash)
 
@@ -99,17 +99,31 @@ print(W1_data.shape, W2_data.shape, X_data.shape, Y_data.shape)
 # ### Generator Network Architecture
 #
 # ![SRGAN architecture - Generator Network](https://arxiv-sanity-sanity-production.s3.amazonaws.com/render-output/399644/images/used/jpg/generator.jpg)
-# ![3-in-1 Generator Network](https://yuml.me/6ab92065.png)
+# ![3-in-1 Generator Network](https://yuml.me/0bfe11e4.png)
+#
+# Details of the first convolutional layer:
+#
+# - Input tiles are 8000m by 8000m.
+# - Convolution filter kernels are 3000m by 3000m.
+# - Strides are 1000m by 1000m.
+#
+# Example: for a 100m spatial resolution tile:
+#
+# - Input tile is 80pixels by 80pixels
+# - Convolution filter kernels are 30pixels by 30pixels
+# - Strides are 10pixels by 10pixels
+#
+# Note that padding type is 'same', see https://keras.io/layers/convolutional/ for more information.
 #
 # <!--[W2_input(MEASURES)|16x16x1]-k6n32s2 >[W2_inter|8x8x32],[W2_inter]->[Concat|8x8x96]
 # [X_input(BEDMAP2)|8x8x1]-k3n32s1 >[X_inter|8x8x32],[X_inter]->[Concat|8x8x96]
-# [W1_input(REMA)|40x40x1] -k15n32s5 >[W1_inter|8x8x32],[W1_inter]->[Concat|8x8x96]
+# [W1_input(REMA)|80x80x1] -k30n32s10 >[W1_inter|8x8x32],[W1_inter]->[Concat|8x8x96]
 # [Concat|8x8x96]->[Generator-Network],[Generator-Network]->[Y_hat(High-Resolution_DEM)|32x32x1] -->
 
 # %%
 def generator_network(
     input1_shape: typing.Tuple[int, int, int] = (8, 8, 1),
-    input2_shape: typing.Tuple[int, int, int] = (40, 40, 1),
+    input2_shape: typing.Tuple[int, int, int] = (80, 80, 1),
     input3_shape: typing.Tuple[int, int, int] = (16, 16, 1),
     num_residual_blocks: int = 16,
     scaling: int = 4,
@@ -130,11 +144,11 @@ def generator_network(
       and output_channels 1 will result in an image of shape (32,32,1)
 
     >>> generator_network().input_shape
-    [(None, 8, 8, 1), (None, 40, 40, 1), (None, 16, 16, 1)]
+    [(None, 8, 8, 1), (None, 80, 80, 1), (None, 16, 16, 1)]
     >>> generator_network().output_shape
     (None, 32, 32, 1)
     >>> generator_network().count_params()
-    1743329
+    1764929
     """
 
     assert num_residual_blocks >= 1  # ensure that we have 1 or more residual blocks
@@ -146,14 +160,14 @@ def generator_network(
     inp1 = Input(shape=input1_shape)  # low resolution image
     assert inp1.shape.ndims == 4  # needs to be shape like (?,8,8,1) for 8x8 grid
     inp2 = Input(shape=input2_shape)  # other image (e.g. REMA)
-    assert inp2.shape.ndims == 4  # needs to be shape like (?,40,40,1) for 40x40 grid
+    assert inp2.shape.ndims == 4  # needs to be shape like (?,80,80,1) for 80x80 grid
     inp3 = Input(shape=input3_shape)  # other image (MEASURES Ice Flow)
     assert inp3.shape.ndims == 4  # needs to be shape like (?,16,16,1) for 16x16 grid
 
     # 0 part
     # Resize inputs to right scale using convolution (hardcoded kernel_size and strides)
     inp1r = Conv2D(filters=32, kernel_size=(3, 3), strides=(1, 1), padding="same")(inp1)
-    inp2r = Conv2D(filters=32, kernel_size=(15, 15), strides=(5, 5), padding="same")(
+    inp2r = Conv2D(filters=32, kernel_size=(30, 30), strides=(10, 10), padding="same")(
         inp2
     )
     inp3r = Conv2D(filters=32, kernel_size=(6, 6), strides=(2, 2), padding="same")(inp3)
@@ -340,7 +354,7 @@ def compile_srgan_model(
     >>> models['srgan_model'].get_layer(name='discriminator_network').trainable
     False
     >>> models['srgan_model'].count_params()
-    8571362
+    8592962
     """
 
     # Check that our neural networks are named properly
@@ -456,7 +470,7 @@ def train_discriminator(
     - Discriminator trained with these images and their Fake(0)/Real(1) labels
 
     >>> generator_inputs = [
-    ...     np.random.RandomState(seed=42).rand(32, s, s, 1) for s in [8, 40, 16]
+    ...     np.random.RandomState(seed=42).rand(32, s, s, 1) for s in [8, 80, 16]
     ... ]
     >>> groundtruth_images = np.random.RandomState(seed=42).rand(32,32,32,1)
     >>> models = compile_srgan_model(
@@ -526,7 +540,7 @@ def train_generator(
     - Generator is trained to match these Real(1) labels
 
     >>> generator_inputs = [
-    ...     np.random.RandomState(seed=42).rand(32, s, s, 1) for s in [8, 40, 16]
+    ...     np.random.RandomState(seed=42).rand(32, s, s, 1) for s in [8, 80, 16]
     ... ]
     >>> groundtruth_images = np.random.RandomState(seed=42).rand(32,32,32,1)
     >>> models = compile_srgan_model(
@@ -571,7 +585,7 @@ def train_generator(
 
 
 # %%
-epochs = 50
+epochs = 200
 with tqdm.trange(epochs) as t:
     columns = ["discriminator_network_loss_actual"] + models[
         "srgan_model"
