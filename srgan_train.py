@@ -74,7 +74,7 @@ K.tf.set_random_seed(seed=seed)
 # ## 1. Load data
 
 # %%
-hash = "f4d7ff9b8c864721cfc1b4ad53901d9a491e8c72f656584ed5ec1e0bbf299915"
+hash = "d901b297a80fe396cf28ff6349b0ab241c1fd140743acff09f31950a77e4d762"
 quilt.install(package="weiji14/deepbedmap/model/train", hash=hash, force=False)
 pkg = quilt.load(pkginfo="weiji14/deepbedmap", hash=hash)
 
@@ -99,7 +99,7 @@ print(W1_data.shape, W2_data.shape, X_data.shape, Y_data.shape)
 # ### Generator Network Architecture
 #
 # ![SRGAN architecture - Generator Network](https://arxiv-sanity-sanity-production.s3.amazonaws.com/render-output/399644/images/used/jpg/generator.jpg)
-# ![3-in-1 Generator Network](https://yuml.me/0bfe11e4.png)
+# ![3-in-1 Generator Network](https://yuml.me/01862e1a.png)
 #
 # Details of the first convolutional layer:
 #
@@ -113,18 +113,18 @@ print(W1_data.shape, W2_data.shape, X_data.shape, Y_data.shape)
 # - Convolution filter kernels are 30pixels by 30pixels
 # - Strides are 10pixels by 10pixels
 #
-# Note that padding type is 'same', see https://keras.io/layers/convolutional/ for more information.
+# Note that first convolutional layer uses '**valid**' padding, see https://keras.io/layers/convolutional/ for more information.
 #
-# <!--[W2_input(MEASURES)|16x16x1]-k6n32s2 >[W2_inter|8x8x32],[W2_inter]->[Concat|8x8x96]
-# [X_input(BEDMAP2)|8x8x1]-k3n32s1 >[X_inter|8x8x32],[X_inter]->[Concat|8x8x96]
-# [W1_input(REMA)|80x80x1] -k30n32s10 >[W1_inter|8x8x32],[W1_inter]->[Concat|8x8x96]
-# [Concat|8x8x96]->[Generator-Network],[Generator-Network]->[Y_hat(High-Resolution_DEM)|32x32x1] -->
+# <!--[W2_input(MEASURES)|20x20x1]-k6n32s2>[W2_inter|8x8x32],[W2_inter]->[Concat|8x8x96]
+# [X_input(BEDMAP2)|10x10x1]-k3n32s1>[X_inter|8x8x32],[X_inter]->[Concat|8x8x96]
+# [W1_input(REMA)|100x100x1]-k30n32s10>[W1_inter|8x8x32],[W1_inter]->[Concat|8x8x96]
+# [Concat|8x8x96]->[Generator-Network],[Generator-Network]->[Y_hat(High-Resolution_DEM)|32x32x1]-->
 
 # %%
 def generator_network(
-    input1_shape: typing.Tuple[int, int, int] = (8, 8, 1),
-    input2_shape: typing.Tuple[int, int, int] = (80, 80, 1),
-    input3_shape: typing.Tuple[int, int, int] = (16, 16, 1),
+    input1_shape: typing.Tuple[int, int, int] = (10, 10, 1),
+    input2_shape: typing.Tuple[int, int, int] = (100, 100, 1),
+    input3_shape: typing.Tuple[int, int, int] = (20, 20, 1),
     num_residual_blocks: int = 16,
     scaling: int = 4,
     output_channels: int = 1,
@@ -144,7 +144,7 @@ def generator_network(
       and output_channels 1 will result in an image of shape (32,32,1)
 
     >>> generator_network().input_shape
-    [(None, 8, 8, 1), (None, 80, 80, 1), (None, 16, 16, 1)]
+    [(None, 10, 10, 1), (None, 100, 100, 1), (None, 20, 20, 1)]
     >>> generator_network().output_shape
     (None, 32, 32, 1)
     >>> generator_network().count_params()
@@ -158,19 +158,23 @@ def generator_network(
 
     ## Input images
     inp1 = Input(shape=input1_shape)  # low resolution image
-    assert inp1.shape.ndims == 4  # needs to be shape like (?,8,8,1) for 8x8 grid
+    assert inp1.shape.ndims == 4  # has to be shape like (?,10,10,1) for 10x10 grid
     inp2 = Input(shape=input2_shape)  # other image (e.g. REMA)
-    assert inp2.shape.ndims == 4  # needs to be shape like (?,80,80,1) for 80x80 grid
+    assert inp2.shape.ndims == 4  # has to be shape like (?,100,100,1) for 100x100 grid
     inp3 = Input(shape=input3_shape)  # other image (MEASURES Ice Flow)
-    assert inp3.shape.ndims == 4  # needs to be shape like (?,16,16,1) for 16x16 grid
+    assert inp3.shape.ndims == 4  # has to be shape like (?,20,20,1) for 20x20 grid
 
     # 0 part
     # Resize inputs to right scale using convolution (hardcoded kernel_size and strides)
-    inp1r = Conv2D(filters=32, kernel_size=(3, 3), strides=(1, 1), padding="same")(inp1)
-    inp2r = Conv2D(filters=32, kernel_size=(30, 30), strides=(10, 10), padding="same")(
+    inp1r = Conv2D(filters=32, kernel_size=(3, 3), strides=(1, 1), padding="valid")(
+        inp1
+    )
+    inp2r = Conv2D(filters=32, kernel_size=(30, 30), strides=(10, 10), padding="valid")(
         inp2
     )
-    inp3r = Conv2D(filters=32, kernel_size=(6, 6), strides=(2, 2), padding="same")(inp3)
+    inp3r = Conv2D(filters=32, kernel_size=(6, 6), strides=(2, 2), padding="valid")(
+        inp3
+    )
 
     # Concatenate all inputs
     # SEE https://distill.pub/2016/deconv-checkerboard/
@@ -470,7 +474,7 @@ def train_discriminator(
     - Discriminator trained with these images and their Fake(0)/Real(1) labels
 
     >>> generator_inputs = [
-    ...     np.random.RandomState(seed=42).rand(32, s, s, 1) for s in [8, 80, 16]
+    ...     np.random.RandomState(seed=42).rand(32, s, s, 1) for s in [10, 100, 20]
     ... ]
     >>> groundtruth_images = np.random.RandomState(seed=42).rand(32,32,32,1)
     >>> models = compile_srgan_model(
@@ -540,7 +544,7 @@ def train_generator(
     - Generator is trained to match these Real(1) labels
 
     >>> generator_inputs = [
-    ...     np.random.RandomState(seed=42).rand(32, s, s, 1) for s in [8, 80, 16]
+    ...     np.random.RandomState(seed=42).rand(32, s, s, 1) for s in [10, 100, 20]
     ... ]
     >>> groundtruth_images = np.random.RandomState(seed=42).rand(32,32,32,1)
     >>> models = compile_srgan_model(
@@ -644,7 +648,7 @@ for i in range(5):
         print(id, X_data[id].shape)
 
         X_cube = skimage.transform.rescale(
-            image=X_data[id].astype(np.int32),
+            image=X_data[id][1:-1, 1:-1, :].astype(np.int32),
             scale=4,
             order=3,
             mode="reflect",
