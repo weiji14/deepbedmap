@@ -11,7 +11,7 @@ geopandas = {editable = true, ref = "0.4.0-26-g9e584cc", git = "https://github.c
 gmt = {editable = true, ref = "0.1a3-131-g9772fa3", git = "https://github.com/weiji14/gmt-python.git"}
 ipython = "==7.2.0"
 jupyterlab = "==0.35.4"
-jupytext = "==0.8.6rc0"
+jupytext = "==0.8.6"
 keras = "==2.2.4"
 livelossplot = "==0.2.0"
 matplotlib = "==3.0.2"

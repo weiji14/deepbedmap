@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "4b688710b923e3ecf0efced3bb4064529de83670f69e4ce8546de0483212e2bb"
+            "sha256": "66b280c69e5f0f75100ea1ec734c427ed0e8baef80e53065bb96f3c8e7e5f3a9"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -418,10 +418,10 @@
         },
         "jupytext": {
             "hashes": [
-                "sha256:c911fd21688a9d6aabcf088917adb65ab1fd38e58e9b736dca2c909d07731521"
+                "sha256:eee54a8c28db13485b4e0d60cbfef844179b2625cd0220440388f84d7eaa65d4"
             ],
             "index": "pypi",
-            "version": "==0.8.6rc0"
+            "version": "==0.8.6"
         },
         "keras": {
             "hashes": [
