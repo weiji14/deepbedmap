@@ -38,6 +38,7 @@ import numpy as np
 import pandas as pd
 import quilt
 import skimage.transform
+import sklearn.model_selection
 import tqdm
 
 import keras
@@ -55,7 +56,7 @@ from keras.layers import (
 )
 from keras.layers.advanced_activations import LeakyReLU, PReLU
 from keras.models import Model
-from livelossplot import PlotLossesKeras
+import livelossplot
 
 print("Python       :", sys.version.split("\n")[0])
 print("Numpy        :", np.__version__)
@@ -88,6 +89,38 @@ Y_data = pkg.model.train.Y_data()  # high resolution groundtruth
 # X_data = np.load(file="model/train/X_data.npy")
 # Y_data = np.load(file="model/train/Y_data.npy")
 print(W1_data.shape, W2_data.shape, X_data.shape, Y_data.shape)
+
+# %% [markdown]
+# ### Split dataset into training (train) and development (dev) sets
+
+# %%
+def train_dev_split(dataset: np.ndarray, test_size=0.05, random_state=42):
+    """
+    Split our dataset up into training and development sets.
+    Used for cross validation purposes to check for overfitting.
+
+    >>> dataset = np.ones(shape=(100, 4, 4, 1))
+    >>> train, dev = train_dev_split(dataset=dataset, test_size=0.05, random_state=42)
+    >>> train.shape
+    (95, 4, 4, 1)
+    >>> dev.shape
+    (5, 4, 4, 1)
+    """
+    return sklearn.model_selection.train_test_split(
+        dataset,
+        test_size=test_size,
+        train_size=1 - test_size,
+        random_state=random_state,
+        shuffle=True,
+    )
+
+
+# %%
+W1_train, W1_dev = train_dev_split(dataset=W1_data)
+W2_train, W2_dev = train_dev_split(dataset=W2_data)
+X_train, X_dev = train_dev_split(dataset=X_data)
+Y_train, Y_dev = train_dev_split(dataset=Y_data)
+
 
 # %% [markdown]
 # ## 2. Architect model
@@ -494,15 +527,12 @@ def train_discriminator(
     True
     """
 
-    assert (
-        len(generator_inputs) == 3
-    )  # hardcoded check that we are passing in 3 numpy arrays as input
-    assert (
-        generator_inputs[0].shape[0] == generator_inputs[1].shape[0]
-    )  # check that X_data and W1_data have same length (batch size)
-    assert (
-        generator_inputs[0].shape[0] == generator_inputs[2].shape[0]
-    )  # check that X_data and W2_data have same length (batch size)
+    # hardcoded check that we are passing in 3 numpy arrays as input
+    assert len(generator_inputs) == 3
+    # check that X_data and W1_data have same length (batch size)
+    assert generator_inputs[0].shape[0] == generator_inputs[1].shape[0]
+    # check that X_data and W2_data have same length (batch size)
+    assert generator_inputs[0].shape[0] == generator_inputs[2].shape[0]
 
     # @pytest.fixture
     g_model = models["generator_model"]
@@ -520,12 +550,14 @@ def train_discriminator(
     images = np.concatenate([fake_images, real_images])
     labels = np.concatenate([fake_labels, real_labels])
     assert d_model.trainable == True
-    d_metrics = d_model.fit(x=images, y=labels, batch_size=32, verbose=verbose).history
+    d_metrics = d_model.fit(
+        x=images, y=labels, epochs=1, batch_size=32, shuffle=True, verbose=verbose
+    ).history
 
     # @then("the discriminator should know the fakes from the real images")
     # assert d_weight0 != d_weight1  # check that training occurred i.e. weights changed
 
-    return models, [m[0] for m in d_metrics.values()]
+    return models, d_metrics["loss"][0]
 
 
 # %%
@@ -591,31 +623,50 @@ def train_generator(
 # %%
 epochs = 200
 with tqdm.trange(epochs) as t:
-    columns = ["discriminator_network_loss_actual"] + models[
+    metric_names = ["discriminator_network_loss_actual"] + models[
         "srgan_model"
     ].metrics_names
+    columns = metric_names + [f"val_{metric_name}" for metric_name in metric_names]
     dataframe = pd.DataFrame(index=np.arange(0, epochs), columns=columns)
     for i in t:
         ## Part 1 - Train Discriminator
-        _, d_metrics = train_discriminator(
+        _, d_train_loss = train_discriminator(
             models=models,
-            generator_inputs=[X_data, W1_data, W2_data],
-            groundtruth_images=Y_data,
+            generator_inputs=[X_train, W1_train, W2_train],
+            groundtruth_images=Y_train,
+        )
+        d_dev_loss = models["discriminator_model"].evaluate(
+            x=models["generator_model"].predict(
+                x=[X_dev, W1_dev, W2_dev], batch_size=32
+            ),
+            y=np.zeros(shape=len(X_dev)),
         )
 
         ## Part 2 - Train Generator
-        _, g_metrics = train_generator(
+        _, g_train_metrics = train_generator(
             models=models,
-            generator_inputs=[X_data, W1_data, W2_data],
-            groundtruth_images=Y_data,
+            generator_inputs=[X_train, W1_train, W2_train],
+            groundtruth_images=Y_train,
+        )
+        g_dev_metrics = models["srgan_model"].evaluate(
+            x=[X_dev, W1_dev, W2_dev],
+            y={
+                "generator_network": Y_dev,
+                "discriminator_network": np.ones(shape=len(X_dev)),
+            },
         )
 
-        ## Plot loss and metric information using pandas plot
-        dataframe.loc[i] = d_metrics + g_metrics
-        dataframe.plot(subplots=True, figsize=(20, 10), layout=(2, 3))
-        IPython.display.clear_output(wait=True)
-        plt.show()
-
+        ## Plot loss and metric information using pandas and livelossplot
+        dataframe.loc[i] = (
+            [d_train_loss] + g_train_metrics + [d_dev_loss] + g_dev_metrics
+        )
+        livelossplot.draw_plot(
+            logs=dataframe.to_dict(orient="records"),
+            metrics=metric_names,
+            max_cols=3,
+            figsize=(16, 9),
+            max_epoch=200,
+        )
         t.set_postfix(ordered_dict=dataframe.loc[i].to_dict())
 
 # %%
