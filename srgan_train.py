@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.2'
-#       jupytext_version: 0.8.6rc0
+#       jupytext_version: 0.8.6
 #   kernelspec:
 #     display_name: deepbedmap
 #     language: python
@@ -621,7 +621,7 @@ def train_generator(
 
 
 # %%
-epochs = 200
+epochs = 250
 with tqdm.trange(epochs) as t:
     metric_names = ["discriminator_network_loss_actual"] + models[
         "srgan_model"
@@ -665,7 +665,7 @@ with tqdm.trange(epochs) as t:
             metrics=metric_names,
             max_cols=3,
             figsize=(16, 9),
-            max_epoch=200,
+            max_epoch=epochs,
         )
         t.set_postfix(ordered_dict=dataframe.loc[i].to_dict())
 
@@ -686,43 +686,49 @@ with open("model/weights/srgan_generator_model_architecture.json", "w") as json_
 raise ValueError("temp")
 
 # %% [markdown]
-# ## 4. Evaluate model
+# ## 4. Evaluate model on dev (validation) set
 
 # %%
-Y_hat = model.predict(x=[X_data, W1_data, W2_data], verbose=1)
+with open("model/weights/srgan_generator_model_architecture.json") as json_file:
+    model = keras.models.model_from_json(json_string=json_file.read())
+    model.load_weights(filepath="model/weights/srgan_generator_model_weights.hdf5")
+
+# %%
+Y_hat = model.predict(x=[X_dev, W1_dev, W2_dev], verbose=1)
 print(Y_hat.shape, Y_hat.dtype)
 
 # %%
 for i in range(5):
     try:
-        id = random.randrange(0, len(X_data))
-        print(id, X_data[id].shape)
+        id = random.randrange(0, len(X_dev))
+        print(id, X_dev[id].shape)
 
         X_cube = skimage.transform.rescale(
-            image=X_data[id][1:-1, 1:-1, :].astype(np.int32),
+            image=X_dev[id][1:-1, 1:-1, :].astype(np.int32),
             scale=4,
             order=3,
             mode="reflect",
             anti_aliasing=True,
             multichannel=False,
+            preserve_range=True,
         )
         psnr_bicubic = skimage.measure.compare_psnr(
-            im_true=Y_data[id][:, :, 0].astype(np.int32),
+            im_true=Y_dev[id][:, :, 0].astype(np.int32),
             im_test=X_cube[:, :, 0].astype(np.int32),
         )
         psnr_srgan = skimage.measure.compare_psnr(
-            im_true=Y_data[id][:, :, 0].astype(np.int32),
+            im_true=Y_dev[id][:, :, 0].astype(np.int32),
             im_test=Y_hat[id][:, :, 0].astype(np.int32),
         )
 
         fig, axarr = plt.subplots(nrows=1, ncols=5, squeeze=False, figsize=(15, 15))
         axarr[0, 0].imshow(
-            X_data[id][:, :, 0], aspect="equal"
+            X_dev[id][:, :, 0], aspect="equal"
         )  # low resolution original
         axarr[0, 1].imshow(X_cube[:, :, 0], aspect="equal")  # bicubic interpolation
-        axarr[0, 2].imshow(W1_data[id][:, :, 0], aspect="equal")  # REMA surface DEM
+        axarr[0, 2].imshow(W1_dev[id][:, :, 0], aspect="equal")  # REMA surface DEM
         axarr[0, 3].imshow(Y_hat[id][:, :, 0], aspect="equal")  # srcnn prediction
-        axarr[0, 4].imshow(Y_data[id][:, :, 0], aspect="equal")  # groundtruth
+        axarr[0, 4].imshow(Y_dev[id][:, :, 0], aspect="equal")  # groundtruth
 
         axarr[0, 0].set_title("BEDMAP2")
         axarr[0, 1].set_title("Bicubic")
