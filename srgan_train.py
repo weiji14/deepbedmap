@@ -181,7 +181,7 @@ def generator_network(
     >>> generator_network().output_shape
     (None, 32, 32, 1)
     >>> generator_network().count_params()
-    1764929
+    1614593
     """
 
     assert num_residual_blocks >= 1  # ensure that we have 1 or more residual blocks
@@ -216,7 +216,7 @@ def generator_network(
     # 1st part
     # Pre-residual k3n64s1 (originally k9n64s1)
     X0 = Conv2D(filters=64, kernel_size=(3, 3), strides=(1, 1), padding="same")(X)
-    X0 = PReLU()(X0)
+    X0 = PReLU(shared_axes=[1, 2])(X0)
 
     # 2nd part
     # Residual blocks k3n64s1
@@ -225,7 +225,7 @@ def generator_network(
             input_tensor
         )
         x = BatchNormalization()(x)
-        x = PReLU()(x)
+        x = PReLU(shared_axes=[1, 2])(x)
         x = Conv2D(filters=64, kernel_size=(3, 3), strides=(1, 1), padding="same")(x)
         x = BatchNormalization()(x)
         return Add()([x, input_tensor])
@@ -246,7 +246,7 @@ def generator_network(
         X = Conv2D(filters=256, kernel_size=(3, 3), strides=(1, 1), padding="same")(X)
         pixelshuffleup = lambda images: K.tf.depth_to_space(input=images, block_size=2)
         X = Lambda(function=pixelshuffleup, name=f"pixelshuffleup_{p}")(X)
-        X = PReLU()(X)
+        X = PReLU(shared_axes=[1, 2])(X)
 
     # 5th part
     # Generate high resolution output k9n1s1 (originally k9n3s1 for RGB image)
@@ -391,7 +391,7 @@ def compile_srgan_model(
     >>> models['srgan_model'].get_layer(name='discriminator_network').trainable
     False
     >>> models['srgan_model'].count_params()
-    8592962
+    8442626
     """
 
     # Check that our neural networks are named properly

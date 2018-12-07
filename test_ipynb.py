@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.2'
-#       jupytext_version: 0.8.6rc0
+#       jupytext_version: 0.8.6
 #   kernelspec:
 #     display_name: deepbedmap
 #     language: python
