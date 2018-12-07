@@ -306,7 +306,10 @@
           },
           "alpha_regularizer": null,
           "alpha_constraint": null,
-          "shared_axes": null
+          "shared_axes": [
+            1,
+            2
+          ]
         },
         "inbound_nodes": [
           [
@@ -427,7 +430,10 @@
           },
           "alpha_regularizer": null,
           "alpha_constraint": null,
-          "shared_axes": null
+          "shared_axes": [
+            1,
+            2
+          ]
         },
         "inbound_nodes": [
           [
@@ -668,7 +674,10 @@
           },
           "alpha_regularizer": null,
           "alpha_constraint": null,
-          "shared_axes": null
+          "shared_axes": [
+            1,
+            2
+          ]
         },
         "inbound_nodes": [
           [
@@ -909,7 +918,10 @@
           },
           "alpha_regularizer": null,
           "alpha_constraint": null,
-          "shared_axes": null
+          "shared_axes": [
+            1,
+            2
+          ]
         },
         "inbound_nodes": [
           [
@@ -1150,7 +1162,10 @@
           },
           "alpha_regularizer": null,
           "alpha_constraint": null,
-          "shared_axes": null
+          "shared_axes": [
+            1,
+            2
+          ]
         },
         "inbound_nodes": [
           [
@@ -1391,7 +1406,10 @@
           },
           "alpha_regularizer": null,
           "alpha_constraint": null,
-          "shared_axes": null
+          "shared_axes": [
+            1,
+            2
+          ]
         },
         "inbound_nodes": [
           [
@@ -1632,7 +1650,10 @@
           },
           "alpha_regularizer": null,
           "alpha_constraint": null,
-          "shared_axes": null
+          "shared_axes": [
+            1,
+            2
+          ]
         },
         "inbound_nodes": [
           [
@@ -1873,7 +1894,10 @@
           },
           "alpha_regularizer": null,
           "alpha_constraint": null,
-          "shared_axes": null
+          "shared_axes": [
+            1,
+            2
+          ]
         },
         "inbound_nodes": [
           [
@@ -2114,7 +2138,10 @@
           },
           "alpha_regularizer": null,
           "alpha_constraint": null,
-          "shared_axes": null
+          "shared_axes": [
+            1,
+            2
+          ]
         },
         "inbound_nodes": [
           [
@@ -2355,7 +2382,10 @@
           },
           "alpha_regularizer": null,
           "alpha_constraint": null,
-          "shared_axes": null
+          "shared_axes": [
+            1,
+            2
+          ]
         },
         "inbound_nodes": [
           [
@@ -2596,7 +2626,10 @@
           },
           "alpha_regularizer": null,
           "alpha_constraint": null,
-          "shared_axes": null
+          "shared_axes": [
+            1,
+            2
+          ]
         },
         "inbound_nodes": [
           [
@@ -2837,7 +2870,10 @@
           },
           "alpha_regularizer": null,
           "alpha_constraint": null,
-          "shared_axes": null
+          "shared_axes": [
+            1,
+            2
+          ]
         },
         "inbound_nodes": [
           [
@@ -3078,7 +3114,10 @@
           },
           "alpha_regularizer": null,
           "alpha_constraint": null,
-          "shared_axes": null
+          "shared_axes": [
+            1,
+            2
+          ]
         },
         "inbound_nodes": [
           [
@@ -3319,7 +3358,10 @@
           },
           "alpha_regularizer": null,
           "alpha_constraint": null,
-          "shared_axes": null
+          "shared_axes": [
+            1,
+            2
+          ]
         },
         "inbound_nodes": [
           [
@@ -3560,7 +3602,10 @@
           },
           "alpha_regularizer": null,
           "alpha_constraint": null,
-          "shared_axes": null
+          "shared_axes": [
+            1,
+            2
+          ]
         },
         "inbound_nodes": [
           [
@@ -3801,7 +3846,10 @@
           },
           "alpha_regularizer": null,
           "alpha_constraint": null,
-          "shared_axes": null
+          "shared_axes": [
+            1,
+            2
+          ]
         },
         "inbound_nodes": [
           [
@@ -4042,7 +4090,10 @@
           },
           "alpha_regularizer": null,
           "alpha_constraint": null,
-          "shared_axes": null
+          "shared_axes": [
+            1,
+            2
+          ]
         },
         "inbound_nodes": [
           [
@@ -4355,7 +4406,7 @@
           "name": "pixelshuffleup_1",
           "trainable": true,
           "function": [
-            "4wEAAAAAAAAAAQAAAAQAAABTAAAAcxAAAAB0AGoBagJ8AGQBZAKNAlMAKQNO6QIAAAApAtoFaW5w\ndXTaCmJsb2NrX3NpemUpA9oBS9oCdGbaDmRlcHRoX3RvX3NwYWNlKQHaBmltYWdlc6kAcggAAAD6\nHjxpcHl0aG9uLWlucHV0LTUtYjdlODM0NzJkM2EyPtoIPGxhbWJkYT5XAAAAcwAAAAA=\n",
+            "4wEAAAAAAAAAAQAAAAQAAABTAAAAcxAAAAB0AGoBagJ8AGQBZAKNAlMAKQNO6QIAAAApAtoFaW5w\ndXTaCmJsb2NrX3NpemUpA9oBS9oCdGbaDmRlcHRoX3RvX3NwYWNlKQHaBmltYWdlc6kAcggAAAD6\nHjxpcHl0aG9uLWlucHV0LTctYmVjOTc3Y2IxOTM0PtoIPGxhbWJkYT5bAAAAcwAAAAA=\n",
             null,
             null
           ],
@@ -4387,7 +4438,10 @@
           },
           "alpha_regularizer": null,
           "alpha_constraint": null,
-          "shared_axes": null
+          "shared_axes": [
+            1,
+            2
+          ]
         },
         "inbound_nodes": [
           [
@@ -4460,7 +4514,7 @@
           "name": "pixelshuffleup_2",
           "trainable": true,
           "function": [
-            "4wEAAAAAAAAAAQAAAAQAAABTAAAAcxAAAAB0AGoBagJ8AGQBZAKNAlMAKQNO6QIAAAApAtoFaW5w\ndXTaCmJsb2NrX3NpemUpA9oBS9oCdGbaDmRlcHRoX3RvX3NwYWNlKQHaBmltYWdlc6kAcggAAAD6\nHjxpcHl0aG9uLWlucHV0LTUtYjdlODM0NzJkM2EyPtoIPGxhbWJkYT5XAAAAcwAAAAA=\n",
+            "4wEAAAAAAAAAAQAAAAQAAABTAAAAcxAAAAB0AGoBagJ8AGQBZAKNAlMAKQNO6QIAAAApAtoFaW5w\ndXTaCmJsb2NrX3NpemUpA9oBS9oCdGbaDmRlcHRoX3RvX3NwYWNlKQHaBmltYWdlc6kAcggAAAD6\nHjxpcHl0aG9uLWlucHV0LTctYmVjOTc3Y2IxOTM0PtoIPGxhbWJkYT5bAAAAcwAAAAA=\n",
             null,
             null
           ],
@@ -4492,7 +4546,10 @@
           },
           "alpha_regularizer": null,
           "alpha_constraint": null,
-          "shared_axes": null
+          "shared_axes": [
+            1,
+            2
+          ]
         },
         "inbound_nodes": [
           [
