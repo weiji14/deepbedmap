@@ -621,7 +621,7 @@ def train_generator(
 
 
 # %%
-epochs = 250
+epochs = 100
 with tqdm.trange(epochs) as t:
     metric_names = ["discriminator_network_loss_actual"] + models[
         "srgan_model"
@@ -668,6 +668,7 @@ with tqdm.trange(epochs) as t:
             max_epoch=epochs,
         )
         t.set_postfix(ordered_dict=dataframe.loc[i].to_dict())
+dataframe.to_csv(f"model/logs/srgan_{epochs}.csv", index=None)
 
 # %%
 model = models["generator_model"]
