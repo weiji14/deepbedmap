@@ -1,9 +1,11 @@
 import ast
+import os
+import types
+
 from behave import fixture, use_fixture
 import nbconvert
 import nbformat
-import os
-import types
+import quilt
 
 
 def _load_ipynb_modules(ipynb_path: str):
@@ -40,6 +42,27 @@ def _load_ipynb_modules(ipynb_path: str):
     return module
 
 
+def _quick_download_lowres_misc_datasets():
+    """
+    Retrieves low resolution and miscellaneous datasets quickly using Quilt
+    instead of downloading from the original source.
+    """
+    # Download packages first
+    quilt.install(package="weiji14/deepbedmap/lowres", force=True)
+    quilt.install(package="weiji14/deepbedmap/misc", force=True)
+
+    # Export the files to the right pathname
+    for geotiff in [
+        "lowres/bedmap2_bed",
+        "misc/REMA_100m_dem",
+        "misc/REMA_200m_dem_filled",
+        "misc/MEaSUREs_IceFlowSpeed_450m",
+    ]:
+        if not os.path.exists(path=f"{geotiff}.tif"):
+            quilt.export(package=f"weiji14/deepbedmap/{geotiff}", force=True)
+            os.rename(src=geotiff, dst=f"{geotiff}.tif")  # add .tif extension
+
+
 @fixture
 def fixture_data_prep(context):
     # set context.data_prep to have all the module functions
@@ -47,6 +70,17 @@ def fixture_data_prep(context):
     return context.data_prep
 
 
+@fixture
+def fixture_deepbedmap(context):
+    # Quickly download all the neural network input datasets
+    _quick_download_lowres_misc_datasets()
+    # set context.deepbedmap to have all the module functions
+    context.deepbedmap = _load_ipynb_modules(ipynb_path="deepbedmap.ipynb")
+    return context.deepbedmap
+
+
 def before_tag(context, tag):
     if tag == "fixture.data_prep":
         use_fixture(fixture_func=fixture_data_prep, context=context)
+    elif tag == "fixture.deepbedmap":
+        use_fixture(fixture_func=fixture_deepbedmap, context=context)

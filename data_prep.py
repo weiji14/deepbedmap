@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.2'
-#       jupytext_version: 0.8.6rc0
+#       jupytext_version: 0.8.6
 #   kernelspec:
 #     display_name: deepbedmap
 #     language: python
@@ -692,10 +692,27 @@ np.save(file="model/train/Y_data.npy", arr=hires)
 quilt.login()
 
 # %%
+# Tiled datasets for training neural network
 quilt.build(package="weiji14/deepbedmap/model/train/W1_data", path=rema)
 quilt.build(package="weiji14/deepbedmap/model/train/W2_data", path=measuresiceflow)
 quilt.build(package="weiji14/deepbedmap/model/train/X_data", path=lores)
 quilt.build(package="weiji14/deepbedmap/model/train/Y_data", path=hires)
+
+# Original datasets for neural network predictions on bigger area
+quilt.build(
+    package="weiji14/deepbedmap/lowres/bedmap2_bed", path="lowres/bedmap2_bed.tif"
+)
+quilt.build(
+    package="weiji14/deepbedmap/misc/REMA_100m_dem", path="misc/REMA_100m_dem.tif"
+)
+quilt.build(
+    package="weiji14/deepbedmap/misc/REMA_200m_dem_filled",
+    path="misc/REMA_200m_dem_filled.tif",
+)
+quilt.build(
+    package="weiji14/deepbedmap/misc/MEaSUREs_IceFlowSpeed_450m",
+    path="misc/MEaSUREs_IceFlowSpeed_450m.tif",
+)
 
 # %%
 quilt.push(package="weiji14/deepbedmap", is_public=True)
