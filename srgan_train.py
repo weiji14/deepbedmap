@@ -19,7 +19,7 @@
 # Here in this jupyter notebook, we will train a super-resolution generative adversarial network (SRGAN), to create a high-resolution Antarctic bed Digital Elevation Model(DEM) from a low-resolution DEM.
 # In addition to that, we use additional correlated inputs that can also tell us something about the bed topography.
 #
-# <img src="https://yuml.me/diagram/scruffy;dir:LR/class/[BEDMAP2 (1000m)]->[Generator model],[REMA (200m)]->[Generator model],[MEASURES Ice Flow Velocity (450m)]->[Generator model],[Generator model]->[High res bed DEM (250m)],[High res bed DEM (250m)]->[Discriminator model],[Groundtruth Image (250m)]->[Discriminator model],[Discriminator model]->[True/False]" alt="3 input SRGAN model"/>
+# <img src="https://yuml.me/diagram/scruffy;dir:LR/class/[BEDMAP2 (1000m)]->[Generator model],[REMA (100m)]->[Generator model],[MEASURES Ice Flow Velocity (450m)]->[Generator model],[Generator model]->[High res bed DEM (250m)],[High res bed DEM (250m)]->[Discriminator model],[Groundtruth Image (250m)]->[Discriminator model],[Discriminator model]->[True/False]" alt="3 input SRGAN model"/>
 
 # %% [markdown]
 # ## 0. Setup libraries
@@ -32,6 +32,7 @@ import typing
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
+import comet_ml
 import IPython.display
 import matplotlib.pyplot as plt
 import numpy as np
@@ -71,6 +72,9 @@ random.seed = seed
 np.random.seed(seed=seed)
 K.tf.set_random_seed(seed=seed)
 
+# Start tracking experiment using Comet.ML
+experiment = comet_ml.Experiment(workspace="weiji14", project_name="deepbedmap")
+
 # %% [markdown]
 # ## 1. Load data
 
@@ -78,6 +82,7 @@ K.tf.set_random_seed(seed=seed)
 hash = "d901b297a80fe396cf28ff6349b0ab241c1fd140743acff09f31950a77e4d762"
 quilt.install(package="weiji14/deepbedmap/model/train", hash=hash, force=False)
 pkg = quilt.load(pkginfo="weiji14/deepbedmap", hash=hash)
+experiment.log_parameter("dataset_hash", hash)
 
 # %%
 W1_data = pkg.model.train.W1_data()  # miscellaneous data REMA
@@ -668,6 +673,7 @@ with tqdm.trange(epochs) as t:
             max_epoch=epochs,
         )
         t.set_postfix(ordered_dict=dataframe.loc[i].to_dict())
+        experiment.log_metrics(dic=dataframe.loc[i].to_dict(), step=i)
 dataframe.to_csv(f"model/logs/srgan_{epochs}.csv", index=None)
 
 # %%
@@ -682,6 +688,13 @@ model.save_weights(filepath="model/weights/srgan_generator_model_weights.hdf5")
 # just the model architecture
 with open("model/weights/srgan_generator_model_architecture.json", "w") as json_file:
     json_file.write(model.to_json(indent=2))
+
+# Upload model weights file to Comet.ML and finish Comet.ML experiment
+experiment.log_asset(
+    file_path="model/weights/srgan_generator_model_weights.hdf5",
+    file_name="srgan_generator_model_weights",
+)
+experiment.end()
 
 # %%
 raise ValueError("temp")
