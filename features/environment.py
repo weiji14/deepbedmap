@@ -1,11 +1,15 @@
 import ast
+import base64
 import os
 import types
 
 from behave import fixture, use_fixture
+import comet_ml
 import nbconvert
 import nbformat
+import pandas as pd
 import quilt
+import requests
 
 
 def _load_ipynb_modules(ipynb_path: str):
@@ -63,6 +67,40 @@ def _quick_download_lowres_misc_datasets():
             os.rename(src=geotiff, dst=f"{geotiff}.tif")  # add .tif extension
 
 
+def _download_deepbedmap_model_weights_from_comet():
+    """
+    Download latest neural network model weights from Comet.ML
+    Uses their REST API endpoint https://www.comet.ml/docs/rest-api/endpoints/
+    Requires the COMET_REST_API_KEY environment variable to be set in the .env file
+    """
+    authHeader = {"Authorization": base64.b64decode(s=os.environ["COMET_REST_API_KEY"])}
+
+    # Get list of DeepBedMap experiments (projectId a7e4f47215b94cd98d6db8a092d78232)
+    r = requests.get(
+        url="https://www.comet.ml/api/rest/v1/experiments",
+        params={"projectId": "a7e4f47215b94cd98d6db8a092d78232"},
+        headers=authHeader,
+    )
+    df = pd.io.json.json_normalize(r.json()["experiments"])
+
+    # Get the key to the latest DeepBedMap experiment on Comet ML
+    experiment_key = df.loc[df["start_server_timestamp"].idxmax()].experiment_key
+
+    # Use key to access url to the experiment's asset which is the hdf5 weight file
+    r = requests.get(
+        url="https://www.comet.ml/api/rest/v1/asset/get-asset-list",
+        params={"experimentKey": experiment_key},
+        headers=authHeader,
+    )
+    asset_url = r.json()[0]["link"]
+
+    # Download the neural network weight file (hdf5 format) to the right place!
+    r = requests.get(url=asset_url, headers=authHeader)
+    open(file="model/weights/srgan_generator_model_weights.hdf5", mode="wb").write(
+        r.content
+    )
+
+
 @fixture
 def fixture_data_prep(context):
     # set context.data_prep to have all the module functions
@@ -74,6 +112,8 @@ def fixture_data_prep(context):
 def fixture_deepbedmap(context):
     # Quickly download all the neural network input datasets
     _quick_download_lowres_misc_datasets()
+    # Download trained neural network weight file
+    _download_deepbedmap_model_weights_from_comet()
     # set context.deepbedmap to have all the module functions
     context.deepbedmap = _load_ipynb_modules(ipynb_path="deepbedmap.ipynb")
     return context.deepbedmap
