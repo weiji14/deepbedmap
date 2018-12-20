@@ -57,11 +57,13 @@ def _quick_download_lowres_misc_datasets():
         print("Downloading neural network model input datasets ...", end=" ")
 
         _stdout = sys.stdout
-        sys.stdout = null
+        _stderr = sys.stderr
+        sys.stdout = sys.stderr = null
 
         quilt.install(package="weiji14/deepbedmap/lowres", force=True)
         quilt.install(package="weiji14/deepbedmap/misc", force=True)
 
+        sys.stderr = _stderr
         sys.stdout = _stdout
 
     # Export the files to the right pathname
