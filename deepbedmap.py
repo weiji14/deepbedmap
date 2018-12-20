@@ -14,7 +14,9 @@
 # ---
 
 # %% [markdown]
-# # Start here
+# # DeepBedMap
+#
+# Predicting the bed elevation of Antarctica using a Super Resolution Deep Neural Network.
 
 # %%
 import math
@@ -27,6 +29,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import axes3d
 import numpy as np
+import quilt
 import rasterio
 import xarray as xr
 
@@ -125,6 +128,16 @@ def plot_3d_view(
 
 # %%
 X_tile, W1_tile, W2_tile = get_deepbedmap_model_inputs(window_bound=window_bound)
+
+# Build quilt package for datasets covering our test region
+reupload = False
+if reupload == True:
+    quilt.build(package="weiji14/deepbedmap/model/test/W1_tile", path=W1_tile)
+    quilt.build(package="weiji14/deepbedmap/model/test/W2_tile", path=W2_tile)
+    quilt.build(package="weiji14/deepbedmap/model/test/X_tile", path=X_tile)
+    quilt.push(package="weiji14/deepbedmap/model/test", is_public=True)
+
+# %%
 fig, axarr = plt.subplots(nrows=1, ncols=3, squeeze=False, figsize=(16, 12))
 axarr[0, 0].imshow(X_tile[0, :, :, 0], cmap="BrBG")
 axarr[0, 0].set_title("BEDMAP2\n(1000m resolution)")

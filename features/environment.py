@@ -123,7 +123,7 @@ def fixture_data_prep(context):
 @fixture
 def fixture_deepbedmap(context):
     # Quickly download all the neural network input datasets
-    _quick_download_lowres_misc_datasets()
+    # _quick_download_lowres_misc_datasets()
     # Download trained neural network weight file
     _download_deepbedmap_model_weights_from_comet()
     # set context.deepbedmap to have all the module functions
