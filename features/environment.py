@@ -52,7 +52,6 @@ def _quick_download_lowres_misc_datasets():
     Retrieves low resolution and miscellaneous datasets quickly using Quilt
     instead of downloading from the original source.
     """
-    # Download packages first
     with open(os.devnull, "w") as null:
         print("Downloading neural network model input datasets ...", end=" ")
 
@@ -60,23 +59,24 @@ def _quick_download_lowres_misc_datasets():
         _stderr = sys.stderr
         sys.stdout = sys.stderr = null
 
-        quilt.install(package="weiji14/deepbedmap/lowres", force=True)
-        quilt.install(package="weiji14/deepbedmap/misc", force=True)
+        for geotiff in [
+            "lowres/bedmap2_bed",
+            "misc/REMA_100m_dem",
+            "misc/REMA_200m_dem_filled",
+            "misc/MEaSUREs_IceFlowSpeed_450m",
+        ]:
+
+            if not os.path.exists(path=f"{geotiff}.tif"):
+                # Download packages first
+                quilt.install(package=f"weiji14/deepbedmap/{geotiff}", force=True)
+                # Export the files to the right pathname
+                quilt.export(package=f"weiji14/deepbedmap/{geotiff}", force=True)
+                # Add .tif extension to filename
+                os.rename(src=geotiff, dst=f"{geotiff}.tif")
 
         sys.stderr = _stderr
         sys.stdout = _stdout
-
-    # Export the files to the right pathname
-    for geotiff in [
-        "lowres/bedmap2_bed",
-        "misc/REMA_100m_dem",
-        "misc/REMA_200m_dem_filled",
-        "misc/MEaSUREs_IceFlowSpeed_450m",
-    ]:
-        if not os.path.exists(path=f"{geotiff}.tif"):
-            quilt.export(package=f"weiji14/deepbedmap/{geotiff}", force=True)
-            os.rename(src=geotiff, dst=f"{geotiff}.tif")  # add .tif extension
-    print("done!")
+        print("done!")
 
 
 def _download_deepbedmap_model_weights_from_comet():
