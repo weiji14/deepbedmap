@@ -85,3 +85,6 @@ _unit_test_ipynb(path="srgan_train.ipynb")
 
 # %%
 _integration_test_ipynb(path="features/data_prep.feature")
+
+# %%
+_integration_test_ipynb(path="features/deepbedmap.feature")

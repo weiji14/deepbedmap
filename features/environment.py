@@ -1,6 +1,7 @@
 import ast
 import base64
 import os
+import sys
 import types
 
 from behave import fixture, use_fixture
@@ -52,8 +53,16 @@ def _quick_download_lowres_misc_datasets():
     instead of downloading from the original source.
     """
     # Download packages first
-    quilt.install(package="weiji14/deepbedmap/lowres", force=True)
-    quilt.install(package="weiji14/deepbedmap/misc", force=True)
+    with open(os.devnull, "w") as null:
+        print("Downloading neural network model input datasets ...", end=" ")
+
+        _stdout = sys.stdout
+        sys.stdout = null
+
+        quilt.install(package="weiji14/deepbedmap/lowres", force=True)
+        quilt.install(package="weiji14/deepbedmap/misc", force=True)
+
+        sys.stdout = _stdout
 
     # Export the files to the right pathname
     for geotiff in [
@@ -65,6 +74,7 @@ def _quick_download_lowres_misc_datasets():
         if not os.path.exists(path=f"{geotiff}.tif"):
             quilt.export(package=f"weiji14/deepbedmap/{geotiff}", force=True)
             os.rename(src=geotiff, dst=f"{geotiff}.tif")  # add .tif extension
+    print("done!")
 
 
 def _download_deepbedmap_model_weights_from_comet():

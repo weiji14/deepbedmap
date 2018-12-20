@@ -609,7 +609,7 @@ def selective_tile(
                         f"Tile has missing data, try passing in gapfill_raster_filepath"
                     )
 
-            assert array.shape[0] == array.shape[1]  # check that height==width
+            # assert array.shape[0] == array.shape[1]  # check that height==width
             array_list.append(array.data.astype(dtype=np.float32))
 
     return np.stack(arrays=array_list)

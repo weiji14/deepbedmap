@@ -8,7 +8,7 @@ Also a convenient [flat file](https://en.wikipedia.org/wiki/Flat-file_database) 
 [![Codefresh build status](https://g.codefresh.io/api/badges/pipeline/weiji14_marketplace/weiji14%2Fdeepbedmap%2Fdeepbedmap?type=cf-1)](https://g.codefresh.io/public/accounts/weiji14_marketplace/pipelines/weiji14/deepbedmap/deepbedmap)
 [![Dependabot Status](https://api.dependabot.com/badges/status?host=github&repo=weiji14/deepbedmap)](https://dependabot.com)
 
-![DeepBedMap Pipeline](https://yuml.me/diagram/scruffy;dir:LR/class/[Data|Highres/Lowres/Misc]->[Preprocessing|data_prep.ipynb],[Preprocessing]->[Model-Training|srgan_train.ipynb])
+![DeepBedMap Pipeline](https://yuml.me/diagram/scruffy;dir:LR/class/[Data|Highres/Lowres/Misc]->[Preprocessing|data_prep.ipynb],[Preprocessing]->[Model-Training|srgan_train.ipynb],[Model-Training]->[Inference|deepbedmap.ipynb])
 
 <details>
 <summary>Directory structure</summary>
@@ -63,7 +63,7 @@ Start by cloning this [repo-url](/../../)
 
     git clone <repo-url>
 
-Then I recommend [using conda](https://pdal.io/download.html#conda) to install the PDAL binary.
+Then I recommend [using conda](https://pdal.io/download.html#conda) to install the non-python binaries (e.g. GMT, CUDA, etc).
 The conda virtual environment will also be created with Python and [pipenv](https://pipenv.readthedocs.io) installed.
 
     cd deepbedmap
