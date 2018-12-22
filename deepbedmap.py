@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # ---
 # jupyter:
 #   jupytext:
@@ -29,8 +30,10 @@ import matplotlib
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import axes3d
 import numpy as np
+import pandas as pd
 import quilt
 import rasterio
+import skimage
 import xarray as xr
 
 import keras
@@ -64,8 +67,8 @@ def get_image_and_bounds(filepath: str):
 
 # %%
 test_file = "2007tx"  # "istarxx"
-test_grid = f"highres/{test_file}.nc"
-groundtruth, window_bound = get_image_and_bounds(filepath=test_grid)
+test_filepath = f"highres/{test_file}"
+groundtruth, window_bound = get_image_and_bounds(filepath=f"{test_filepath}.nc")
 print(window_bound)
 
 # %% [markdown]
@@ -252,3 +255,161 @@ ax.set_zlim(bottom=zmin, top=zmax)
 ax.set_zlabel("\n\nElevation (metres)", fontsize=16)
 
 plt.show()
+
+# %% [markdown]
+# # Save Bicubic BEDMAP2 and SRGAN DEEPBEDMAP to a grid file
+
+# %%
+def save_array_to_grid(window_bound: tuple, array: np.ndarray, outfilepath: str):
+    """
+    Saves a numpy array to geotiff and netcdf format
+    """
+
+    assert array.ndim == 4
+    assert array.shape[3] == 1  # check that there is only one channel
+
+    transform = rasterio.transform.from_bounds(
+        *window_bound, height=array.shape[1], width=array.shape[2]
+    )
+
+    # Save array as a GeoTiff first
+    with rasterio.open(
+        f"{outfilepath}.tif",
+        mode="w",
+        driver="GTiff",
+        height=array.shape[1],
+        width=array.shape[2],
+        count=1,
+        crs="EPSG:3031",
+        transform=transform,
+        dtype=array.dtype,
+    ) as new_geotiff:
+        new_geotiff.write(array[0, :, :, 0], 1)
+
+    # Convert deepbedmap3 and cubicbedmap2 from geotiff to netcdf format
+    xr.open_rasterio(f"{outfilepath}.tif").to_netcdf(f"{outfilepath}.nc")
+
+
+# %%
+# Save BEDMAP3 to GeoTiff and NetCDF format
+save_array_to_grid(
+    window_bound=window_bound, array=Y_hat, outfilepath="model/deepbedmap3"
+)
+
+# %%
+# Save Bicubic Resampled BEDMAP2 to GeoTiff and NetCDF format
+cubicbedmap2 = skimage.transform.rescale(
+    image=X_tile[0].astype(np.int32),
+    scale=4,
+    order=3,
+    mode="reflect",
+    anti_aliasing=True,
+    multichannel=True,
+    preserve_range=True,
+)
+save_array_to_grid(
+    window_bound=window_bound,
+    array=np.expand_dims(cubicbedmap2, axis=0),
+    outfilepath="model/cubicbedmap",
+)
+
+# %% [markdown]
+# # Crossover analysis
+#
+# We use [grdtrack](https://gmt.soest.hawaii.edu/doc/latest/grdtrack) to sample our grid along the survey tracks.
+#
+# The survey tracks are basically geographic xy points flown by a plane.
+# The three grids are all 250m spatial resolution, and they are:
+#
+# - Groundtruth grid (interpolated from our groundtruth points using [surface](https://gmt.soest.hawaii.edu/doc/latest/surface.html))
+# - DeepBedMap3 grid (predicted from our [Super Resolution Generative Adversarial Network model](/srgan_train.ipynb))
+# - CubicBedMap grid (interpolated from BEDMAP2 using a [bicubic spline algorithm](http://scikit-image.org/docs/dev/api/skimage.transform.html#skimage.transform.rescale))
+#
+# Reference:
+#
+# Wessel, P. (2010). Tools for analyzing intersecting tracks: The x2sys package. Computers & Geosciences, 36(3), 348–354. https://doi.org/10.1016/j.cageo.2009.05.009
+
+# %%
+data_prep = _load_ipynb_modules("data_prep.ipynb")
+track_test = data_prep.ascii_to_xyz(pipeline_file=f"{test_filepath}.json")
+track_test.to_csv("track_test.xyz", sep="\t", index=False)
+
+# %%
+!gmt grdtrack track_test.xyz -G{test_filepath}.nc -h1 -i0,1,2 > track_groundtruth.xyzi
+!gmt grdtrack track_test.xyz -Gmodel/deepbedmap3.nc -h1 -i0,1,2 > track_deepbedmap3.xyzi
+!gmt grdtrack track_test.xyz -Gmodel/cubicbedmap.nc -h1 -i0,1,2 > track_cubicbedmap.xyzi
+!head track_*.xyzi -n5
+
+# %% [markdown]
+# ### Get table statistics
+
+# %%
+df_groundtruth = pd.read_table(
+    "track_groundtruth.xyzi", header=1, names=["x", "y", "z", "z_interpolated"]
+)
+df_deepbedmap3 = pd.read_table(
+    "track_deepbedmap3.xyzi", header=1, names=["x", "y", "z", "z_interpolated"]
+)
+df_cubicbedmap = pd.read_table(
+    "track_cubicbedmap.xyzi", header=1, names=["x", "y", "z", "z_interpolated"]
+)
+
+# %%
+df_groundtruth["error"] = df_groundtruth.z_interpolated - df_groundtruth.z
+df_groundtruth.describe()
+
+# %%
+df_deepbedmap3["error"] = df_deepbedmap3.z_interpolated - df_deepbedmap3.z
+df_deepbedmap3.describe()
+
+# %%
+df_cubicbedmap["error"] = df_cubicbedmap.z_interpolated - df_cubicbedmap.z
+df_cubicbedmap.describe()
+
+# %%
+# https://medium.com/usf-msds/choosing-the-right-metric-for-machine-learning-models-part-1-a99d7d7414e4
+rmse_groundtruth = (df_groundtruth.error ** 2).mean() ** 0.5
+rmse_deepbedmap3 = (df_deepbedmap3.error ** 2).mean() ** 0.5
+rmse_cubicbedmap = (df_cubicbedmap.error ** 2).mean() ** 0.5
+print(f"Difference      : {rmse_deepbedmap3 - rmse_cubicbedmap:.2f}")
+
+fig, ax = plt.subplots(figsize=(16, 9))
+df_groundtruth.hist(
+    column="error",
+    bins=50,
+    ax=ax,
+    histtype="step",
+    label=f"Groundtruth RMSE: {rmse_groundtruth:.2f}",
+)
+df_deepbedmap3.hist(
+    column="error",
+    bins=50,
+    ax=ax,
+    histtype="step",
+    label=f"DeepBedMap3 RMSE: {rmse_deepbedmap3:.2f}",
+)
+df_cubicbedmap.hist(
+    column="error",
+    bins=50,
+    ax=ax,
+    histtype="step",
+    label=f"CubicBedMap RMSE: {rmse_cubicbedmap:.2f}",
+)
+ax.set_title(
+    "Elevation error between interpolated bed (Z_interpolated) and groundtruth bed (Z)",
+    fontsize=22,
+)
+ax.set_xlabel("Error in metres", fontsize=16)
+ax.set_ylabel("Number of data points", fontsize=16)
+ax.legend(loc="upper left", fontsize=16)
+plt.show()
+
+# %%
+# https://medium.com/usf-msds/choosing-the-right-metric-for-machine-learning-models-part-1-a99d7d7414e4
+rmse_groundtruth = (df_groundtruth.error ** 2).mean() ** 0.5
+rmse_deepbedmap3 = (df_deepbedmap3.error ** 2).mean() ** 0.5
+rmse_cubicbedmap = (df_cubicbedmap.error ** 2).mean() ** 0.5
+print(f"Groundtruth RMSE: {rmse_groundtruth}")
+print(f"DeepBedMap3 RMSE: {rmse_deepbedmap3}")
+print(f"CubicBedMap RMSE: {rmse_cubicbedmap}")
+print(f"Difference      : {rmse_deepbedmap3 - rmse_cubicbedmap}")

@@ -59,6 +59,8 @@ from keras.layers.advanced_activations import LeakyReLU, PReLU
 from keras.models import Model
 import livelossplot
 
+from features.environment import _load_ipynb_modules
+
 print("Python       :", sys.version.split("\n")[0])
 print("Numpy        :", np.__version__)
 print("Keras        :", keras.__version__)
@@ -79,16 +81,16 @@ experiment = comet_ml.Experiment(workspace="weiji14", project_name="deepbedmap")
 # ## 1. Load data
 
 # %%
-hash = "d901b297a80fe396cf28ff6349b0ab241c1fd140743acff09f31950a77e4d762"
-quilt.install(package="weiji14/deepbedmap/model/train", hash=hash, force=False)
-pkg = quilt.load(pkginfo="weiji14/deepbedmap", hash=hash)
+hash = "1ccc9dc7f6344e1ec27b7aa972f2739d192d3e5adef8a64528b86bc799e2df60"
+quilt.install(package="weiji14/deepbedmap/model/train", hash=hash, force=True)
+pkg = quilt.load(pkginfo="weiji14/deepbedmap/model/train", hash=hash)
 experiment.log_parameter("dataset_hash", hash)
 
 # %%
-W1_data = pkg.model.train.W1_data()  # miscellaneous data REMA
-W2_data = pkg.model.train.W2_data()  # miscellaneous data MEASURES Ice Flow
-X_data = pkg.model.train.X_data()  # low resolution BEDMAP2
-Y_data = pkg.model.train.Y_data()  # high resolution groundtruth
+W1_data = pkg.W1_data()  # miscellaneous data REMA
+W2_data = pkg.W2_data()  # miscellaneous data MEASURES Ice Flow
+X_data = pkg.X_data()  # low resolution BEDMAP2
+Y_data = pkg.Y_data()  # high resolution groundtruth
 # W1_data = np.load(file="model/train/W1_data.npy")
 # W2_data = np.load(file="model/train/W2_data.npy")
 # X_data = np.load(file="model/train/X_data.npy")
@@ -674,7 +676,6 @@ with tqdm.trange(epochs) as t:
         )
         t.set_postfix(ordered_dict=dataframe.loc[i].to_dict())
         experiment.log_metrics(dic=dataframe.loc[i].to_dict(), step=i)
-dataframe.to_csv(f"model/logs/srgan_{epochs}.csv", index=None)
 
 # %%
 model = models["generator_model"]
@@ -694,64 +695,59 @@ experiment.log_asset(
     file_path="model/weights/srgan_generator_model_weights.hdf5",
     file_name="srgan_generator_model_weights",
 )
-experiment.end()
-
-# %%
-raise ValueError("temp")
 
 # %% [markdown]
-# ## 4. Evaluate model on dev (validation) set
+# ## 4. Evaluate model
+
+# %% [markdown]
+# ### Evaluation on independent test set
 
 # %%
-with open("model/weights/srgan_generator_model_architecture.json") as json_file:
-    model = keras.models.model_from_json(json_string=json_file.read())
-    model.load_weights(filepath="model/weights/srgan_generator_model_weights.hdf5")
+def get_deepbedmap_test_result(test_filepath: str = "highres/2007tx"):
+    """
+    Gets Root Mean Squared Error of elevation difference between
+    DeepBedMap topography and reference groundtruth xyz tracks
+    at a particular test region
+    """
+    deepbedmap = _load_ipynb_modules("deepbedmap.ipynb")
+
+    # Get groundtruth images, window_bounds and neural network input datasets
+    groundtruth, window_bound = deepbedmap.get_image_and_bounds(f"{test_filepath}.nc")
+    X_tile, W1_tile, W2_tile = deepbedmap.get_deepbedmap_model_inputs(
+        window_bound=window_bound
+    )
+
+    # Run input datasets through trained neural network model
+    model = deepbedmap.load_trained_model(model_inputs=(X_tile, W1_tile, W2_tile))
+    Y_hat = model.predict(x=[X_tile, W1_tile, W2_tile], verbose=1)
+
+    # Save infered deepbedmap to grid file(s)
+    deepbedmap.save_array_to_grid(
+        window_bound=window_bound, array=Y_hat, outfilepath="model/deepbedmap3"
+    )
+
+    # Load xyz table for test region
+    data_prep = _load_ipynb_modules("data_prep.ipynb")
+    track_test = data_prep.ascii_to_xyz(pipeline_file=f"{test_filepath}.json")
+    track_test.to_csv("track_test.xyz", sep="\t", index=False)
+
+    # Get the elevation (z) value at specified x, y points along the groundtruth track
+    !gmt grdtrack track_test.xyz -Gmodel/deepbedmap3.nc -h1 -i0,1,2 > track_deepbedmap3.xyzi
+    df_deepbedmap3 = pd.read_table(
+        "track_deepbedmap3.xyzi", header=1, names=["x", "y", "z", "z_interpolated"]
+    )
+
+    # Calculate elevation error between groundtruth xyz tracks and deepbedmap
+    df_deepbedmap3["error"] = df_deepbedmap3.z_interpolated - df_deepbedmap3.z
+    rmse_deepbedmap3 = (df_deepbedmap3.error ** 2).mean() ** 0.5
+
+    return rmse_deepbedmap3
+
 
 # %%
-Y_hat = model.predict(x=[X_dev, W1_dev, W2_dev], verbose=1)
-print(Y_hat.shape, Y_hat.dtype)
+rmse_test = get_deepbedmap_test_result()
+print(f"Experiment yielded Root Mean Square Error of {rmse_test:.2f} on test set")
+experiment.log_metric(name="rmse_test", value=rmse_test)
 
 # %%
-for i in range(5):
-    try:
-        id = random.randrange(0, len(X_dev))
-        print(id, X_dev[id].shape)
-
-        X_cube = skimage.transform.rescale(
-            image=X_dev[id][1:-1, 1:-1, :].astype(np.int32),
-            scale=4,
-            order=3,
-            mode="reflect",
-            anti_aliasing=True,
-            multichannel=False,
-            preserve_range=True,
-        )
-        psnr_bicubic = skimage.measure.compare_psnr(
-            im_true=Y_dev[id][:, :, 0].astype(np.int32),
-            im_test=X_cube[:, :, 0].astype(np.int32),
-        )
-        psnr_srgan = skimage.measure.compare_psnr(
-            im_true=Y_dev[id][:, :, 0].astype(np.int32),
-            im_test=Y_hat[id][:, :, 0].astype(np.int32),
-        )
-
-        fig, axarr = plt.subplots(nrows=1, ncols=5, squeeze=False, figsize=(15, 15))
-        axarr[0, 0].imshow(
-            X_dev[id][:, :, 0], aspect="equal"
-        )  # low resolution original
-        axarr[0, 1].imshow(X_cube[:, :, 0], aspect="equal")  # bicubic interpolation
-        axarr[0, 2].imshow(W1_dev[id][:, :, 0], aspect="equal")  # REMA surface DEM
-        axarr[0, 3].imshow(Y_hat[id][:, :, 0], aspect="equal")  # srcnn prediction
-        axarr[0, 4].imshow(Y_dev[id][:, :, 0], aspect="equal")  # groundtruth
-
-        axarr[0, 0].set_title("BEDMAP2")
-        axarr[0, 1].set_title("Bicubic")
-        axarr[0, 1].set_xlabel(f"PSNR: {psnr_bicubic:.2f}")
-        axarr[0, 2].set_title("REMA")
-        axarr[0, 3].set_xlabel(f"PSNR: {psnr_srgan:.2f}")
-        axarr[0, 3].set_title("SRGAN")
-        axarr[0, 4].set_title("Groundtruth")
-
-        plt.show()
-    except TypeError:
-        pass
+experiment.end()
