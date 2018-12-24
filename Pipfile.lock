@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "c42cdb99e3a533225b59ea3bcc2160772ca60b49e8c93c53ed553558d6e9e484"
+            "sha256": "45163f6e12e491af0f253d9e5aa6110af72970e797df2206fbcb136b1926995e"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -155,11 +155,11 @@
         },
         "comet-ml": {
             "hashes": [
-                "sha256:3fda99fa5e3c421af9d7be1e11c2748659012db8a9dfd0598b60fb5c44cb8109",
-                "sha256:65e52f224d5ed1a8d7e948de49e7251c28d92eef4d5d450ad65e6f12b022b910"
+                "sha256:1ac23797400b8bae50610d1c2d2e79f41acac7a3c94230db0d40f6dae48598d3",
+                "sha256:dd9dd382695b3731115e4ae18889910958ee037e41e83c56a28035c8ab23c045"
             ],
             "index": "pypi",
-            "version": "==1.0.40"
+            "version": "==1.0.42"
         },
         "configobj": {
             "hashes": [

@@ -5,7 +5,7 @@ name = "pypi"
 
 [packages]
 black = "==18.9b0"
-comet-ml = "==1.0.40"
+comet-ml = "==1.0.42"
 cython = "==0.29.2"
 descartes = "==1.1.0"
 geopandas = {editable = true, ref = "0.4.0-26-g9e584cc", git = "https://github.com/geopandas/geopandas.git"}
