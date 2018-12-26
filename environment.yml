@@ -11,4 +11,4 @@ dependencies:
   - pip=18.1[md5=d68c7e5109ba0bf4b1cfe60f0f47870a]
   - conda-forge::python=3.6.6[md5=fe9f54422cdaf8779147b6a02cab2dd1]
   - pip:
-    - pipenv==2018.10.13
+    - pipenv==2018.11.26
