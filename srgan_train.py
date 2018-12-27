@@ -315,8 +315,8 @@ def discriminator_network(
         X = Conv2D(filters=64 * f, kernel_size=(3, 3), strides=(s, s), padding="same")(
             X
         )
-        X = LeakyReLU(alpha=0.2)(X)
         X = BatchNormalization()(X)
+        X = LeakyReLU(alpha=0.2)(X)
 
     # 3rd part
     # Flatten, Dense (Fully Connected) Layers and Output
