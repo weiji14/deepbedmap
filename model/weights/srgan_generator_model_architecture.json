@@ -376,49 +376,6 @@
         ]
       },
       {
-        "name": "batch_normalization_1",
-        "class_name": "BatchNormalization",
-        "config": {
-          "name": "batch_normalization_1",
-          "trainable": true,
-          "axis": -1,
-          "momentum": 0.99,
-          "epsilon": 0.001,
-          "center": true,
-          "scale": true,
-          "beta_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "gamma_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "moving_mean_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "moving_variance_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "beta_regularizer": null,
-          "gamma_regularizer": null,
-          "beta_constraint": null,
-          "gamma_constraint": null
-        },
-        "inbound_nodes": [
-          [
-            [
-              "conv2d_5",
-              0,
-              0,
-              {}
-            ]
-          ]
-        ]
-      },
-      {
         "name": "p_re_lu_2",
         "class_name": "PReLU",
         "config": {
@@ -438,7 +395,7 @@
         "inbound_nodes": [
           [
             [
-              "batch_normalization_1",
+              "conv2d_5",
               0,
               0,
               {}
@@ -500,49 +457,6 @@
         ]
       },
       {
-        "name": "batch_normalization_2",
-        "class_name": "BatchNormalization",
-        "config": {
-          "name": "batch_normalization_2",
-          "trainable": true,
-          "axis": -1,
-          "momentum": 0.99,
-          "epsilon": 0.001,
-          "center": true,
-          "scale": true,
-          "beta_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "gamma_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "moving_mean_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "moving_variance_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "beta_regularizer": null,
-          "gamma_regularizer": null,
-          "beta_constraint": null,
-          "gamma_constraint": null
-        },
-        "inbound_nodes": [
-          [
-            [
-              "conv2d_6",
-              0,
-              0,
-              {}
-            ]
-          ]
-        ]
-      },
-      {
         "name": "add_1",
         "class_name": "Add",
         "config": {
@@ -552,7 +466,7 @@
         "inbound_nodes": [
           [
             [
-              "batch_normalization_2",
+              "conv2d_6",
               0,
               0,
               {}
@@ -620,49 +534,6 @@
         ]
       },
       {
-        "name": "batch_normalization_3",
-        "class_name": "BatchNormalization",
-        "config": {
-          "name": "batch_normalization_3",
-          "trainable": true,
-          "axis": -1,
-          "momentum": 0.99,
-          "epsilon": 0.001,
-          "center": true,
-          "scale": true,
-          "beta_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "gamma_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "moving_mean_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "moving_variance_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "beta_regularizer": null,
-          "gamma_regularizer": null,
-          "beta_constraint": null,
-          "gamma_constraint": null
-        },
-        "inbound_nodes": [
-          [
-            [
-              "conv2d_7",
-              0,
-              0,
-              {}
-            ]
-          ]
-        ]
-      },
-      {
         "name": "p_re_lu_3",
         "class_name": "PReLU",
         "config": {
@@ -682,7 +553,7 @@
         "inbound_nodes": [
           [
             [
-              "batch_normalization_3",
+              "conv2d_7",
               0,
               0,
               {}
@@ -744,49 +615,6 @@
         ]
       },
       {
-        "name": "batch_normalization_4",
-        "class_name": "BatchNormalization",
-        "config": {
-          "name": "batch_normalization_4",
-          "trainable": true,
-          "axis": -1,
-          "momentum": 0.99,
-          "epsilon": 0.001,
-          "center": true,
-          "scale": true,
-          "beta_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "gamma_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "moving_mean_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "moving_variance_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "beta_regularizer": null,
-          "gamma_regularizer": null,
-          "beta_constraint": null,
-          "gamma_constraint": null
-        },
-        "inbound_nodes": [
-          [
-            [
-              "conv2d_8",
-              0,
-              0,
-              {}
-            ]
-          ]
-        ]
-      },
-      {
         "name": "add_2",
         "class_name": "Add",
         "config": {
@@ -796,7 +624,7 @@
         "inbound_nodes": [
           [
             [
-              "batch_normalization_4",
+              "conv2d_8",
               0,
               0,
               {}
@@ -864,49 +692,6 @@
         ]
       },
       {
-        "name": "batch_normalization_5",
-        "class_name": "BatchNormalization",
-        "config": {
-          "name": "batch_normalization_5",
-          "trainable": true,
-          "axis": -1,
-          "momentum": 0.99,
-          "epsilon": 0.001,
-          "center": true,
-          "scale": true,
-          "beta_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "gamma_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "moving_mean_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "moving_variance_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "beta_regularizer": null,
-          "gamma_regularizer": null,
-          "beta_constraint": null,
-          "gamma_constraint": null
-        },
-        "inbound_nodes": [
-          [
-            [
-              "conv2d_9",
-              0,
-              0,
-              {}
-            ]
-          ]
-        ]
-      },
-      {
         "name": "p_re_lu_4",
         "class_name": "PReLU",
         "config": {
@@ -926,7 +711,7 @@
         "inbound_nodes": [
           [
             [
-              "batch_normalization_5",
+              "conv2d_9",
               0,
               0,
               {}
@@ -988,49 +773,6 @@
         ]
       },
       {
-        "name": "batch_normalization_6",
-        "class_name": "BatchNormalization",
-        "config": {
-          "name": "batch_normalization_6",
-          "trainable": true,
-          "axis": -1,
-          "momentum": 0.99,
-          "epsilon": 0.001,
-          "center": true,
-          "scale": true,
-          "beta_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "gamma_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "moving_mean_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "moving_variance_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "beta_regularizer": null,
-          "gamma_regularizer": null,
-          "beta_constraint": null,
-          "gamma_constraint": null
-        },
-        "inbound_nodes": [
-          [
-            [
-              "conv2d_10",
-              0,
-              0,
-              {}
-            ]
-          ]
-        ]
-      },
-      {
         "name": "add_3",
         "class_name": "Add",
         "config": {
@@ -1040,7 +782,7 @@
         "inbound_nodes": [
           [
             [
-              "batch_normalization_6",
+              "conv2d_10",
               0,
               0,
               {}
@@ -1108,49 +850,6 @@
         ]
       },
       {
-        "name": "batch_normalization_7",
-        "class_name": "BatchNormalization",
-        "config": {
-          "name": "batch_normalization_7",
-          "trainable": true,
-          "axis": -1,
-          "momentum": 0.99,
-          "epsilon": 0.001,
-          "center": true,
-          "scale": true,
-          "beta_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "gamma_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "moving_mean_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "moving_variance_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "beta_regularizer": null,
-          "gamma_regularizer": null,
-          "beta_constraint": null,
-          "gamma_constraint": null
-        },
-        "inbound_nodes": [
-          [
-            [
-              "conv2d_11",
-              0,
-              0,
-              {}
-            ]
-          ]
-        ]
-      },
-      {
         "name": "p_re_lu_5",
         "class_name": "PReLU",
         "config": {
@@ -1170,7 +869,7 @@
         "inbound_nodes": [
           [
             [
-              "batch_normalization_7",
+              "conv2d_11",
               0,
               0,
               {}
@@ -1232,49 +931,6 @@
         ]
       },
       {
-        "name": "batch_normalization_8",
-        "class_name": "BatchNormalization",
-        "config": {
-          "name": "batch_normalization_8",
-          "trainable": true,
-          "axis": -1,
-          "momentum": 0.99,
-          "epsilon": 0.001,
-          "center": true,
-          "scale": true,
-          "beta_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "gamma_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "moving_mean_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "moving_variance_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "beta_regularizer": null,
-          "gamma_regularizer": null,
-          "beta_constraint": null,
-          "gamma_constraint": null
-        },
-        "inbound_nodes": [
-          [
-            [
-              "conv2d_12",
-              0,
-              0,
-              {}
-            ]
-          ]
-        ]
-      },
-      {
         "name": "add_4",
         "class_name": "Add",
         "config": {
@@ -1284,7 +940,7 @@
         "inbound_nodes": [
           [
             [
-              "batch_normalization_8",
+              "conv2d_12",
               0,
               0,
               {}
@@ -1352,49 +1008,6 @@
         ]
       },
       {
-        "name": "batch_normalization_9",
-        "class_name": "BatchNormalization",
-        "config": {
-          "name": "batch_normalization_9",
-          "trainable": true,
-          "axis": -1,
-          "momentum": 0.99,
-          "epsilon": 0.001,
-          "center": true,
-          "scale": true,
-          "beta_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "gamma_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "moving_mean_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "moving_variance_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "beta_regularizer": null,
-          "gamma_regularizer": null,
-          "beta_constraint": null,
-          "gamma_constraint": null
-        },
-        "inbound_nodes": [
-          [
-            [
-              "conv2d_13",
-              0,
-              0,
-              {}
-            ]
-          ]
-        ]
-      },
-      {
         "name": "p_re_lu_6",
         "class_name": "PReLU",
         "config": {
@@ -1414,7 +1027,7 @@
         "inbound_nodes": [
           [
             [
-              "batch_normalization_9",
+              "conv2d_13",
               0,
               0,
               {}
@@ -1476,49 +1089,6 @@
         ]
       },
       {
-        "name": "batch_normalization_10",
-        "class_name": "BatchNormalization",
-        "config": {
-          "name": "batch_normalization_10",
-          "trainable": true,
-          "axis": -1,
-          "momentum": 0.99,
-          "epsilon": 0.001,
-          "center": true,
-          "scale": true,
-          "beta_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "gamma_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "moving_mean_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "moving_variance_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "beta_regularizer": null,
-          "gamma_regularizer": null,
-          "beta_constraint": null,
-          "gamma_constraint": null
-        },
-        "inbound_nodes": [
-          [
-            [
-              "conv2d_14",
-              0,
-              0,
-              {}
-            ]
-          ]
-        ]
-      },
-      {
         "name": "add_5",
         "class_name": "Add",
         "config": {
@@ -1528,7 +1098,7 @@
         "inbound_nodes": [
           [
             [
-              "batch_normalization_10",
+              "conv2d_14",
               0,
               0,
               {}
@@ -1596,49 +1166,6 @@
         ]
       },
       {
-        "name": "batch_normalization_11",
-        "class_name": "BatchNormalization",
-        "config": {
-          "name": "batch_normalization_11",
-          "trainable": true,
-          "axis": -1,
-          "momentum": 0.99,
-          "epsilon": 0.001,
-          "center": true,
-          "scale": true,
-          "beta_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "gamma_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "moving_mean_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "moving_variance_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "beta_regularizer": null,
-          "gamma_regularizer": null,
-          "beta_constraint": null,
-          "gamma_constraint": null
-        },
-        "inbound_nodes": [
-          [
-            [
-              "conv2d_15",
-              0,
-              0,
-              {}
-            ]
-          ]
-        ]
-      },
-      {
         "name": "p_re_lu_7",
         "class_name": "PReLU",
         "config": {
@@ -1658,7 +1185,7 @@
         "inbound_nodes": [
           [
             [
-              "batch_normalization_11",
+              "conv2d_15",
               0,
               0,
               {}
@@ -1720,49 +1247,6 @@
         ]
       },
       {
-        "name": "batch_normalization_12",
-        "class_name": "BatchNormalization",
-        "config": {
-          "name": "batch_normalization_12",
-          "trainable": true,
-          "axis": -1,
-          "momentum": 0.99,
-          "epsilon": 0.001,
-          "center": true,
-          "scale": true,
-          "beta_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "gamma_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "moving_mean_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "moving_variance_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "beta_regularizer": null,
-          "gamma_regularizer": null,
-          "beta_constraint": null,
-          "gamma_constraint": null
-        },
-        "inbound_nodes": [
-          [
-            [
-              "conv2d_16",
-              0,
-              0,
-              {}
-            ]
-          ]
-        ]
-      },
-      {
         "name": "add_6",
         "class_name": "Add",
         "config": {
@@ -1772,7 +1256,7 @@
         "inbound_nodes": [
           [
             [
-              "batch_normalization_12",
+              "conv2d_16",
               0,
               0,
               {}
@@ -1840,49 +1324,6 @@
         ]
       },
       {
-        "name": "batch_normalization_13",
-        "class_name": "BatchNormalization",
-        "config": {
-          "name": "batch_normalization_13",
-          "trainable": true,
-          "axis": -1,
-          "momentum": 0.99,
-          "epsilon": 0.001,
-          "center": true,
-          "scale": true,
-          "beta_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "gamma_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "moving_mean_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "moving_variance_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "beta_regularizer": null,
-          "gamma_regularizer": null,
-          "beta_constraint": null,
-          "gamma_constraint": null
-        },
-        "inbound_nodes": [
-          [
-            [
-              "conv2d_17",
-              0,
-              0,
-              {}
-            ]
-          ]
-        ]
-      },
-      {
         "name": "p_re_lu_8",
         "class_name": "PReLU",
         "config": {
@@ -1902,7 +1343,7 @@
         "inbound_nodes": [
           [
             [
-              "batch_normalization_13",
+              "conv2d_17",
               0,
               0,
               {}
@@ -1964,49 +1405,6 @@
         ]
       },
       {
-        "name": "batch_normalization_14",
-        "class_name": "BatchNormalization",
-        "config": {
-          "name": "batch_normalization_14",
-          "trainable": true,
-          "axis": -1,
-          "momentum": 0.99,
-          "epsilon": 0.001,
-          "center": true,
-          "scale": true,
-          "beta_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "gamma_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "moving_mean_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "moving_variance_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "beta_regularizer": null,
-          "gamma_regularizer": null,
-          "beta_constraint": null,
-          "gamma_constraint": null
-        },
-        "inbound_nodes": [
-          [
-            [
-              "conv2d_18",
-              0,
-              0,
-              {}
-            ]
-          ]
-        ]
-      },
-      {
         "name": "add_7",
         "class_name": "Add",
         "config": {
@@ -2016,7 +1414,7 @@
         "inbound_nodes": [
           [
             [
-              "batch_normalization_14",
+              "conv2d_18",
               0,
               0,
               {}
@@ -2084,49 +1482,6 @@
         ]
       },
       {
-        "name": "batch_normalization_15",
-        "class_name": "BatchNormalization",
-        "config": {
-          "name": "batch_normalization_15",
-          "trainable": true,
-          "axis": -1,
-          "momentum": 0.99,
-          "epsilon": 0.001,
-          "center": true,
-          "scale": true,
-          "beta_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "gamma_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "moving_mean_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "moving_variance_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "beta_regularizer": null,
-          "gamma_regularizer": null,
-          "beta_constraint": null,
-          "gamma_constraint": null
-        },
-        "inbound_nodes": [
-          [
-            [
-              "conv2d_19",
-              0,
-              0,
-              {}
-            ]
-          ]
-        ]
-      },
-      {
         "name": "p_re_lu_9",
         "class_name": "PReLU",
         "config": {
@@ -2146,7 +1501,7 @@
         "inbound_nodes": [
           [
             [
-              "batch_normalization_15",
+              "conv2d_19",
               0,
               0,
               {}
@@ -2208,49 +1563,6 @@
         ]
       },
       {
-        "name": "batch_normalization_16",
-        "class_name": "BatchNormalization",
-        "config": {
-          "name": "batch_normalization_16",
-          "trainable": true,
-          "axis": -1,
-          "momentum": 0.99,
-          "epsilon": 0.001,
-          "center": true,
-          "scale": true,
-          "beta_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "gamma_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "moving_mean_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "moving_variance_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "beta_regularizer": null,
-          "gamma_regularizer": null,
-          "beta_constraint": null,
-          "gamma_constraint": null
-        },
-        "inbound_nodes": [
-          [
-            [
-              "conv2d_20",
-              0,
-              0,
-              {}
-            ]
-          ]
-        ]
-      },
-      {
         "name": "add_8",
         "class_name": "Add",
         "config": {
@@ -2260,7 +1572,7 @@
         "inbound_nodes": [
           [
             [
-              "batch_normalization_16",
+              "conv2d_20",
               0,
               0,
               {}
@@ -2328,49 +1640,6 @@
         ]
       },
       {
-        "name": "batch_normalization_17",
-        "class_name": "BatchNormalization",
-        "config": {
-          "name": "batch_normalization_17",
-          "trainable": true,
-          "axis": -1,
-          "momentum": 0.99,
-          "epsilon": 0.001,
-          "center": true,
-          "scale": true,
-          "beta_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "gamma_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "moving_mean_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "moving_variance_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "beta_regularizer": null,
-          "gamma_regularizer": null,
-          "beta_constraint": null,
-          "gamma_constraint": null
-        },
-        "inbound_nodes": [
-          [
-            [
-              "conv2d_21",
-              0,
-              0,
-              {}
-            ]
-          ]
-        ]
-      },
-      {
         "name": "p_re_lu_10",
         "class_name": "PReLU",
         "config": {
@@ -2390,7 +1659,7 @@
         "inbound_nodes": [
           [
             [
-              "batch_normalization_17",
+              "conv2d_21",
               0,
               0,
               {}
@@ -2452,49 +1721,6 @@
         ]
       },
       {
-        "name": "batch_normalization_18",
-        "class_name": "BatchNormalization",
-        "config": {
-          "name": "batch_normalization_18",
-          "trainable": true,
-          "axis": -1,
-          "momentum": 0.99,
-          "epsilon": 0.001,
-          "center": true,
-          "scale": true,
-          "beta_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "gamma_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "moving_mean_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "moving_variance_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "beta_regularizer": null,
-          "gamma_regularizer": null,
-          "beta_constraint": null,
-          "gamma_constraint": null
-        },
-        "inbound_nodes": [
-          [
-            [
-              "conv2d_22",
-              0,
-              0,
-              {}
-            ]
-          ]
-        ]
-      },
-      {
         "name": "add_9",
         "class_name": "Add",
         "config": {
@@ -2504,7 +1730,7 @@
         "inbound_nodes": [
           [
             [
-              "batch_normalization_18",
+              "conv2d_22",
               0,
               0,
               {}
@@ -2572,49 +1798,6 @@
         ]
       },
       {
-        "name": "batch_normalization_19",
-        "class_name": "BatchNormalization",
-        "config": {
-          "name": "batch_normalization_19",
-          "trainable": true,
-          "axis": -1,
-          "momentum": 0.99,
-          "epsilon": 0.001,
-          "center": true,
-          "scale": true,
-          "beta_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "gamma_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "moving_mean_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "moving_variance_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "beta_regularizer": null,
-          "gamma_regularizer": null,
-          "beta_constraint": null,
-          "gamma_constraint": null
-        },
-        "inbound_nodes": [
-          [
-            [
-              "conv2d_23",
-              0,
-              0,
-              {}
-            ]
-          ]
-        ]
-      },
-      {
         "name": "p_re_lu_11",
         "class_name": "PReLU",
         "config": {
@@ -2634,7 +1817,7 @@
         "inbound_nodes": [
           [
             [
-              "batch_normalization_19",
+              "conv2d_23",
               0,
               0,
               {}
@@ -2696,49 +1879,6 @@
         ]
       },
       {
-        "name": "batch_normalization_20",
-        "class_name": "BatchNormalization",
-        "config": {
-          "name": "batch_normalization_20",
-          "trainable": true,
-          "axis": -1,
-          "momentum": 0.99,
-          "epsilon": 0.001,
-          "center": true,
-          "scale": true,
-          "beta_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "gamma_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "moving_mean_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "moving_variance_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "beta_regularizer": null,
-          "gamma_regularizer": null,
-          "beta_constraint": null,
-          "gamma_constraint": null
-        },
-        "inbound_nodes": [
-          [
-            [
-              "conv2d_24",
-              0,
-              0,
-              {}
-            ]
-          ]
-        ]
-      },
-      {
         "name": "add_10",
         "class_name": "Add",
         "config": {
@@ -2748,7 +1888,7 @@
         "inbound_nodes": [
           [
             [
-              "batch_normalization_20",
+              "conv2d_24",
               0,
               0,
               {}
@@ -2816,49 +1956,6 @@
         ]
       },
       {
-        "name": "batch_normalization_21",
-        "class_name": "BatchNormalization",
-        "config": {
-          "name": "batch_normalization_21",
-          "trainable": true,
-          "axis": -1,
-          "momentum": 0.99,
-          "epsilon": 0.001,
-          "center": true,
-          "scale": true,
-          "beta_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "gamma_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "moving_mean_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "moving_variance_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "beta_regularizer": null,
-          "gamma_regularizer": null,
-          "beta_constraint": null,
-          "gamma_constraint": null
-        },
-        "inbound_nodes": [
-          [
-            [
-              "conv2d_25",
-              0,
-              0,
-              {}
-            ]
-          ]
-        ]
-      },
-      {
         "name": "p_re_lu_12",
         "class_name": "PReLU",
         "config": {
@@ -2878,7 +1975,7 @@
         "inbound_nodes": [
           [
             [
-              "batch_normalization_21",
+              "conv2d_25",
               0,
               0,
               {}
@@ -2940,49 +2037,6 @@
         ]
       },
       {
-        "name": "batch_normalization_22",
-        "class_name": "BatchNormalization",
-        "config": {
-          "name": "batch_normalization_22",
-          "trainable": true,
-          "axis": -1,
-          "momentum": 0.99,
-          "epsilon": 0.001,
-          "center": true,
-          "scale": true,
-          "beta_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "gamma_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "moving_mean_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "moving_variance_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "beta_regularizer": null,
-          "gamma_regularizer": null,
-          "beta_constraint": null,
-          "gamma_constraint": null
-        },
-        "inbound_nodes": [
-          [
-            [
-              "conv2d_26",
-              0,
-              0,
-              {}
-            ]
-          ]
-        ]
-      },
-      {
         "name": "add_11",
         "class_name": "Add",
         "config": {
@@ -2992,7 +2046,7 @@
         "inbound_nodes": [
           [
             [
-              "batch_normalization_22",
+              "conv2d_26",
               0,
               0,
               {}
@@ -3060,49 +2114,6 @@
         ]
       },
       {
-        "name": "batch_normalization_23",
-        "class_name": "BatchNormalization",
-        "config": {
-          "name": "batch_normalization_23",
-          "trainable": true,
-          "axis": -1,
-          "momentum": 0.99,
-          "epsilon": 0.001,
-          "center": true,
-          "scale": true,
-          "beta_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "gamma_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "moving_mean_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "moving_variance_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "beta_regularizer": null,
-          "gamma_regularizer": null,
-          "beta_constraint": null,
-          "gamma_constraint": null
-        },
-        "inbound_nodes": [
-          [
-            [
-              "conv2d_27",
-              0,
-              0,
-              {}
-            ]
-          ]
-        ]
-      },
-      {
         "name": "p_re_lu_13",
         "class_name": "PReLU",
         "config": {
@@ -3122,7 +2133,7 @@
         "inbound_nodes": [
           [
             [
-              "batch_normalization_23",
+              "conv2d_27",
               0,
               0,
               {}
@@ -3184,49 +2195,6 @@
         ]
       },
       {
-        "name": "batch_normalization_24",
-        "class_name": "BatchNormalization",
-        "config": {
-          "name": "batch_normalization_24",
-          "trainable": true,
-          "axis": -1,
-          "momentum": 0.99,
-          "epsilon": 0.001,
-          "center": true,
-          "scale": true,
-          "beta_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "gamma_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "moving_mean_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "moving_variance_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "beta_regularizer": null,
-          "gamma_regularizer": null,
-          "beta_constraint": null,
-          "gamma_constraint": null
-        },
-        "inbound_nodes": [
-          [
-            [
-              "conv2d_28",
-              0,
-              0,
-              {}
-            ]
-          ]
-        ]
-      },
-      {
         "name": "add_12",
         "class_name": "Add",
         "config": {
@@ -3236,7 +2204,7 @@
         "inbound_nodes": [
           [
             [
-              "batch_normalization_24",
+              "conv2d_28",
               0,
               0,
               {}
@@ -3304,49 +2272,6 @@
         ]
       },
       {
-        "name": "batch_normalization_25",
-        "class_name": "BatchNormalization",
-        "config": {
-          "name": "batch_normalization_25",
-          "trainable": true,
-          "axis": -1,
-          "momentum": 0.99,
-          "epsilon": 0.001,
-          "center": true,
-          "scale": true,
-          "beta_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "gamma_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "moving_mean_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "moving_variance_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "beta_regularizer": null,
-          "gamma_regularizer": null,
-          "beta_constraint": null,
-          "gamma_constraint": null
-        },
-        "inbound_nodes": [
-          [
-            [
-              "conv2d_29",
-              0,
-              0,
-              {}
-            ]
-          ]
-        ]
-      },
-      {
         "name": "p_re_lu_14",
         "class_name": "PReLU",
         "config": {
@@ -3366,7 +2291,7 @@
         "inbound_nodes": [
           [
             [
-              "batch_normalization_25",
+              "conv2d_29",
               0,
               0,
               {}
@@ -3428,49 +2353,6 @@
         ]
       },
       {
-        "name": "batch_normalization_26",
-        "class_name": "BatchNormalization",
-        "config": {
-          "name": "batch_normalization_26",
-          "trainable": true,
-          "axis": -1,
-          "momentum": 0.99,
-          "epsilon": 0.001,
-          "center": true,
-          "scale": true,
-          "beta_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "gamma_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "moving_mean_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "moving_variance_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "beta_regularizer": null,
-          "gamma_regularizer": null,
-          "beta_constraint": null,
-          "gamma_constraint": null
-        },
-        "inbound_nodes": [
-          [
-            [
-              "conv2d_30",
-              0,
-              0,
-              {}
-            ]
-          ]
-        ]
-      },
-      {
         "name": "add_13",
         "class_name": "Add",
         "config": {
@@ -3480,7 +2362,7 @@
         "inbound_nodes": [
           [
             [
-              "batch_normalization_26",
+              "conv2d_30",
               0,
               0,
               {}
@@ -3548,49 +2430,6 @@
         ]
       },
       {
-        "name": "batch_normalization_27",
-        "class_name": "BatchNormalization",
-        "config": {
-          "name": "batch_normalization_27",
-          "trainable": true,
-          "axis": -1,
-          "momentum": 0.99,
-          "epsilon": 0.001,
-          "center": true,
-          "scale": true,
-          "beta_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "gamma_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "moving_mean_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "moving_variance_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "beta_regularizer": null,
-          "gamma_regularizer": null,
-          "beta_constraint": null,
-          "gamma_constraint": null
-        },
-        "inbound_nodes": [
-          [
-            [
-              "conv2d_31",
-              0,
-              0,
-              {}
-            ]
-          ]
-        ]
-      },
-      {
         "name": "p_re_lu_15",
         "class_name": "PReLU",
         "config": {
@@ -3610,7 +2449,7 @@
         "inbound_nodes": [
           [
             [
-              "batch_normalization_27",
+              "conv2d_31",
               0,
               0,
               {}
@@ -3672,49 +2511,6 @@
         ]
       },
       {
-        "name": "batch_normalization_28",
-        "class_name": "BatchNormalization",
-        "config": {
-          "name": "batch_normalization_28",
-          "trainable": true,
-          "axis": -1,
-          "momentum": 0.99,
-          "epsilon": 0.001,
-          "center": true,
-          "scale": true,
-          "beta_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "gamma_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "moving_mean_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "moving_variance_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "beta_regularizer": null,
-          "gamma_regularizer": null,
-          "beta_constraint": null,
-          "gamma_constraint": null
-        },
-        "inbound_nodes": [
-          [
-            [
-              "conv2d_32",
-              0,
-              0,
-              {}
-            ]
-          ]
-        ]
-      },
-      {
         "name": "add_14",
         "class_name": "Add",
         "config": {
@@ -3724,7 +2520,7 @@
         "inbound_nodes": [
           [
             [
-              "batch_normalization_28",
+              "conv2d_32",
               0,
               0,
               {}
@@ -3792,49 +2588,6 @@
         ]
       },
       {
-        "name": "batch_normalization_29",
-        "class_name": "BatchNormalization",
-        "config": {
-          "name": "batch_normalization_29",
-          "trainable": true,
-          "axis": -1,
-          "momentum": 0.99,
-          "epsilon": 0.001,
-          "center": true,
-          "scale": true,
-          "beta_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "gamma_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "moving_mean_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "moving_variance_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "beta_regularizer": null,
-          "gamma_regularizer": null,
-          "beta_constraint": null,
-          "gamma_constraint": null
-        },
-        "inbound_nodes": [
-          [
-            [
-              "conv2d_33",
-              0,
-              0,
-              {}
-            ]
-          ]
-        ]
-      },
-      {
         "name": "p_re_lu_16",
         "class_name": "PReLU",
         "config": {
@@ -3854,7 +2607,7 @@
         "inbound_nodes": [
           [
             [
-              "batch_normalization_29",
+              "conv2d_33",
               0,
               0,
               {}
@@ -3916,49 +2669,6 @@
         ]
       },
       {
-        "name": "batch_normalization_30",
-        "class_name": "BatchNormalization",
-        "config": {
-          "name": "batch_normalization_30",
-          "trainable": true,
-          "axis": -1,
-          "momentum": 0.99,
-          "epsilon": 0.001,
-          "center": true,
-          "scale": true,
-          "beta_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "gamma_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "moving_mean_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "moving_variance_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "beta_regularizer": null,
-          "gamma_regularizer": null,
-          "beta_constraint": null,
-          "gamma_constraint": null
-        },
-        "inbound_nodes": [
-          [
-            [
-              "conv2d_34",
-              0,
-              0,
-              {}
-            ]
-          ]
-        ]
-      },
-      {
         "name": "add_15",
         "class_name": "Add",
         "config": {
@@ -3968,7 +2678,7 @@
         "inbound_nodes": [
           [
             [
-              "batch_normalization_30",
+              "conv2d_34",
               0,
               0,
               {}
@@ -4036,49 +2746,6 @@
         ]
       },
       {
-        "name": "batch_normalization_31",
-        "class_name": "BatchNormalization",
-        "config": {
-          "name": "batch_normalization_31",
-          "trainable": true,
-          "axis": -1,
-          "momentum": 0.99,
-          "epsilon": 0.001,
-          "center": true,
-          "scale": true,
-          "beta_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "gamma_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "moving_mean_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "moving_variance_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "beta_regularizer": null,
-          "gamma_regularizer": null,
-          "beta_constraint": null,
-          "gamma_constraint": null
-        },
-        "inbound_nodes": [
-          [
-            [
-              "conv2d_35",
-              0,
-              0,
-              {}
-            ]
-          ]
-        ]
-      },
-      {
         "name": "p_re_lu_17",
         "class_name": "PReLU",
         "config": {
@@ -4098,7 +2765,7 @@
         "inbound_nodes": [
           [
             [
-              "batch_normalization_31",
+              "conv2d_35",
               0,
               0,
               {}
@@ -4160,49 +2827,6 @@
         ]
       },
       {
-        "name": "batch_normalization_32",
-        "class_name": "BatchNormalization",
-        "config": {
-          "name": "batch_normalization_32",
-          "trainable": true,
-          "axis": -1,
-          "momentum": 0.99,
-          "epsilon": 0.001,
-          "center": true,
-          "scale": true,
-          "beta_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "gamma_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "moving_mean_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "moving_variance_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "beta_regularizer": null,
-          "gamma_regularizer": null,
-          "beta_constraint": null,
-          "gamma_constraint": null
-        },
-        "inbound_nodes": [
-          [
-            [
-              "conv2d_36",
-              0,
-              0,
-              {}
-            ]
-          ]
-        ]
-      },
-      {
         "name": "add_16",
         "class_name": "Add",
         "config": {
@@ -4212,7 +2836,7 @@
         "inbound_nodes": [
           [
             [
-              "batch_normalization_32",
+              "conv2d_36",
               0,
               0,
               {}
@@ -4280,49 +2904,6 @@
         ]
       },
       {
-        "name": "batch_normalization_33",
-        "class_name": "BatchNormalization",
-        "config": {
-          "name": "batch_normalization_33",
-          "trainable": true,
-          "axis": -1,
-          "momentum": 0.99,
-          "epsilon": 0.001,
-          "center": true,
-          "scale": true,
-          "beta_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "gamma_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "moving_mean_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "moving_variance_initializer": {
-            "class_name": "Ones",
-            "config": {}
-          },
-          "beta_regularizer": null,
-          "gamma_regularizer": null,
-          "beta_constraint": null,
-          "gamma_constraint": null
-        },
-        "inbound_nodes": [
-          [
-            [
-              "conv2d_37",
-              0,
-              0,
-              {}
-            ]
-          ]
-        ]
-      },
-      {
         "name": "add_17",
         "class_name": "Add",
         "config": {
@@ -4332,7 +2913,7 @@
         "inbound_nodes": [
           [
             [
-              "batch_normalization_33",
+              "conv2d_37",
               0,
               0,
               {}
@@ -4406,7 +2987,7 @@
           "name": "pixelshuffleup_1",
           "trainable": true,
           "function": [
-            "4wEAAAAAAAAAAQAAAAQAAABTAAAAcxAAAAB0AGoBagJ8AGQBZAKNAlMAKQNO6QIAAAApAtoFaW5w\ndXTaCmJsb2NrX3NpemUpA9oBS9oCdGbaDmRlcHRoX3RvX3NwYWNlKQHaBmltYWdlc6kAcggAAAD6\nHjxpcHl0aG9uLWlucHV0LTctYmVjOTc3Y2IxOTM0PtoIPGxhbWJkYT5bAAAAcwAAAAA=\n",
+            "4wEAAAAAAAAAAQAAAAQAAABTAAAAcxAAAAB0AGoBagJ8AGQBZAKNAlMAKQNO6QIAAAApAtoFaW5w\ndXTaCmJsb2NrX3NpemUpA9oBS9oCdGbaDmRlcHRoX3RvX3NwYWNlKQHaBmltYWdlc6kAcggAAAD6\nHjxpcHl0aG9uLWlucHV0LTctM2VkYWUwMzk0ZGFjPtoIPGxhbWJkYT5bAAAAcwAAAAA=\n",
             null,
             null
           ],
@@ -4514,7 +3095,7 @@
           "name": "pixelshuffleup_2",
           "trainable": true,
           "function": [
-            "4wEAAAAAAAAAAQAAAAQAAABTAAAAcxAAAAB0AGoBagJ8AGQBZAKNAlMAKQNO6QIAAAApAtoFaW5w\ndXTaCmJsb2NrX3NpemUpA9oBS9oCdGbaDmRlcHRoX3RvX3NwYWNlKQHaBmltYWdlc6kAcggAAAD6\nHjxpcHl0aG9uLWlucHV0LTctYmVjOTc3Y2IxOTM0PtoIPGxhbWJkYT5bAAAAcwAAAAA=\n",
+            "4wEAAAAAAAAAAQAAAAQAAABTAAAAcxAAAAB0AGoBagJ8AGQBZAKNAlMAKQNO6QIAAAApAtoFaW5w\ndXTaCmJsb2NrX3NpemUpA9oBS9oCdGbaDmRlcHRoX3RvX3NwYWNlKQHaBmltYWdlc6kAcggAAAD6\nHjxpcHl0aG9uLWlucHV0LTctM2VkYWUwMzk0ZGFjPtoIPGxhbWJkYT5bAAAAcwAAAAA=\n",
             null,
             null
           ],

@@ -130,16 +130,20 @@ Y_train, Y_dev = train_dev_split(dataset=Y_data)
 
 
 # %% [markdown]
-# ## 2. Architect model
+# ## 2. Architect model **(Note: Work in Progress!!)**
 #
-# Super Resolution Generative Adversarial Network model based on [Ledig et al. 2017](https://arxiv.org/abs/1609.04802v5).
-# Keras implementation below takes some hints from https://github.com/eriklindernoren/Keras-GAN/blob/master/srgan/srgan.py
+# Enhanced Super Resolution Generative Adversarial Network (ESRGAN) model based on [Wang et al. 2018](https://arxiv.org/abs/1809.00219v2).
+# Refer to original Pytorch implementation at https://github.com/xinntao/ESRGAN.
+#
+# See also previous (non-enhanced) SRGAN model architecture based on [Ledig et al. 2017](https://arxiv.org/abs/1609.04802).
+# Keras implementation below takes some hints from  https://github.com/eriklindernoren/Keras-GAN/blob/master/srgan/srgan.py
 
 # %% [markdown]
 # ### Generator Network Architecture
 #
-# ![SRGAN architecture - Generator Network](https://arxiv-sanity-sanity-production.s3.amazonaws.com/render-output/399644/images/used/jpg/generator.jpg)
-# ![3-in-1 Generator Network](https://yuml.me/01862e1a.png)
+# ![ESRGAN architecture - Generator Network composed of many Dense Convolutional Blocks](https://github.com/xinntao/ESRGAN/raw/master/figures/architecture.jpg)
+# ![The Residual in Residual Dense Block in detail](https://github.com/xinntao/ESRGAN/raw/master/figures/RRDB.png)
+# ![3 inputs feeding into the Generator Network, producing a high resolution prediction output](https://yuml.me/01862e1a.png)
 #
 # Details of the first convolutional layer:
 #
@@ -175,7 +179,7 @@ def generator_network(
 
     Parameters:
       input_shape -- shape of input tensor in tuple format (height, width, channels)
-      num_residual_blocks -- how many Conv-BatchNorm-PReLU-Conv-BatchNorm blocks to use
+      num_residual_blocks -- how many Conv-PReLU-Conv blocks to use
       scaling -- even numbered integer to increase resolution (e.g. 0, 2, 4, 6, 8)
       output_channels -- integer representing number of output channels/filters/kernels
 
@@ -188,7 +192,7 @@ def generator_network(
     >>> generator_network().output_shape
     (None, 32, 32, 1)
     >>> generator_network().count_params()
-    1614593
+    1606145
     """
 
     assert num_residual_blocks >= 1  # ensure that we have 1 or more residual blocks
@@ -231,10 +235,8 @@ def generator_network(
         x = Conv2D(filters=64, kernel_size=(3, 3), strides=(1, 1), padding="same")(
             input_tensor
         )
-        x = BatchNormalization()(x)
         x = PReLU(shared_axes=[1, 2])(x)
         x = Conv2D(filters=64, kernel_size=(3, 3), strides=(1, 1), padding="same")(x)
-        x = BatchNormalization()(x)
         return Add()([x, input_tensor])
 
     X = residual_block(X0)
@@ -244,7 +246,6 @@ def generator_network(
     # 3rd part
     # Post-residual blocks k3n64s1
     X = Conv2D(filters=64, kernel_size=(3, 3), strides=(1, 1), padding="same")(X)
-    X = BatchNormalization()(X)
     X = Add()([X, X0])
 
     # 4th part
@@ -278,6 +279,10 @@ def generator_network(
 #
 # Discriminator component is based on Deep Convolutional Generative Adversarial Networks by [Radford et al., 2015](https://arxiv.org/abs/1511.06434).
 # Keras implementation below takes some hints from https://github.com/erilyth/DCGANs/blob/master/DCGAN-CIFAR10/dcgan.py and https://github.com/yashk2810/DCGAN-Keras/blob/master/DCGAN.ipynb
+#
+# Note that figure below shows the 2017 (non-enhanced) SRGAN discriminator neural network architecture.
+# The 2018 ESRGAN version is basically the same architecture, as only the loss function was changed.
+# Note that the BatchNormalization layers **are still preserved** within the Convolutional blocks (see relevant line in original Pytorch implementation [here](https://github.com/xinntao/BasicSR/blob/902b4ae1f4beec7359de6e62ed0aebfc335d8dfd/codes/models/modules/architecture.py#L88)).
 #
 # ![SRGAN architecture - Discriminator Network](https://arxiv-sanity-sanity-production.s3.amazonaws.com/render-output/399644/images/used/jpg/discriminator.jpg)
 #
@@ -398,7 +403,7 @@ def compile_srgan_model(
     >>> models['srgan_model'].get_layer(name='discriminator_network').trainable
     False
     >>> models['srgan_model'].count_params()
-    8442626
+    8434178
     """
 
     # Check that our neural networks are named properly
@@ -628,7 +633,7 @@ def train_generator(
 
 
 # %%
-epochs = 100
+epochs = 75
 with tqdm.trange(epochs) as t:
     metric_names = ["discriminator_network_loss_actual"] + models[
         "srgan_model"
