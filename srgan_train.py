@@ -346,8 +346,8 @@ def discriminator_network(
 # $$Perceptual Loss = Content Loss + Adversarial Loss$$
 #
 # The original SRGAN paper by [Ledig et al. 2017](https://arxiv.org/abs/1609.04802v5) calculates *Content Loss* based on the ReLU activation layers of the pre-trained 19 layer VGG network.
-# The implementation below is less advanced, simply using a pixel-wise [Mean Squared Error (MSE) loss](https://keras.io/losses/#mean_squared_error) as the *Content Loss*.
-# Specifically, the *Content Loss* is calculated as the MSE difference between the output of the generator model (i.e. the predicted Super Resolution Image) and that of the groundtruth image (i.e. the true High Resolution Image).
+# The implementation below is less advanced, simply using an L1 loss, i.e., a pixel-wise [Mean Absolute Error (MAE) loss](https://keras.io/losses/#mean_absolute_error) as the *Content Loss*.
+# Specifically, the *Content Loss* is calculated as the MAE difference between the output of the generator model (i.e. the predicted Super Resolution Image) and that of the groundtruth image (i.e. the true High Resolution Image).
 #
 # The *Adversarial Loss* or *Generative Loss* (confusing I know) is the same as in the original SRGAN paper.
 # It is defined based on the probabilities of the discriminator believing that the reconstructed Super Resolution Image is a natural High Resolution Image.
@@ -356,11 +356,11 @@ def discriminator_network(
 #
 # Source code for the implementations of these loss functions in Keras can be found at https://github.com/keras-team/keras/blob/master/keras/losses.py.
 #
-# ![Perceptual Loss in a Super Resolution Generative Adversarial Network](https://yuml.me/69dc9a87.png)
+# ![Perceptual Loss in an Enhanced Super Resolution Generative Adversarial Network](https://yuml.me/db58d683.png )
 #
 # <!--
 # [LowRes-Inputs]-Generator>[SuperResolution_DEM]
-# [SuperResolution_DEM]-.->[note:Content-Loss|MeanSquaredError{bg:yellow}]
+# [SuperResolution_DEM]-.->[note:Content-Loss|MeanAbsoluteError{bg:yellow}]
 # [HighRes-Groundtruth_DEM]-.->[note:Content-Loss]
 # [SuperResolution_DEM]-Discriminator>[False_or_True_Prediction]
 # [HighRes-Groundtruth_DEM]-Discriminator>[False_or_True_Prediction]
@@ -438,7 +438,7 @@ def compile_srgan_model(
     model.compile(
         optimizer=keras.optimizers.Adam(lr=0.001),
         loss={
-            "generator_network": keras.losses.mean_squared_error,
+            "generator_network": keras.losses.mean_absolute_error,
             "discriminator_network": keras.losses.binary_crossentropy,
         },
         metrics=metrics,
@@ -633,7 +633,7 @@ def train_generator(
 
 
 # %%
-epochs = 75
+epochs = 100
 with tqdm.trange(epochs) as t:
     metric_names = ["discriminator_network_loss_actual"] + models[
         "srgan_model"
