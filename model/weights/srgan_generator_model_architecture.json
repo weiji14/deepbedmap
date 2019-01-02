@@ -242,6 +242,25 @@
         ]
       },
       {
+        "name": "leaky_re_lu_2",
+        "class_name": "LeakyReLU",
+        "config": {
+          "name": "leaky_re_lu_2",
+          "trainable": true,
+          "alpha": 0.20000000298023224
+        },
+        "inbound_nodes": [
+          [
+            [
+              "concatenate_1",
+              0,
+              0,
+              {}
+            ]
+          ]
+        ]
+      },
+      {
         "name": "conv2d_4",
         "class_name": "Conv2D",
         "config": {
@@ -295,115 +314,6 @@
         ]
       },
       {
-        "name": "p_re_lu_1",
-        "class_name": "PReLU",
-        "config": {
-          "name": "p_re_lu_1",
-          "trainable": true,
-          "alpha_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "alpha_regularizer": null,
-          "alpha_constraint": null,
-          "shared_axes": [
-            1,
-            2
-          ]
-        },
-        "inbound_nodes": [
-          [
-            [
-              "conv2d_4",
-              0,
-              0,
-              {}
-            ]
-          ]
-        ]
-      },
-      {
-        "name": "conv2d_5",
-        "class_name": "Conv2D",
-        "config": {
-          "name": "conv2d_5",
-          "trainable": true,
-          "filters": 64,
-          "kernel_size": [
-            3,
-            3
-          ],
-          "strides": [
-            1,
-            1
-          ],
-          "padding": "same",
-          "data_format": "channels_last",
-          "dilation_rate": [
-            1,
-            1
-          ],
-          "activation": "linear",
-          "use_bias": true,
-          "kernel_initializer": {
-            "class_name": "VarianceScaling",
-            "config": {
-              "scale": 1.0,
-              "mode": "fan_avg",
-              "distribution": "uniform",
-              "seed": null
-            }
-          },
-          "bias_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "kernel_regularizer": null,
-          "bias_regularizer": null,
-          "activity_regularizer": null,
-          "kernel_constraint": null,
-          "bias_constraint": null
-        },
-        "inbound_nodes": [
-          [
-            [
-              "p_re_lu_1",
-              0,
-              0,
-              {}
-            ]
-          ]
-        ]
-      },
-      {
-        "name": "p_re_lu_2",
-        "class_name": "PReLU",
-        "config": {
-          "name": "p_re_lu_2",
-          "trainable": true,
-          "alpha_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "alpha_regularizer": null,
-          "alpha_constraint": null,
-          "shared_axes": [
-            1,
-            2
-          ]
-        },
-        "inbound_nodes": [
-          [
-            [
-              "conv2d_5",
-              0,
-              0,
-              {}
-            ]
-          ]
-        ]
-      },
-      {
         "name": "conv2d_6",
         "class_name": "Conv2D",
         "config": {
@@ -448,7 +358,26 @@
         "inbound_nodes": [
           [
             [
-              "p_re_lu_2",
+              "leaky_re_lu_2",
+              0,
+              0,
+              {}
+            ]
+          ]
+        ]
+      },
+      {
+        "name": "leaky_re_lu_1",
+        "class_name": "LeakyReLU",
+        "config": {
+          "name": "leaky_re_lu_1",
+          "trainable": true,
+          "alpha": 0.20000000298023224
+        },
+        "inbound_nodes": [
+          [
+            [
+              "conv2d_4",
               0,
               0,
               {}
@@ -472,7 +401,7 @@
               {}
             ],
             [
-              "p_re_lu_1",
+              "leaky_re_lu_1",
               0,
               0,
               {}
@@ -481,79 +410,17 @@
         ]
       },
       {
-        "name": "conv2d_7",
-        "class_name": "Conv2D",
+        "name": "leaky_re_lu_3",
+        "class_name": "LeakyReLU",
         "config": {
-          "name": "conv2d_7",
+          "name": "leaky_re_lu_3",
           "trainable": true,
-          "filters": 64,
-          "kernel_size": [
-            3,
-            3
-          ],
-          "strides": [
-            1,
-            1
-          ],
-          "padding": "same",
-          "data_format": "channels_last",
-          "dilation_rate": [
-            1,
-            1
-          ],
-          "activation": "linear",
-          "use_bias": true,
-          "kernel_initializer": {
-            "class_name": "VarianceScaling",
-            "config": {
-              "scale": 1.0,
-              "mode": "fan_avg",
-              "distribution": "uniform",
-              "seed": null
-            }
-          },
-          "bias_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "kernel_regularizer": null,
-          "bias_regularizer": null,
-          "activity_regularizer": null,
-          "kernel_constraint": null,
-          "bias_constraint": null
+          "alpha": 0.20000000298023224
         },
         "inbound_nodes": [
           [
             [
               "add_1",
-              0,
-              0,
-              {}
-            ]
-          ]
-        ]
-      },
-      {
-        "name": "p_re_lu_3",
-        "class_name": "PReLU",
-        "config": {
-          "name": "p_re_lu_3",
-          "trainable": true,
-          "alpha_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "alpha_regularizer": null,
-          "alpha_constraint": null,
-          "shared_axes": [
-            1,
-            2
-          ]
-        },
-        "inbound_nodes": [
-          [
-            [
-              "conv2d_7",
               0,
               0,
               {}
@@ -606,7 +473,7 @@
         "inbound_nodes": [
           [
             [
-              "p_re_lu_3",
+              "leaky_re_lu_3",
               0,
               0,
               {}
@@ -639,79 +506,17 @@
         ]
       },
       {
-        "name": "conv2d_9",
-        "class_name": "Conv2D",
+        "name": "leaky_re_lu_4",
+        "class_name": "LeakyReLU",
         "config": {
-          "name": "conv2d_9",
+          "name": "leaky_re_lu_4",
           "trainable": true,
-          "filters": 64,
-          "kernel_size": [
-            3,
-            3
-          ],
-          "strides": [
-            1,
-            1
-          ],
-          "padding": "same",
-          "data_format": "channels_last",
-          "dilation_rate": [
-            1,
-            1
-          ],
-          "activation": "linear",
-          "use_bias": true,
-          "kernel_initializer": {
-            "class_name": "VarianceScaling",
-            "config": {
-              "scale": 1.0,
-              "mode": "fan_avg",
-              "distribution": "uniform",
-              "seed": null
-            }
-          },
-          "bias_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "kernel_regularizer": null,
-          "bias_regularizer": null,
-          "activity_regularizer": null,
-          "kernel_constraint": null,
-          "bias_constraint": null
+          "alpha": 0.20000000298023224
         },
         "inbound_nodes": [
           [
             [
               "add_2",
-              0,
-              0,
-              {}
-            ]
-          ]
-        ]
-      },
-      {
-        "name": "p_re_lu_4",
-        "class_name": "PReLU",
-        "config": {
-          "name": "p_re_lu_4",
-          "trainable": true,
-          "alpha_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "alpha_regularizer": null,
-          "alpha_constraint": null,
-          "shared_axes": [
-            1,
-            2
-          ]
-        },
-        "inbound_nodes": [
-          [
-            [
-              "conv2d_9",
               0,
               0,
               {}
@@ -764,7 +569,7 @@
         "inbound_nodes": [
           [
             [
-              "p_re_lu_4",
+              "leaky_re_lu_4",
               0,
               0,
               {}
@@ -797,79 +602,17 @@
         ]
       },
       {
-        "name": "conv2d_11",
-        "class_name": "Conv2D",
+        "name": "leaky_re_lu_5",
+        "class_name": "LeakyReLU",
         "config": {
-          "name": "conv2d_11",
+          "name": "leaky_re_lu_5",
           "trainable": true,
-          "filters": 64,
-          "kernel_size": [
-            3,
-            3
-          ],
-          "strides": [
-            1,
-            1
-          ],
-          "padding": "same",
-          "data_format": "channels_last",
-          "dilation_rate": [
-            1,
-            1
-          ],
-          "activation": "linear",
-          "use_bias": true,
-          "kernel_initializer": {
-            "class_name": "VarianceScaling",
-            "config": {
-              "scale": 1.0,
-              "mode": "fan_avg",
-              "distribution": "uniform",
-              "seed": null
-            }
-          },
-          "bias_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "kernel_regularizer": null,
-          "bias_regularizer": null,
-          "activity_regularizer": null,
-          "kernel_constraint": null,
-          "bias_constraint": null
+          "alpha": 0.20000000298023224
         },
         "inbound_nodes": [
           [
             [
               "add_3",
-              0,
-              0,
-              {}
-            ]
-          ]
-        ]
-      },
-      {
-        "name": "p_re_lu_5",
-        "class_name": "PReLU",
-        "config": {
-          "name": "p_re_lu_5",
-          "trainable": true,
-          "alpha_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "alpha_regularizer": null,
-          "alpha_constraint": null,
-          "shared_axes": [
-            1,
-            2
-          ]
-        },
-        "inbound_nodes": [
-          [
-            [
-              "conv2d_11",
               0,
               0,
               {}
@@ -922,7 +665,7 @@
         "inbound_nodes": [
           [
             [
-              "p_re_lu_5",
+              "leaky_re_lu_5",
               0,
               0,
               {}
@@ -955,79 +698,17 @@
         ]
       },
       {
-        "name": "conv2d_13",
-        "class_name": "Conv2D",
+        "name": "leaky_re_lu_6",
+        "class_name": "LeakyReLU",
         "config": {
-          "name": "conv2d_13",
+          "name": "leaky_re_lu_6",
           "trainable": true,
-          "filters": 64,
-          "kernel_size": [
-            3,
-            3
-          ],
-          "strides": [
-            1,
-            1
-          ],
-          "padding": "same",
-          "data_format": "channels_last",
-          "dilation_rate": [
-            1,
-            1
-          ],
-          "activation": "linear",
-          "use_bias": true,
-          "kernel_initializer": {
-            "class_name": "VarianceScaling",
-            "config": {
-              "scale": 1.0,
-              "mode": "fan_avg",
-              "distribution": "uniform",
-              "seed": null
-            }
-          },
-          "bias_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "kernel_regularizer": null,
-          "bias_regularizer": null,
-          "activity_regularizer": null,
-          "kernel_constraint": null,
-          "bias_constraint": null
+          "alpha": 0.20000000298023224
         },
         "inbound_nodes": [
           [
             [
               "add_4",
-              0,
-              0,
-              {}
-            ]
-          ]
-        ]
-      },
-      {
-        "name": "p_re_lu_6",
-        "class_name": "PReLU",
-        "config": {
-          "name": "p_re_lu_6",
-          "trainable": true,
-          "alpha_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "alpha_regularizer": null,
-          "alpha_constraint": null,
-          "shared_axes": [
-            1,
-            2
-          ]
-        },
-        "inbound_nodes": [
-          [
-            [
-              "conv2d_13",
               0,
               0,
               {}
@@ -1080,7 +761,7 @@
         "inbound_nodes": [
           [
             [
-              "p_re_lu_6",
+              "leaky_re_lu_6",
               0,
               0,
               {}
@@ -1113,79 +794,17 @@
         ]
       },
       {
-        "name": "conv2d_15",
-        "class_name": "Conv2D",
+        "name": "leaky_re_lu_7",
+        "class_name": "LeakyReLU",
         "config": {
-          "name": "conv2d_15",
+          "name": "leaky_re_lu_7",
           "trainable": true,
-          "filters": 64,
-          "kernel_size": [
-            3,
-            3
-          ],
-          "strides": [
-            1,
-            1
-          ],
-          "padding": "same",
-          "data_format": "channels_last",
-          "dilation_rate": [
-            1,
-            1
-          ],
-          "activation": "linear",
-          "use_bias": true,
-          "kernel_initializer": {
-            "class_name": "VarianceScaling",
-            "config": {
-              "scale": 1.0,
-              "mode": "fan_avg",
-              "distribution": "uniform",
-              "seed": null
-            }
-          },
-          "bias_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "kernel_regularizer": null,
-          "bias_regularizer": null,
-          "activity_regularizer": null,
-          "kernel_constraint": null,
-          "bias_constraint": null
+          "alpha": 0.20000000298023224
         },
         "inbound_nodes": [
           [
             [
               "add_5",
-              0,
-              0,
-              {}
-            ]
-          ]
-        ]
-      },
-      {
-        "name": "p_re_lu_7",
-        "class_name": "PReLU",
-        "config": {
-          "name": "p_re_lu_7",
-          "trainable": true,
-          "alpha_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "alpha_regularizer": null,
-          "alpha_constraint": null,
-          "shared_axes": [
-            1,
-            2
-          ]
-        },
-        "inbound_nodes": [
-          [
-            [
-              "conv2d_15",
               0,
               0,
               {}
@@ -1238,7 +857,7 @@
         "inbound_nodes": [
           [
             [
-              "p_re_lu_7",
+              "leaky_re_lu_7",
               0,
               0,
               {}
@@ -1271,79 +890,17 @@
         ]
       },
       {
-        "name": "conv2d_17",
-        "class_name": "Conv2D",
+        "name": "leaky_re_lu_8",
+        "class_name": "LeakyReLU",
         "config": {
-          "name": "conv2d_17",
+          "name": "leaky_re_lu_8",
           "trainable": true,
-          "filters": 64,
-          "kernel_size": [
-            3,
-            3
-          ],
-          "strides": [
-            1,
-            1
-          ],
-          "padding": "same",
-          "data_format": "channels_last",
-          "dilation_rate": [
-            1,
-            1
-          ],
-          "activation": "linear",
-          "use_bias": true,
-          "kernel_initializer": {
-            "class_name": "VarianceScaling",
-            "config": {
-              "scale": 1.0,
-              "mode": "fan_avg",
-              "distribution": "uniform",
-              "seed": null
-            }
-          },
-          "bias_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "kernel_regularizer": null,
-          "bias_regularizer": null,
-          "activity_regularizer": null,
-          "kernel_constraint": null,
-          "bias_constraint": null
+          "alpha": 0.20000000298023224
         },
         "inbound_nodes": [
           [
             [
               "add_6",
-              0,
-              0,
-              {}
-            ]
-          ]
-        ]
-      },
-      {
-        "name": "p_re_lu_8",
-        "class_name": "PReLU",
-        "config": {
-          "name": "p_re_lu_8",
-          "trainable": true,
-          "alpha_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "alpha_regularizer": null,
-          "alpha_constraint": null,
-          "shared_axes": [
-            1,
-            2
-          ]
-        },
-        "inbound_nodes": [
-          [
-            [
-              "conv2d_17",
               0,
               0,
               {}
@@ -1396,7 +953,7 @@
         "inbound_nodes": [
           [
             [
-              "p_re_lu_8",
+              "leaky_re_lu_8",
               0,
               0,
               {}
@@ -1429,79 +986,17 @@
         ]
       },
       {
-        "name": "conv2d_19",
-        "class_name": "Conv2D",
+        "name": "leaky_re_lu_9",
+        "class_name": "LeakyReLU",
         "config": {
-          "name": "conv2d_19",
+          "name": "leaky_re_lu_9",
           "trainable": true,
-          "filters": 64,
-          "kernel_size": [
-            3,
-            3
-          ],
-          "strides": [
-            1,
-            1
-          ],
-          "padding": "same",
-          "data_format": "channels_last",
-          "dilation_rate": [
-            1,
-            1
-          ],
-          "activation": "linear",
-          "use_bias": true,
-          "kernel_initializer": {
-            "class_name": "VarianceScaling",
-            "config": {
-              "scale": 1.0,
-              "mode": "fan_avg",
-              "distribution": "uniform",
-              "seed": null
-            }
-          },
-          "bias_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "kernel_regularizer": null,
-          "bias_regularizer": null,
-          "activity_regularizer": null,
-          "kernel_constraint": null,
-          "bias_constraint": null
+          "alpha": 0.20000000298023224
         },
         "inbound_nodes": [
           [
             [
               "add_7",
-              0,
-              0,
-              {}
-            ]
-          ]
-        ]
-      },
-      {
-        "name": "p_re_lu_9",
-        "class_name": "PReLU",
-        "config": {
-          "name": "p_re_lu_9",
-          "trainable": true,
-          "alpha_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "alpha_regularizer": null,
-          "alpha_constraint": null,
-          "shared_axes": [
-            1,
-            2
-          ]
-        },
-        "inbound_nodes": [
-          [
-            [
-              "conv2d_19",
               0,
               0,
               {}
@@ -1554,7 +1049,7 @@
         "inbound_nodes": [
           [
             [
-              "p_re_lu_9",
+              "leaky_re_lu_9",
               0,
               0,
               {}
@@ -1587,79 +1082,17 @@
         ]
       },
       {
-        "name": "conv2d_21",
-        "class_name": "Conv2D",
+        "name": "leaky_re_lu_10",
+        "class_name": "LeakyReLU",
         "config": {
-          "name": "conv2d_21",
+          "name": "leaky_re_lu_10",
           "trainable": true,
-          "filters": 64,
-          "kernel_size": [
-            3,
-            3
-          ],
-          "strides": [
-            1,
-            1
-          ],
-          "padding": "same",
-          "data_format": "channels_last",
-          "dilation_rate": [
-            1,
-            1
-          ],
-          "activation": "linear",
-          "use_bias": true,
-          "kernel_initializer": {
-            "class_name": "VarianceScaling",
-            "config": {
-              "scale": 1.0,
-              "mode": "fan_avg",
-              "distribution": "uniform",
-              "seed": null
-            }
-          },
-          "bias_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "kernel_regularizer": null,
-          "bias_regularizer": null,
-          "activity_regularizer": null,
-          "kernel_constraint": null,
-          "bias_constraint": null
+          "alpha": 0.20000000298023224
         },
         "inbound_nodes": [
           [
             [
               "add_8",
-              0,
-              0,
-              {}
-            ]
-          ]
-        ]
-      },
-      {
-        "name": "p_re_lu_10",
-        "class_name": "PReLU",
-        "config": {
-          "name": "p_re_lu_10",
-          "trainable": true,
-          "alpha_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "alpha_regularizer": null,
-          "alpha_constraint": null,
-          "shared_axes": [
-            1,
-            2
-          ]
-        },
-        "inbound_nodes": [
-          [
-            [
-              "conv2d_21",
               0,
               0,
               {}
@@ -1712,7 +1145,7 @@
         "inbound_nodes": [
           [
             [
-              "p_re_lu_10",
+              "leaky_re_lu_10",
               0,
               0,
               {}
@@ -1745,79 +1178,17 @@
         ]
       },
       {
-        "name": "conv2d_23",
-        "class_name": "Conv2D",
+        "name": "leaky_re_lu_11",
+        "class_name": "LeakyReLU",
         "config": {
-          "name": "conv2d_23",
+          "name": "leaky_re_lu_11",
           "trainable": true,
-          "filters": 64,
-          "kernel_size": [
-            3,
-            3
-          ],
-          "strides": [
-            1,
-            1
-          ],
-          "padding": "same",
-          "data_format": "channels_last",
-          "dilation_rate": [
-            1,
-            1
-          ],
-          "activation": "linear",
-          "use_bias": true,
-          "kernel_initializer": {
-            "class_name": "VarianceScaling",
-            "config": {
-              "scale": 1.0,
-              "mode": "fan_avg",
-              "distribution": "uniform",
-              "seed": null
-            }
-          },
-          "bias_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "kernel_regularizer": null,
-          "bias_regularizer": null,
-          "activity_regularizer": null,
-          "kernel_constraint": null,
-          "bias_constraint": null
+          "alpha": 0.20000000298023224
         },
         "inbound_nodes": [
           [
             [
               "add_9",
-              0,
-              0,
-              {}
-            ]
-          ]
-        ]
-      },
-      {
-        "name": "p_re_lu_11",
-        "class_name": "PReLU",
-        "config": {
-          "name": "p_re_lu_11",
-          "trainable": true,
-          "alpha_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "alpha_regularizer": null,
-          "alpha_constraint": null,
-          "shared_axes": [
-            1,
-            2
-          ]
-        },
-        "inbound_nodes": [
-          [
-            [
-              "conv2d_23",
               0,
               0,
               {}
@@ -1870,7 +1241,7 @@
         "inbound_nodes": [
           [
             [
-              "p_re_lu_11",
+              "leaky_re_lu_11",
               0,
               0,
               {}
@@ -1903,79 +1274,17 @@
         ]
       },
       {
-        "name": "conv2d_25",
-        "class_name": "Conv2D",
+        "name": "leaky_re_lu_12",
+        "class_name": "LeakyReLU",
         "config": {
-          "name": "conv2d_25",
+          "name": "leaky_re_lu_12",
           "trainable": true,
-          "filters": 64,
-          "kernel_size": [
-            3,
-            3
-          ],
-          "strides": [
-            1,
-            1
-          ],
-          "padding": "same",
-          "data_format": "channels_last",
-          "dilation_rate": [
-            1,
-            1
-          ],
-          "activation": "linear",
-          "use_bias": true,
-          "kernel_initializer": {
-            "class_name": "VarianceScaling",
-            "config": {
-              "scale": 1.0,
-              "mode": "fan_avg",
-              "distribution": "uniform",
-              "seed": null
-            }
-          },
-          "bias_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "kernel_regularizer": null,
-          "bias_regularizer": null,
-          "activity_regularizer": null,
-          "kernel_constraint": null,
-          "bias_constraint": null
+          "alpha": 0.20000000298023224
         },
         "inbound_nodes": [
           [
             [
               "add_10",
-              0,
-              0,
-              {}
-            ]
-          ]
-        ]
-      },
-      {
-        "name": "p_re_lu_12",
-        "class_name": "PReLU",
-        "config": {
-          "name": "p_re_lu_12",
-          "trainable": true,
-          "alpha_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "alpha_regularizer": null,
-          "alpha_constraint": null,
-          "shared_axes": [
-            1,
-            2
-          ]
-        },
-        "inbound_nodes": [
-          [
-            [
-              "conv2d_25",
               0,
               0,
               {}
@@ -2028,7 +1337,7 @@
         "inbound_nodes": [
           [
             [
-              "p_re_lu_12",
+              "leaky_re_lu_12",
               0,
               0,
               {}
@@ -2061,79 +1370,17 @@
         ]
       },
       {
-        "name": "conv2d_27",
-        "class_name": "Conv2D",
+        "name": "leaky_re_lu_13",
+        "class_name": "LeakyReLU",
         "config": {
-          "name": "conv2d_27",
+          "name": "leaky_re_lu_13",
           "trainable": true,
-          "filters": 64,
-          "kernel_size": [
-            3,
-            3
-          ],
-          "strides": [
-            1,
-            1
-          ],
-          "padding": "same",
-          "data_format": "channels_last",
-          "dilation_rate": [
-            1,
-            1
-          ],
-          "activation": "linear",
-          "use_bias": true,
-          "kernel_initializer": {
-            "class_name": "VarianceScaling",
-            "config": {
-              "scale": 1.0,
-              "mode": "fan_avg",
-              "distribution": "uniform",
-              "seed": null
-            }
-          },
-          "bias_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "kernel_regularizer": null,
-          "bias_regularizer": null,
-          "activity_regularizer": null,
-          "kernel_constraint": null,
-          "bias_constraint": null
+          "alpha": 0.20000000298023224
         },
         "inbound_nodes": [
           [
             [
               "add_11",
-              0,
-              0,
-              {}
-            ]
-          ]
-        ]
-      },
-      {
-        "name": "p_re_lu_13",
-        "class_name": "PReLU",
-        "config": {
-          "name": "p_re_lu_13",
-          "trainable": true,
-          "alpha_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "alpha_regularizer": null,
-          "alpha_constraint": null,
-          "shared_axes": [
-            1,
-            2
-          ]
-        },
-        "inbound_nodes": [
-          [
-            [
-              "conv2d_27",
               0,
               0,
               {}
@@ -2186,7 +1433,7 @@
         "inbound_nodes": [
           [
             [
-              "p_re_lu_13",
+              "leaky_re_lu_13",
               0,
               0,
               {}
@@ -2219,79 +1466,17 @@
         ]
       },
       {
-        "name": "conv2d_29",
-        "class_name": "Conv2D",
+        "name": "leaky_re_lu_14",
+        "class_name": "LeakyReLU",
         "config": {
-          "name": "conv2d_29",
+          "name": "leaky_re_lu_14",
           "trainable": true,
-          "filters": 64,
-          "kernel_size": [
-            3,
-            3
-          ],
-          "strides": [
-            1,
-            1
-          ],
-          "padding": "same",
-          "data_format": "channels_last",
-          "dilation_rate": [
-            1,
-            1
-          ],
-          "activation": "linear",
-          "use_bias": true,
-          "kernel_initializer": {
-            "class_name": "VarianceScaling",
-            "config": {
-              "scale": 1.0,
-              "mode": "fan_avg",
-              "distribution": "uniform",
-              "seed": null
-            }
-          },
-          "bias_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "kernel_regularizer": null,
-          "bias_regularizer": null,
-          "activity_regularizer": null,
-          "kernel_constraint": null,
-          "bias_constraint": null
+          "alpha": 0.20000000298023224
         },
         "inbound_nodes": [
           [
             [
               "add_12",
-              0,
-              0,
-              {}
-            ]
-          ]
-        ]
-      },
-      {
-        "name": "p_re_lu_14",
-        "class_name": "PReLU",
-        "config": {
-          "name": "p_re_lu_14",
-          "trainable": true,
-          "alpha_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "alpha_regularizer": null,
-          "alpha_constraint": null,
-          "shared_axes": [
-            1,
-            2
-          ]
-        },
-        "inbound_nodes": [
-          [
-            [
-              "conv2d_29",
               0,
               0,
               {}
@@ -2344,7 +1529,7 @@
         "inbound_nodes": [
           [
             [
-              "p_re_lu_14",
+              "leaky_re_lu_14",
               0,
               0,
               {}
@@ -2377,79 +1562,17 @@
         ]
       },
       {
-        "name": "conv2d_31",
-        "class_name": "Conv2D",
+        "name": "leaky_re_lu_15",
+        "class_name": "LeakyReLU",
         "config": {
-          "name": "conv2d_31",
+          "name": "leaky_re_lu_15",
           "trainable": true,
-          "filters": 64,
-          "kernel_size": [
-            3,
-            3
-          ],
-          "strides": [
-            1,
-            1
-          ],
-          "padding": "same",
-          "data_format": "channels_last",
-          "dilation_rate": [
-            1,
-            1
-          ],
-          "activation": "linear",
-          "use_bias": true,
-          "kernel_initializer": {
-            "class_name": "VarianceScaling",
-            "config": {
-              "scale": 1.0,
-              "mode": "fan_avg",
-              "distribution": "uniform",
-              "seed": null
-            }
-          },
-          "bias_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "kernel_regularizer": null,
-          "bias_regularizer": null,
-          "activity_regularizer": null,
-          "kernel_constraint": null,
-          "bias_constraint": null
+          "alpha": 0.20000000298023224
         },
         "inbound_nodes": [
           [
             [
               "add_13",
-              0,
-              0,
-              {}
-            ]
-          ]
-        ]
-      },
-      {
-        "name": "p_re_lu_15",
-        "class_name": "PReLU",
-        "config": {
-          "name": "p_re_lu_15",
-          "trainable": true,
-          "alpha_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "alpha_regularizer": null,
-          "alpha_constraint": null,
-          "shared_axes": [
-            1,
-            2
-          ]
-        },
-        "inbound_nodes": [
-          [
-            [
-              "conv2d_31",
               0,
               0,
               {}
@@ -2502,7 +1625,7 @@
         "inbound_nodes": [
           [
             [
-              "p_re_lu_15",
+              "leaky_re_lu_15",
               0,
               0,
               {}
@@ -2535,79 +1658,17 @@
         ]
       },
       {
-        "name": "conv2d_33",
-        "class_name": "Conv2D",
+        "name": "leaky_re_lu_16",
+        "class_name": "LeakyReLU",
         "config": {
-          "name": "conv2d_33",
+          "name": "leaky_re_lu_16",
           "trainable": true,
-          "filters": 64,
-          "kernel_size": [
-            3,
-            3
-          ],
-          "strides": [
-            1,
-            1
-          ],
-          "padding": "same",
-          "data_format": "channels_last",
-          "dilation_rate": [
-            1,
-            1
-          ],
-          "activation": "linear",
-          "use_bias": true,
-          "kernel_initializer": {
-            "class_name": "VarianceScaling",
-            "config": {
-              "scale": 1.0,
-              "mode": "fan_avg",
-              "distribution": "uniform",
-              "seed": null
-            }
-          },
-          "bias_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "kernel_regularizer": null,
-          "bias_regularizer": null,
-          "activity_regularizer": null,
-          "kernel_constraint": null,
-          "bias_constraint": null
+          "alpha": 0.20000000298023224
         },
         "inbound_nodes": [
           [
             [
               "add_14",
-              0,
-              0,
-              {}
-            ]
-          ]
-        ]
-      },
-      {
-        "name": "p_re_lu_16",
-        "class_name": "PReLU",
-        "config": {
-          "name": "p_re_lu_16",
-          "trainable": true,
-          "alpha_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "alpha_regularizer": null,
-          "alpha_constraint": null,
-          "shared_axes": [
-            1,
-            2
-          ]
-        },
-        "inbound_nodes": [
-          [
-            [
-              "conv2d_33",
               0,
               0,
               {}
@@ -2660,7 +1721,7 @@
         "inbound_nodes": [
           [
             [
-              "p_re_lu_16",
+              "leaky_re_lu_16",
               0,
               0,
               {}
@@ -2693,79 +1754,17 @@
         ]
       },
       {
-        "name": "conv2d_35",
-        "class_name": "Conv2D",
+        "name": "leaky_re_lu_17",
+        "class_name": "LeakyReLU",
         "config": {
-          "name": "conv2d_35",
+          "name": "leaky_re_lu_17",
           "trainable": true,
-          "filters": 64,
-          "kernel_size": [
-            3,
-            3
-          ],
-          "strides": [
-            1,
-            1
-          ],
-          "padding": "same",
-          "data_format": "channels_last",
-          "dilation_rate": [
-            1,
-            1
-          ],
-          "activation": "linear",
-          "use_bias": true,
-          "kernel_initializer": {
-            "class_name": "VarianceScaling",
-            "config": {
-              "scale": 1.0,
-              "mode": "fan_avg",
-              "distribution": "uniform",
-              "seed": null
-            }
-          },
-          "bias_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "kernel_regularizer": null,
-          "bias_regularizer": null,
-          "activity_regularizer": null,
-          "kernel_constraint": null,
-          "bias_constraint": null
+          "alpha": 0.20000000298023224
         },
         "inbound_nodes": [
           [
             [
               "add_15",
-              0,
-              0,
-              {}
-            ]
-          ]
-        ]
-      },
-      {
-        "name": "p_re_lu_17",
-        "class_name": "PReLU",
-        "config": {
-          "name": "p_re_lu_17",
-          "trainable": true,
-          "alpha_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "alpha_regularizer": null,
-          "alpha_constraint": null,
-          "shared_axes": [
-            1,
-            2
-          ]
-        },
-        "inbound_nodes": [
-          [
-            [
-              "conv2d_35",
               0,
               0,
               {}
@@ -2818,7 +1817,7 @@
         "inbound_nodes": [
           [
             [
-              "p_re_lu_17",
+              "leaky_re_lu_17",
               0,
               0,
               {}
@@ -2919,7 +1918,7 @@
               {}
             ],
             [
-              "p_re_lu_1",
+              "leaky_re_lu_1",
               0,
               0,
               {}
@@ -2987,7 +1986,7 @@
           "name": "pixelshuffleup_1",
           "trainable": true,
           "function": [
-            "4wEAAAAAAAAAAQAAAAQAAABTAAAAcxAAAAB0AGoBagJ8AGQBZAKNAlMAKQNO6QIAAAApAtoFaW5w\ndXTaCmJsb2NrX3NpemUpA9oBS9oCdGbaDmRlcHRoX3RvX3NwYWNlKQHaBmltYWdlc6kAcggAAAD6\nHjxpcHl0aG9uLWlucHV0LTctM2VkYWUwMzk0ZGFjPtoIPGxhbWJkYT5bAAAAcwAAAAA=\n",
+            "4wEAAAAAAAAAAQAAAAQAAABTAAAAcxAAAAB0AGoBagJ8AGQBZAKNAlMAKQNO6QIAAAApAtoFaW5w\ndXTaCmJsb2NrX3NpemUpA9oBS9oCdGbaDmRlcHRoX3RvX3NwYWNlKQHaBmltYWdlc6kAcggAAAD6\nHjxpcHl0aG9uLWlucHV0LTctYjI0MWU5NDdhZjZjPtoIPGxhbWJkYT5YAAAAcwAAAAA=\n",
             null,
             null
           ],
@@ -3008,21 +2007,12 @@
         ]
       },
       {
-        "name": "p_re_lu_18",
-        "class_name": "PReLU",
+        "name": "leaky_re_lu_18",
+        "class_name": "LeakyReLU",
         "config": {
-          "name": "p_re_lu_18",
+          "name": "leaky_re_lu_18",
           "trainable": true,
-          "alpha_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "alpha_regularizer": null,
-          "alpha_constraint": null,
-          "shared_axes": [
-            1,
-            2
-          ]
+          "alpha": 0.20000000298023224
         },
         "inbound_nodes": [
           [
@@ -3080,7 +2070,7 @@
         "inbound_nodes": [
           [
             [
-              "p_re_lu_18",
+              "leaky_re_lu_18",
               0,
               0,
               {}
@@ -3095,7 +2085,7 @@
           "name": "pixelshuffleup_2",
           "trainable": true,
           "function": [
-            "4wEAAAAAAAAAAQAAAAQAAABTAAAAcxAAAAB0AGoBagJ8AGQBZAKNAlMAKQNO6QIAAAApAtoFaW5w\ndXTaCmJsb2NrX3NpemUpA9oBS9oCdGbaDmRlcHRoX3RvX3NwYWNlKQHaBmltYWdlc6kAcggAAAD6\nHjxpcHl0aG9uLWlucHV0LTctM2VkYWUwMzk0ZGFjPtoIPGxhbWJkYT5bAAAAcwAAAAA=\n",
+            "4wEAAAAAAAAAAQAAAAQAAABTAAAAcxAAAAB0AGoBagJ8AGQBZAKNAlMAKQNO6QIAAAApAtoFaW5w\ndXTaCmJsb2NrX3NpemUpA9oBS9oCdGbaDmRlcHRoX3RvX3NwYWNlKQHaBmltYWdlc6kAcggAAAD6\nHjxpcHl0aG9uLWlucHV0LTctYjI0MWU5NDdhZjZjPtoIPGxhbWJkYT5YAAAAcwAAAAA=\n",
             null,
             null
           ],
@@ -3116,21 +2106,12 @@
         ]
       },
       {
-        "name": "p_re_lu_19",
-        "class_name": "PReLU",
+        "name": "leaky_re_lu_19",
+        "class_name": "LeakyReLU",
         "config": {
-          "name": "p_re_lu_19",
+          "name": "leaky_re_lu_19",
           "trainable": true,
-          "alpha_initializer": {
-            "class_name": "Zeros",
-            "config": {}
-          },
-          "alpha_regularizer": null,
-          "alpha_constraint": null,
-          "shared_axes": [
-            1,
-            2
-          ]
+          "alpha": 0.20000000298023224
         },
         "inbound_nodes": [
           [
@@ -3188,7 +2169,7 @@
         "inbound_nodes": [
           [
             [
-              "p_re_lu_19",
+              "leaky_re_lu_19",
               0,
               0,
               {}

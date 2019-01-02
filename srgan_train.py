@@ -55,7 +55,7 @@ from keras.layers import (
     Input,
     Lambda,
 )
-from keras.layers.advanced_activations import LeakyReLU, PReLU
+from keras.layers.advanced_activations import LeakyReLU
 from keras.models import Model
 import livelossplot
 
@@ -179,7 +179,7 @@ def generator_network(
 
     Parameters:
       input_shape -- shape of input tensor in tuple format (height, width, channels)
-      num_residual_blocks -- how many Conv-PReLU-Conv blocks to use
+      num_residual_blocks -- how many Conv-LeakyReLU-Conv blocks to use
       scaling -- even numbered integer to increase resolution (e.g. 0, 2, 4, 6, 8)
       output_channels -- integer representing number of output channels/filters/kernels
 
@@ -192,7 +192,7 @@ def generator_network(
     >>> generator_network().output_shape
     (None, 32, 32, 1)
     >>> generator_network().count_params()
-    1606145
+    1032513
     """
 
     assert num_residual_blocks >= 1  # ensure that we have 1 or more residual blocks
@@ -227,7 +227,7 @@ def generator_network(
     # 1st part
     # Pre-residual k3n64s1 (originally k9n64s1)
     X0 = Conv2D(filters=64, kernel_size=(3, 3), strides=(1, 1), padding="same")(X)
-    X0 = PReLU(shared_axes=[1, 2])(X0)
+    X0 = LeakyReLU(alpha=0.2)(X0)
 
     # 2nd part
     # Residual blocks k3n64s1
@@ -235,7 +235,7 @@ def generator_network(
         x = Conv2D(filters=64, kernel_size=(3, 3), strides=(1, 1), padding="same")(
             input_tensor
         )
-        x = PReLU(shared_axes=[1, 2])(x)
+        x = LeakyReLU(alpha=0.2)(X)
         x = Conv2D(filters=64, kernel_size=(3, 3), strides=(1, 1), padding="same")(x)
         return Add()([x, input_tensor])
 
@@ -254,7 +254,7 @@ def generator_network(
         X = Conv2D(filters=256, kernel_size=(3, 3), strides=(1, 1), padding="same")(X)
         pixelshuffleup = lambda images: K.tf.depth_to_space(input=images, block_size=2)
         X = Lambda(function=pixelshuffleup, name=f"pixelshuffleup_{p}")(X)
-        X = PReLU(shared_axes=[1, 2])(X)
+        X = LeakyReLU(alpha=0.2)(X)
 
     # 5th part
     # Generate high resolution output k9n1s1 (originally k9n3s1 for RGB image)
@@ -403,7 +403,7 @@ def compile_srgan_model(
     >>> models['srgan_model'].get_layer(name='discriminator_network').trainable
     False
     >>> models['srgan_model'].count_params()
-    8434178
+    7860546
     """
 
     # Check that our neural networks are named properly
