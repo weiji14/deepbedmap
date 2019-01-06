@@ -35,7 +35,7 @@ tqdm = "==4.28.1"
 [dev-packages]
 behave = "==1.2.6"
 nbval = "==0.9.1"
-pytest = "==4.0.2"
+pytest = "==4.1.0"
 
 [requires]
 python_version = "3.6"
