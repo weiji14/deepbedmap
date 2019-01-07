@@ -75,7 +75,7 @@ np.random.seed(seed=seed)
 K.tf.set_random_seed(seed=seed)
 
 # Start tracking experiment using Comet.ML
-experiment = comet_ml.Experiment(workspace="weiji14", project_name="deepbedmap")
+experiment = comet_ml.Experiment(workspace="weiji14", project_name="deepbedmap", disabled=False)
 
 # %% [markdown]
 # ## 1. Load data
@@ -192,7 +192,7 @@ def generator_network(
     >>> generator_network().output_shape
     (None, 32, 32, 1)
     >>> generator_network().count_params()
-    1032513
+    1604929
     """
 
     assert num_residual_blocks >= 1  # ensure that we have 1 or more residual blocks
@@ -235,7 +235,7 @@ def generator_network(
         x = Conv2D(filters=64, kernel_size=(3, 3), strides=(1, 1), padding="same")(
             input_tensor
         )
-        x = LeakyReLU(alpha=0.2)(X)
+        x = LeakyReLU(alpha=0.2)(x)
         x = Conv2D(filters=64, kernel_size=(3, 3), strides=(1, 1), padding="same")(x)
         return Add()([x, input_tensor])
 
@@ -403,7 +403,7 @@ def compile_srgan_model(
     >>> models['srgan_model'].get_layer(name='discriminator_network').trainable
     False
     >>> models['srgan_model'].count_params()
-    7860546
+    8432962
     """
 
     # Check that our neural networks are named properly
