@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "9bf3535d6347b83e3e1d88487f2acd22e6ce3e7c01fcb9306537eb0bbafed56e"
+            "sha256": "24da103e5d4886c08cb292d9534605365a53c840e4512ea76cc9aed9ad74f1e4"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -1217,17 +1217,6 @@
             "index": "pypi",
             "version": "==1.10.1"
         },
-        "tensorflow-gpu": {
-            "hashes": [
-                "sha256:2872b24f8c86bd16c8667bed0346b68ba8472f6c4d47c5554c560faf5f5bc64a",
-                "sha256:5b1b4a34c8631b2c30d11c6eb83c9c7c5700c06c51d761e842da1a8f839f51a3",
-                "sha256:bcb1703fe27a1248c7768c2143a33b025872b007bb9699e6282cc98474c3b8c3",
-                "sha256:d7e1dcc722541be88c8fad4219314313d97af129b3e3567c5c20daecfb7f8593",
-                "sha256:e83febd2c21c9cd05d00f11276458ae69af11d3656483018aa9897143669d65d"
-            ],
-            "index": "pypi",
-            "version": "==1.10.1"
-        },
         "termcolor": {
             "hashes": [
                 "sha256:1d6d69ce66211143803fbc56652b41d73b4a400a2891d7bf7a1cdf4c02de613b"
@@ -1243,10 +1232,10 @@
         },
         "testfixtures": {
             "hashes": [
-                "sha256:5e21e2d011615517b1323a3a8c7061fe5c07d24afd7c5c7696ec1e2062b10d99",
-                "sha256:cb086a10a229481384d2bb98bc0910a4fe571a36efd92f236e9d28247c36bd99"
+                "sha256:969e967df5d8e12012b5c90986428919b1068c20841b0077b3e29e9a928605d3",
+                "sha256:b6c05222ce8d3c34a1353ff30c73da55f61ef58153229a5664ef7110ec340cdd"
             ],
-            "version": "==6.4.2"
+            "version": "==6.4.3"
         },
         "testpath": {
             "hashes": [
