@@ -14,7 +14,7 @@
 # ---
 
 # %% [markdown]
-# # Super-Resolution Generative Adversarial Network training
+# # **Super-Resolution Generative Adversarial Network training**
 #
 # Here in this jupyter notebook, we will train a super-resolution generative adversarial network (SRGAN), to create a high-resolution Antarctic bed Digital Elevation Model(DEM) from a low-resolution DEM.
 # In addition to that, we use additional correlated inputs that can also tell us something about the bed topography.
@@ -22,7 +22,7 @@
 # <img src="https://yuml.me/diagram/scruffy;dir:LR/class/[BEDMAP2 (1000m)]->[Generator model],[REMA (100m)]->[Generator model],[MEASURES Ice Flow Velocity (450m)]->[Generator model],[Generator model]->[High res bed DEM (250m)],[High res bed DEM (250m)]->[Discriminator model],[Groundtruth Image (250m)]->[Discriminator model],[Discriminator model]->[True/False]" alt="3 input SRGAN model"/>
 
 # %% [markdown]
-# ## 0. Setup libraries
+# # 0. Setup libraries
 
 # %%
 import os
@@ -41,6 +41,11 @@ import quilt
 import skimage.transform
 import sklearn.model_selection
 import tqdm
+
+import chainer
+import chainer.functions as F
+import chainer.links as L
+import cupy
 
 import keras
 from keras import backend as K
@@ -63,6 +68,7 @@ from features.environment import _load_ipynb_modules
 
 print("Python       :", sys.version.split("\n")[0])
 print("Numpy        :", np.__version__)
+print("Chainer      :", chainer.__version__)
 print("Keras        :", keras.__version__)
 print("Tensorflow   :", K.tf.__version__)
 K.tf.test.gpu_device_name()
@@ -72,13 +78,16 @@ K.tf.test.gpu_device_name()
 seed = 42
 random.seed = seed
 np.random.seed(seed=seed)
+# cupy.random.seed(seed=seed)
 K.tf.set_random_seed(seed=seed)
 
 # Start tracking experiment using Comet.ML
-experiment = comet_ml.Experiment(workspace="weiji14", project_name="deepbedmap", disabled=False)
+experiment = comet_ml.Experiment(
+    workspace="weiji14", project_name="deepbedmap", disabled=True
+)
 
 # %% [markdown]
-# ## 1. Load data
+# # 1. Load data
 
 # %%
 hash = "1ccc9dc7f6344e1ec27b7aa972f2739d192d3e5adef8a64528b86bc799e2df60"
@@ -98,7 +107,7 @@ Y_data = pkg.Y_data()  # high resolution groundtruth
 print(W1_data.shape, W2_data.shape, X_data.shape, Y_data.shape)
 
 # %% [markdown]
-# ### Split dataset into training (train) and development (dev) sets
+# ## Split dataset into training (train) and development (dev) sets
 
 # %%
 def train_dev_split(dataset: np.ndarray, test_size=0.05, random_state=42):
@@ -130,22 +139,23 @@ Y_train, Y_dev = train_dev_split(dataset=Y_data)
 
 
 # %% [markdown]
-# ## 2. Architect model **(Note: Work in Progress!!)**
+# # 2. Architect model **(Note: Work in Progress!!)**
 #
 # Enhanced Super Resolution Generative Adversarial Network (ESRGAN) model based on [Wang et al. 2018](https://arxiv.org/abs/1809.00219v2).
 # Refer to original Pytorch implementation at https://github.com/xinntao/ESRGAN.
-#
-# See also previous (non-enhanced) SRGAN model architecture based on [Ledig et al. 2017](https://arxiv.org/abs/1609.04802).
-# Keras implementation below takes some hints from  https://github.com/eriklindernoren/Keras-GAN/blob/master/srgan/srgan.py
+# See also previous (non-enhanced) SRGAN model architecture by [Ledig et al. 2017](https://arxiv.org/abs/1609.04802).
 
 # %% [markdown]
-# ### Generator Network Architecture
+# ## 2.1 Generator Network Architecture
 #
 # ![ESRGAN architecture - Generator Network composed of many Dense Convolutional Blocks](https://github.com/xinntao/ESRGAN/raw/master/figures/architecture.jpg)
-# ![The Residual in Residual Dense Block in detail](https://github.com/xinntao/ESRGAN/raw/master/figures/RRDB.png)
-# ![3 inputs feeding into the Generator Network, producing a high resolution prediction output](https://yuml.me/01862e1a.png)
 #
-# Details of the first convolutional layer:
+# 3 main components: 1) Input Block, 2) Residual Blocks, 3) Upsampling Blocks
+
+# %% [markdown]
+# ### 2.1.1 Input block, specially customized for DeepBedMap to take in 3 different inputs
+#
+# Details of the first convolutional layer for each input:
 #
 # - Input tiles are 8000m by 8000m.
 # - Convolution filter kernels are 3000m by 3000m.
@@ -157,12 +167,261 @@ Y_train, Y_dev = train_dev_split(dataset=Y_data)
 # - Convolution filter kernels are 30pixels by 30pixels
 # - Strides are 10pixels by 10pixels
 #
-# Note that first convolutional layer uses '**valid**' padding, see https://keras.io/layers/convolutional/ for more information.
+# Note that these first convolutional layers uses '**valid**' padding, see https://keras.io/layers/convolutional/ for more information.
+
+# %%
+class DeepbedmapInputBlock(chainer.Chain):
+    """
+    Custom input block for DeepBedMap.
+
+    Each filter kernel is 3km by 3km in size, with a 1km stride and no padding.
+    So for a 1km resolution image, (i.e. 1km pixel size):
+    kernel size is (3, 3), stride is (1, 1), and pad is (0, 0)
+
+      (?,1,10,10) --Conv2D-- (?,32,8,8) \
+    (?,1,100,100) --Conv2D-- (?,32,8,8) --Concat-- (?,96,8,8)
+      (?,1,20,20) --Conv2D-- (?,32,8,8) /
+
+    """
+
+    def __init__(self, out_channels=32):
+        super().__init__()
+        init_weights = chainer.initializers.GlorotUniform(scale=1.0)
+
+        with self.init_scope():
+            self.conv_on_X = L.Convolution2D(
+                in_channels=1,
+                out_channels=out_channels,
+                ksize=(3, 3),
+                stride=(1, 1),
+                pad=(0, 0),  # 'valid' padding
+                initialW=init_weights,
+            )
+            self.conv_on_W1 = L.Convolution2D(
+                in_channels=1,
+                out_channels=out_channels,
+                ksize=(30, 30),
+                stride=(10, 10),
+                pad=(0, 0),  # 'valid' padding
+                initialW=init_weights,
+            )
+            self.conv_on_W2 = L.Convolution2D(
+                in_channels=1,
+                out_channels=out_channels,
+                ksize=(6, 6),
+                stride=(2, 2),
+                pad=(0, 0),  # 'valid' padding
+                initialW=init_weights,
+            )
+
+    def forward(self, x, w1, w2):
+        """
+        Forward computation, i.e. evaluate based on inputs X, W1 and W2
+        """
+        x_ = self.conv_on_X(x)
+        w1_ = self.conv_on_W1(w1)
+        w2_ = self.conv_on_W2(w2)
+
+        a = F.concat(xs=(x_, w1_, w2_))
+        return a
+
+
+# %% [markdown]
+# ### 2.1.2 Residual Block
+#
+# ![The Residual in Residual Dense Block in detail](https://arxiv-sanity-sanity-production.s3.amazonaws.com/render-output/518727/x4.png)
+
+# %%
+class ResidualBlock(chainer.Chain):
+    """
+    Residual block made of Convoutional2D-LeakyReLU-Convoutional2D layers
+
+       -----------------------------
+      |                             |
+    -----Conv2D--LeakyReLu--Conv2D-(+)--
+
+    """
+
+    def __init__(self, out_channels=64):
+        super().__init__()
+        init_weights = chainer.initializers.GlorotUniform(scale=1.0)
+
+        with self.init_scope():
+            self.conv_layer1 = L.Convolution2D(
+                in_channels=None,
+                out_channels=out_channels,
+                ksize=(3, 3),
+                stride=(1, 1),
+                pad=1,  # 'same' padding
+                initialW=init_weights,
+            )
+            self.conv_layer2 = L.Convolution2D(
+                in_channels=out_channels,
+                out_channels=out_channels,
+                ksize=(3, 3),
+                stride=(1, 1),
+                pad=1,  # 'same' padding
+                initialW=init_weights,
+            )
+
+    def forward(self, x):
+        """
+        Forward computation, i.e. evaluate based on input x
+        """
+        a = self.conv_layer1(x)
+        a = F.leaky_relu(x=a, slope=0.2)
+        a = self.conv_layer2(a)
+
+        a = F.add(x, a)
+        return a
+
+
+# %% [markdown]
+# ### 2.1.3 Build the Generator Network, with upsampling layers!
+#
+# ![3 inputs feeding into the Generator Network, producing a high resolution prediction output](https://yuml.me/dffffcb0.png)
 #
 # <!--[W2_input(MEASURES)|20x20x1]-k6n32s2>[W2_inter|8x8x32],[W2_inter]->[Concat|8x8x96]
 # [X_input(BEDMAP2)|10x10x1]-k3n32s1>[X_inter|8x8x32],[X_inter]->[Concat|8x8x96]
 # [W1_input(REMA)|100x100x1]-k30n32s10>[W1_inter|8x8x32],[W1_inter]->[Concat|8x8x96]
-# [Concat|8x8x96]->[Generator-Network],[Generator-Network]->[Y_hat(High-Resolution_DEM)|32x32x1]-->
+# [Concat|8x8x96]->[Generator-Network|Many-Residual-Blocks],[Generator-Network]->[Y_hat(High-Resolution_DEM)|32x32x1]-->
+
+# %%
+class GeneratorModel(chainer.Chain):
+    """
+    The generator network which is a deconvolutional neural network.
+    Converts a low resolution input into a super resolution output.
+
+    Glues the input block with several residual blocks and upsampling layers
+
+    Parameters:
+      input_shape -- shape of input tensor in tuple format (height, width, channels)
+      num_residual_blocks -- how many Conv-LeakyReLU-Conv blocks to use
+      scaling -- even numbered integer to increase resolution (e.g. 0, 2, 4, 6, 8)
+      out_channels -- integer representing number of output channels/filters/kernels
+
+    Example:
+      An input_shape of (8,8,1) passing through 16 residual blocks with a scaling of 4
+      and output_channels 1 will result in an image of shape (32,32,1)
+
+    >>> generator_model = GeneratorModel(
+    ...     inblock_class=DeepbedmapInputBlock,
+    ...     resblock_class=ResidualBlock,
+    ...     num_residual_blocks=16,
+    ... )
+    >>> y_pred = generator_model.forward(
+    ...     inputs={
+    ...         "x": np.random.rand(1, 1, 10, 10).astype("float32"),
+    ...         "w1": np.random.rand(1, 1, 100, 100).astype("float32"),
+    ...         "w2": np.random.rand(1, 1, 20, 20).astype("float32"),
+    ...     }
+    ... )
+    >>> y_pred.shape
+    (1, 1, 32, 32)
+    >>> generator_model.count_params()
+    1604929
+    """
+
+    def __init__(
+        self,
+        inblock_class,
+        resblock_class,
+        num_residual_blocks: int = 16,
+        out_channels: int = 1,
+    ):
+        super().__init__()
+        init_weights = chainer.initializers.GlorotUniform(scale=1.0)
+
+        with self.init_scope():
+
+            # Initial Input and Residual Blocks
+            self.input_block = inblock_class()
+            self.pre_residual_conv_layer = L.Convolution2D(
+                in_channels=None,
+                out_channels=64,
+                ksize=(3, 3),
+                stride=(1, 1),
+                pad=1,  # 'same' padding
+                initialW=init_weights,
+            )
+            self.residual_network = resblock_class().repeat(
+                n_repeat=num_residual_blocks
+            )
+            self.post_residual_conv_layer = L.Convolution2D(
+                in_channels=None,
+                out_channels=64,
+                ksize=(3, 3),
+                stride=(1, 1),
+                pad=1,  # 'same' padding
+                initialW=init_weights,
+            )
+
+            # Upsampling Layers
+            self.pre_upsample_conv_layer_1 = L.Convolution2D(
+                in_channels=None,
+                out_channels=256,
+                ksize=(3, 3),
+                stride=(1, 1),
+                pad=1,  # 'same' padding
+                initialW=init_weights,
+            )
+            self.pre_upsample_conv_layer_2 = L.Convolution2D(
+                in_channels=None,
+                out_channels=256,
+                ksize=(3, 3),
+                stride=(1, 1),
+                pad=1,  # 'same' padding
+                initialW=init_weights,
+            )
+            self.post_upsample_conv_layer = L.Convolution2D(
+                in_channels=None,
+                out_channels=out_channels,
+                ksize=(9, 9),
+                stride=(1, 1),
+                pad=4,  # 'same' padding
+                initialW=init_weights,
+            )
+
+    def forward(self, inputs: dict):
+        """
+        Forward computation, i.e. evaluate based on inputs
+
+        Input dictionary needs to have keys "x", "w1", "w2"
+        """
+        # 0 part
+        # Resize inputs o right scale using convolution (hardcoded kernel_size and strides)
+        # Also concatenate all inputs
+        a0 = self.input_block(x=inputs["x"], w1=inputs["w1"], w2=inputs["w2"])
+
+        # 1st part
+        # Pre-residual k3n64s1 (originally k9n64s1)
+        a1 = self.pre_residual_conv_layer(a0)
+        a1 = F.leaky_relu(x=a1, slope=0.2)
+
+        # 2nd part
+        # Residual blocks k3n64s1
+        a2 = self.residual_network(a1)
+
+        # 3rd part
+        # Post-residual blocks k3n64s1
+        a3 = self.post_residual_conv_layer(a2)
+        a3 = F.add(a1, a3)
+
+        # 4th part
+        # Upsampling (if 4; run twice, if 8; run thrice, etc.) k3n256s1
+        a4_1 = self.pre_upsample_conv_layer_1(a3)
+        a4_1 = F.depth2space(X=a4_1, r=2)
+        a4_1 = F.leaky_relu(x=a4_1, slope=0.2)
+        a4_2 = self.pre_upsample_conv_layer_2(a4_1)
+        a4_2 = F.depth2space(X=a4_2, r=2)
+        a4_2 = F.leaky_relu(x=a4_2, slope=0.2)
+
+        # 5th part
+        # Generate high resolution output k9n1s1 (originally k9n3s1 for RGB image)
+        a5 = self.post_upsample_conv_layer(a4_2)
+
+        return a5
+
 
 # %%
 def generator_network(
@@ -275,7 +534,7 @@ def generator_network(
 
 
 # %% [markdown]
-# ### Discriminator Network Architecture
+# ## 2.2 Discriminator Network Architecture
 #
 # Discriminator component is based on Deep Convolutional Generative Adversarial Networks by [Radford et al., 2015](https://arxiv.org/abs/1511.06434).
 # Keras implementation below takes some hints from https://github.com/erilyth/DCGANs/blob/master/DCGAN-CIFAR10/dcgan.py and https://github.com/yashk2810/DCGAN-Keras/blob/master/DCGAN.ipynb
@@ -339,7 +598,7 @@ def discriminator_network(
 
 
 # %% [markdown]
-# ### Combine Generator and Discriminator Networks
+# ### 2.3 Combine Generator and Discriminator Networks
 #
 # Here we combine the Generator and Discriminator neural network models together, and define the Perceptual Loss function where:
 #
@@ -479,7 +738,7 @@ models = compile_srgan_model(
 models["srgan_model"].summary()
 
 # %% [markdown]
-# ## 3. Train model
+# # 3. Train model
 #
 # [Gherkin](https://en.wikipedia.org/wiki/Gherkin_(language))/Plain English statement at what the Super-Resolution Generative Adversarial Network below does
 #
@@ -635,11 +894,13 @@ def train_generator(
 # %%
 epochs = 100
 with tqdm.trange(epochs) as t:
+
     metric_names = ["discriminator_network_loss_actual"] + models[
         "srgan_model"
     ].metrics_names
     columns = metric_names + [f"val_{metric_name}" for metric_name in metric_names]
     dataframe = pd.DataFrame(index=np.arange(0, epochs), columns=columns)
+
     for i in t:
         ## Part 1 - Train Discriminator
         _, d_train_loss = train_discriminator(
@@ -702,10 +963,10 @@ experiment.log_asset(
 )
 
 # %% [markdown]
-# ## 4. Evaluate model
+# # 4. Evaluate model
 
 # %% [markdown]
-# ### Evaluation on independent test set
+# ## Evaluation on independent test set
 
 # %%
 def get_deepbedmap_test_result(test_filepath: str = "highres/2007tx"):

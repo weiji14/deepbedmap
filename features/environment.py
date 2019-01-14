@@ -32,10 +32,15 @@ def _load_ipynb_modules(ipynb_path: str):
     source, meta = pyexporter.from_notebook_node(nb=nb)
     assert isinstance(source, str)
 
-    # parse the .py string to pick out only 'import' and 'def function's
+    # parse the .py string to pick out only 'class', 'import' and 'def function's
     parsed_code = ast.parse(source=source)
     for node in parsed_code.body[:]:
-        if node.__class__ not in [ast.FunctionDef, ast.Import, ast.ImportFrom]:
+        if node.__class__ not in [
+            ast.ClassDef,
+            ast.FunctionDef,
+            ast.Import,
+            ast.ImportFrom,
+        ]:
             parsed_code.body.remove(node)
     assert len(parsed_code.body) > 0
 
