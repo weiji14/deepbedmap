@@ -537,7 +537,6 @@ def generator_network(
 # ## 2.2 Discriminator Network Architecture
 #
 # Discriminator component is based on Deep Convolutional Generative Adversarial Networks by [Radford et al., 2015](https://arxiv.org/abs/1511.06434).
-# Keras implementation below takes some hints from https://github.com/erilyth/DCGANs/blob/master/DCGAN-CIFAR10/dcgan.py and https://github.com/yashk2810/DCGAN-Keras/blob/master/DCGAN.ipynb
 #
 # Note that figure below shows the 2017 (non-enhanced) SRGAN discriminator neural network architecture.
 # The 2018 ESRGAN version is basically the same architecture, as only the loss function was changed.
@@ -546,6 +545,115 @@ def generator_network(
 # ![SRGAN architecture - Discriminator Network](https://arxiv-sanity-sanity-production.s3.amazonaws.com/render-output/399644/images/used/jpg/discriminator.jpg)
 #
 # ![Discriminator Network](https://yuml.me/diagram/scruffy/class/[High-Resolution_DEM|32x32x1]->[Discriminator-Network],[Discriminator-Network]->[False/True|0/1])
+
+# %%
+class DiscriminatorModel(chainer.Chain):
+    """
+    The discriminator network which is a convolutional neural network.
+    Takes ONE high resolution input image and predicts whether it is
+    real or fake on a scale of 0 to 1, where 0 is fake and 1 is real.
+
+    Consists of several Conv2D-BatchNorm-LeakyReLU blocks, followed by
+    a fully connected linear layer with LeakyReLU activation and a final
+    fully connected linear layer with Sigmoid activation.
+
+    >>> discriminator_model = DiscriminatorModel()
+    >>> y_pred = discriminator_model.forward(
+    ...     inputs={
+    ...         "x": np.random.rand(2, 1, 32, 32).astype("float32"),
+    ...     }
+    ... )
+    >>> y_pred.shape
+    (2, 1)
+    >>> discriminator_model.count_params()
+    6824193
+    """
+
+    def __init__(self):
+        super().__init__()
+        init_weights = chainer.initializers.GlorotUniform(scale=1.0)
+
+        with self.init_scope():
+
+            self.conv_layer0 = L.Convolution2D(
+                in_channels=None,
+                out_channels=64,
+                ksize=(3, 3),
+                stride=(1, 1),
+                pad=1,  # 'same' padding
+                nobias=False,  # default, have bias
+                initialW=init_weights,
+            )
+            self.conv_layer1 = L.Convolution2D(None, 64, 3, 1, 1, False, init_weights)
+            self.conv_layer2 = L.Convolution2D(None, 64, 3, 2, 1, False, init_weights)
+            self.conv_layer3 = L.Convolution2D(None, 128, 3, 1, 1, False, init_weights)
+            self.conv_layer4 = L.Convolution2D(None, 128, 3, 2, 1, False, init_weights)
+            self.conv_layer5 = L.Convolution2D(None, 256, 3, 1, 1, False, init_weights)
+            self.conv_layer6 = L.Convolution2D(None, 256, 3, 2, 1, False, init_weights)
+            self.conv_layer7 = L.Convolution2D(None, 512, 3, 1, 1, False, init_weights)
+            self.conv_layer8 = L.Convolution2D(None, 512, 3, 2, 1, False, init_weights)
+
+            self.batch_norm1 = L.BatchNormalization(axis=(0, 2, 3), eps=0.001)
+            self.batch_norm2 = L.BatchNormalization(axis=(0, 2, 3), eps=0.001)
+            self.batch_norm3 = L.BatchNormalization(axis=(0, 2, 3), eps=0.001)
+            self.batch_norm4 = L.BatchNormalization(axis=(0, 2, 3), eps=0.001)
+            self.batch_norm5 = L.BatchNormalization(axis=(0, 2, 3), eps=0.001)
+            self.batch_norm6 = L.BatchNormalization(axis=(0, 2, 3), eps=0.001)
+            self.batch_norm7 = L.BatchNormalization(axis=(0, 2, 3), eps=0.001)
+            self.batch_norm8 = L.BatchNormalization(axis=(0, 2, 3), eps=0.001)
+
+            self.linear_1 = L.Linear(in_size=None, out_size=1024, initialW=init_weights)
+            self.linear_2 = L.Linear(in_size=None, out_size=1, initialW=init_weights)
+
+    def forward(self, inputs: dict):
+        """
+        Forward computation, i.e. evaluate based on inputs
+
+        Input dictionary needs to have keys "x"
+        """
+
+        # 1st part
+        # Convolutonal Block without Batch Normalization k3n64s1
+        a0 = self.conv_layer0(x=inputs["x"])
+        a0 = F.leaky_relu(x=a0, slope=0.2)
+
+        # 2nd part
+        # Convolutional Blocks with Batch Normalization k3n{64*f}s{1or2}
+        a1 = self.conv_layer1(x=a0)
+        a1 = self.batch_norm1(x=a1)
+        a1 = F.leaky_relu(x=a1, slope=0.2)
+        a2 = self.conv_layer2(x=a1)
+        a2 = self.batch_norm2(x=a2)
+        a2 = F.leaky_relu(x=a2, slope=0.2)
+        a3 = self.conv_layer3(x=a2)
+        a3 = self.batch_norm3(x=a3)
+        a3 = F.leaky_relu(x=a3, slope=0.2)
+        a4 = self.conv_layer4(x=a3)
+        a4 = self.batch_norm4(x=a4)
+        a4 = F.leaky_relu(x=a4, slope=0.2)
+        a5 = self.conv_layer5(x=a4)
+        a5 = self.batch_norm5(x=a5)
+        a5 = F.leaky_relu(x=a5, slope=0.2)
+        a6 = self.conv_layer6(x=a5)
+        a6 = self.batch_norm6(x=a6)
+        a6 = F.leaky_relu(x=a6, slope=0.2)
+        a7 = self.conv_layer7(x=a6)
+        a7 = self.batch_norm7(x=a7)
+        a7 = F.leaky_relu(x=a7, slope=0.2)
+        a8 = self.conv_layer8(x=a7)
+        a8 = self.batch_norm8(x=a8)
+        a8 = F.leaky_relu(x=a8, slope=0.2)
+
+        # 3rd part
+        # Flatten, Dense (Fully Connected) Layers and Output
+        a9 = F.reshape(x=a8, shape=(len(a8), -1))  # flatten while keeping batch_size
+        a9 = self.linear_1(x=a9)
+        a9 = F.leaky_relu(x=a9, slope=0.2)
+        a10 = self.linear_2(x=a9)
+        a10 = F.sigmoid(x=a10)
+
+        return a10
+
 
 # %%
 def discriminator_network(
