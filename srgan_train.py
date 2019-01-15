@@ -39,7 +39,6 @@ import numpy as np
 import pandas as pd
 import quilt
 import skimage.transform
-import sklearn.model_selection
 import tqdm
 
 import chainer
@@ -107,36 +106,50 @@ Y_data = pkg.Y_data()  # high resolution groundtruth
 print(W1_data.shape, W2_data.shape, X_data.shape, Y_data.shape)
 
 # %% [markdown]
-# ## Split dataset into training (train) and development (dev) sets
+# ## 1.1 Convert arrays for Chainer
+# - From Numpy (CPU) to CuPy (GPU) format
+# - From NHWC format to NCHW format, where N=number of tiles, H=height, W=width, C=channels
 
 # %%
-def train_dev_split(dataset: np.ndarray, test_size=0.05, random_state=42):
-    """
-    Split our dataset up into training and development sets.
-    Used for cross validation purposes to check for overfitting.
+# Detect if there is a CUDA GPU first
+try:
+    cupy.cuda.get_device_id()
+    xp = cupy
+    print("Using GPU")
 
-    >>> dataset = np.ones(shape=(100, 4, 4, 1))
-    >>> train, dev = train_dev_split(dataset=dataset, test_size=0.05, random_state=42)
-    >>> train.shape
-    (95, 4, 4, 1)
-    >>> dev.shape
-    (5, 4, 4, 1)
-    """
-    return sklearn.model_selection.train_test_split(
-        dataset,
-        test_size=test_size,
-        train_size=1 - test_size,
-        random_state=random_state,
-        shuffle=True,
-    )
-
+    W1_data = chainer.backend.cuda.to_gpu(array=W1_data)
+    W2_data = chainer.backend.cuda.to_gpu(array=W2_data)
+    X_data = chainer.backend.cuda.to_gpu(array=X_data)
+    Y_data = chainer.backend.cuda.to_gpu(array=Y_data)
+except:  # CUDARuntimeError
+    xp = np
+    print("Using CPU only")
 
 # %%
-W1_train, W1_dev = train_dev_split(dataset=W1_data)
-W2_train, W2_dev = train_dev_split(dataset=W2_data)
-X_train, X_dev = train_dev_split(dataset=X_data)
-Y_train, Y_dev = train_dev_split(dataset=Y_data)
+W1_data = xp.rollaxis(a=W1_data, axis=3, start=1)
+W2_data = xp.rollaxis(a=W2_data, axis=3, start=1)
+X_data = xp.rollaxis(a=X_data, axis=3, start=1)
+Y_data = xp.rollaxis(a=Y_data, axis=3, start=1)
+print(W1_data.shape, W2_data.shape, X_data.shape, Y_data.shape)
 
+# %% [markdown]
+# ## 1.2 Split dataset into training (train) and development (dev) sets
+
+# %%
+dataset = chainer.datasets.DictDataset(X=X_data, W1=W1_data, W2=W2_data, Y=Y_data)
+train_set, dev_set = chainer.datasets.split_dataset_random(
+    dataset=dataset, first_size=int(len(X_data) * 0.95), seed=seed
+)
+print(f"Training dataset: {len(train_set)} tiles, Test dataset: {len(dev_set)} tiles")
+
+# %%
+batch_size = 32
+train_iter = chainer.iterators.SerialIterator(
+    dataset=train_set, batch_size=batch_size, repeat=True, shuffle=True
+)
+dev_iter = chainer.iterators.SerialIterator(
+    dataset=dev_set, batch_size=batch_size, repeat=False, shuffle=False
+)
 
 # %% [markdown]
 # # 2. Architect model **(Note: Work in Progress!!)**
