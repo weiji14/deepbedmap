@@ -832,27 +832,8 @@ def compile_srgan_model(
 
 
 # %%
-def psnr(y_true: np.ndarray, y_pred: np.ndarray) -> np.ndarray:
-    """
-    Peak Signal-Noise Ratio (PSNR) metric.
-    See https://en.wikipedia.org/wiki/Peak_signal-to-noise_ratio#Definition
-
-    >>> y_true, y_pred = np.ones(shape=(3, 3)), np.full(shape=(3, 3), fill_value=2)
-    >>> K.eval(psnr(y_true=y_true, y_pred=y_pred))
-    array([221.80709678, 221.80709678, 221.80709678])
-    """
-
-    mse = (
-        K.mean(K.square(K.np.subtract(y_pred, y_true)), axis=-1) + K.epsilon()
-    )  # add epsilon to prevent zero division
-    return K.np.multiply(
-        20, K.log(2 ** 16 / K.sqrt(mse))
-    )  # setting MAX_I as 2^16, i.e. max for int16
-
-
-# %%
 K.clear_session()  # Reset Keras/Tensorflow graph
-metrics = {"generator_network": psnr, "discriminator_network": "accuracy"}
+metrics = {"generator_network": "mse", "discriminator_network": "accuracy"}
 models = compile_srgan_model(
     g_network=generator_network(), d_network=discriminator_network(), metrics=metrics
 )
@@ -1010,6 +991,32 @@ def train_generator(
     # assert g_weight0 != g_weight1  # check that training occurred i.e. weights changed
 
     return models, [m[0] for m in g_metrics.values()]
+
+
+# %%
+def psnr(
+    y_true: cupy.ndarray, y_pred: cupy.ndarray, data_range=2 ** 32
+) -> cupy.ndarray:
+    """
+    Peak Signal-Noise Ratio (PSNR) metric, calculated batchwise.
+    See https://en.wikipedia.org/wiki/Peak_signal-to-noise_ratio#Definition
+
+    Can take in either numpy (CPU) or cupy (GPU) arrays as input.
+    Implementation is same as skimage.measure.compare_psnr with data_range=2**32
+
+    >>> psnr(
+    ...     y_true=np.ones(shape=(2, 1, 3, 3)),
+    ...     y_pred=np.full(shape=(2, 1, 3, 3), fill_value=2),
+    ... )
+    192.65919722494797
+    """
+    xp = chainer.backend.get_array_module(y_true)
+
+    # Calculate Mean Squred Error along predetermined axes
+    mse = xp.mean(xp.square(xp.subtract(y_pred, y_true)), axis=None)
+
+    # Calculate Peak Signal-Noise Ratio, setting MAX_I as 2^32, i.e. max for int32
+    return xp.multiply(20, xp.log10(data_range / xp.sqrt(mse)))
 
 
 # %%
