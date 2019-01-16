@@ -148,7 +148,7 @@ train_iter = chainer.iterators.SerialIterator(
     dataset=train_set, batch_size=batch_size, repeat=True, shuffle=True
 )
 dev_iter = chainer.iterators.SerialIterator(
-    dataset=dev_set, batch_size=batch_size, repeat=False, shuffle=False
+    dataset=dev_set, batch_size=batch_size, repeat=True, shuffle=False
 )
 
 # %% [markdown]
@@ -719,24 +719,13 @@ def discriminator_network(
 
 
 # %% [markdown]
-# ### 2.3 Combine Generator and Discriminator Networks
+# ## 2.3 Define Loss function and Metrics for the Generator and Discriminator Networks
 #
-# Here we combine the Generator and Discriminator neural network models together, and define the Perceptual Loss function where:
+# Now we define the Perceptual Loss function for our Generator and Discriminator neural network models, where:
 #
 # $$Perceptual Loss = Content Loss + Adversarial Loss$$
 #
-# The original SRGAN paper by [Ledig et al. 2017](https://arxiv.org/abs/1609.04802v5) calculates *Content Loss* based on the ReLU activation layers of the pre-trained 19 layer VGG network.
-# The implementation below is less advanced, simply using an L1 loss, i.e., a pixel-wise [Mean Absolute Error (MAE) loss](https://keras.io/losses/#mean_absolute_error) as the *Content Loss*.
-# Specifically, the *Content Loss* is calculated as the MAE difference between the output of the generator model (i.e. the predicted Super Resolution Image) and that of the groundtruth image (i.e. the true High Resolution Image).
-#
-# The *Adversarial Loss* or *Generative Loss* (confusing I know) is the same as in the original SRGAN paper.
-# It is defined based on the probabilities of the discriminator believing that the reconstructed Super Resolution Image is a natural High Resolution Image.
-# The implementation below uses the [Binary CrossEntropy loss](https://keras.io/losses/#binary_crossentropy).
-# Specifically, this *Adversarial Loss* is calculated between the output of the discriminator model (a value between 0 and 1) and that of the groundtruth label (a boolean value of either 0 or 1).
-#
-# Source code for the implementations of these loss functions in Keras can be found at https://github.com/keras-team/keras/blob/master/keras/losses.py.
-#
-# ![Perceptual Loss in an Enhanced Super Resolution Generative Adversarial Network](https://yuml.me/db58d683.png )
+# ![Perceptual Loss in an Enhanced Super Resolution Generative Adversarial Network](https://yuml.me/db58d683.png)
 #
 # <!--
 # [LowRes-Inputs]-Generator>[SuperResolution_DEM]
@@ -750,6 +739,76 @@ def discriminator_network(
 # [note:Content-Loss]-.->[note:Perceptual-Loss{bg:gold}]
 # [note:Adversarial-Loss]-.->[note:Perceptual-Loss{bg:gold}]
 # -->
+#
+# ### Content Loss
+#
+# The original SRGAN paper by [Ledig et al. 2017](https://arxiv.org/abs/1609.04802v5) calculates *Content Loss* based on the ReLU activation layers of the pre-trained 19 layer VGG network.
+# The implementation below is less advanced, simply using an L1 loss, i.e., a pixel-wise [Mean Absolute Error (MAE) loss](https://keras.io/losses/#mean_absolute_error) as the *Content Loss*.
+# Specifically, the *Content Loss* is calculated as the MAE difference between the output of the generator model (i.e. the predicted Super Resolution Image) and that of the groundtruth image (i.e. the true High Resolution Image).
+#
+# $$ e_i = ||G(x_{i}) - y_i||_{1} $$
+#
+# $$ Loss_{Content} = Mean Absolute Error = \dfrac{1}{n} \sum\limits_{i=1}^n e_i $$
+#
+# where $G(x_{i})$ is the Generator Network's predicted value, and $y_i$ is the groundtruth value, respectively at pixel $i$.
+# $e_i$ thus represents the absolute error (L1 loss) (denoted by $||\dots||_{1}$) between the predicted and groundtruth value.
+# We then sum all the pixel-wise errors $e_i,\dots,e_n$ and divide by the number of pixels $n$ to get the Arithmetic Mean $\dfrac{1}{n} \sum\limits_{i=1}^n$ of our error which is our *Content Loss*.
+#
+# ### Adversarial Loss
+#
+# The *Adversarial Loss* or *Generative Loss* (confusing I know) is the same as in the original SRGAN paper.
+# It is defined based on the probabilities of the discriminator believing that the reconstructed Super Resolution Image is a natural High Resolution Image.
+# The implementation below uses the [Binary CrossEntropy loss](https://keras.io/losses/#binary_crossentropy).
+# Specifically, this *Adversarial Loss* is calculated between the output of the discriminator model (a value between 0 and 1) and that of the groundtruth label (a boolean value of either 0 or 1).
+#
+# Source code for the implementations of these loss functions in Keras can be found at https://github.com/keras-team/keras/blob/master/keras/losses.py.
+
+# %%
+def calculate_generator_loss(
+    y_pred: chainer.variable.Variable, y_true: cupy.ndarray
+) -> chainer.variable.Variable:
+    """
+    Calculate the batchwise loss of the Generator Network
+    """
+
+    # Content Loss (L1, Mean Absolute Error)
+    content_loss = F.mean_absolute_error(x0=y_pred, x1=y_true)
+
+    # Adversarial Loss
+    # TODO
+
+    # Get generator loss, averaged over entire batch
+    batchsize = len(y_true)
+    g_loss = content_loss / batchsize
+
+    return g_loss
+
+
+# %%
+def psnr(
+    y_true: cupy.ndarray, y_pred: cupy.ndarray, data_range=2 ** 32
+) -> cupy.ndarray:
+    """
+    Peak Signal-Noise Ratio (PSNR) metric, calculated batchwise.
+    See https://en.wikipedia.org/wiki/Peak_signal-to-noise_ratio#Definition
+
+    Can take in either numpy (CPU) or cupy (GPU) arrays as input.
+    Implementation is same as skimage.measure.compare_psnr with data_range=2**32
+
+    >>> psnr(
+    ...     y_true=np.ones(shape=(2, 1, 3, 3)),
+    ...     y_pred=np.full(shape=(2, 1, 3, 3), fill_value=2),
+    ... )
+    192.65919722494797
+    """
+    xp = chainer.backend.get_array_module(y_true)
+
+    # Calculate Mean Squred Error along predetermined axes
+    mse = xp.mean(xp.square(xp.subtract(y_pred, y_true)), axis=None)
+
+    # Calculate Peak Signal-Noise Ratio, setting MAX_I as 2^32, i.e. max for int32
+    return xp.multiply(20, xp.log10(data_range / xp.sqrt(mse)))
+
 
 # %%
 def compile_srgan_model(
@@ -832,12 +891,27 @@ def compile_srgan_model(
 
 
 # %%
-K.clear_session()  # Reset Keras/Tensorflow graph
-metrics = {"generator_network": "mse", "discriminator_network": "accuracy"}
-models = compile_srgan_model(
-    g_network=generator_network(), d_network=discriminator_network(), metrics=metrics
+# Build the models
+generator_model = GeneratorModel(
+    inblock_class=DeepbedmapInputBlock,
+    resblock_class=ResidualBlock,
+    num_residual_blocks=16,
 )
-models["srgan_model"].summary()
+discriminator_model = DiscriminatorModel()
+
+# Transfer models to GPU if available
+if xp == cupy:  # Check if CuPy was loaded, i.e. GPU is available
+    generator_model.to_gpu(device=0)
+    discriminator_model.to_gpu(device=0)
+
+# %%
+# Setup optimizer, using Adam
+generator_optimizer = chainer.optimizers.Adam(alpha=0.001, eps=1e-7).setup(
+    link=generator_model
+)
+discriminator_optimizer = chainer.optimizers.Adam(alpha=0.001, eps=1e-7).setup(
+    link=discriminator_model
+)
 
 # %% [markdown]
 # # 3. Train model
@@ -858,9 +932,10 @@ models["srgan_model"].summary()
 #          Then the discriminator should know the fakes from the real images
 #
 #       Scenario: Train generator to fool discriminator
-#         Given what we think the discriminator believes is real
-#          When our inputs are fed into the super resolution model
-#          Then the generator should create a more authentic looking image
+#         Given fake generated images from a generator
+#           And what we think the discriminator believes is real
+#          When we compare the fake images to the real ones
+#          Then the generator should learn to create a more authentic looking image
 # ```
 
 # %%
@@ -934,142 +1009,147 @@ def train_discriminator(
 
 
 # %%
-def train_generator(
-    models: typing.Dict[str, keras.engine.training.Model],
-    generator_inputs: typing.List[np.ndarray],
-    groundtruth_images: np.ndarray,
-    verbose: int = 1,
-) -> (typing.Dict[str, keras.engine.training.Model], list):
+def train_eval_generator(
+    input_arrays: typing.Dict[str, cupy.ndarray],
+    g_model,
+    d_model,
+    g_optimizer=None,
+    train: bool = True,
+) -> (float, float):
     """
-    Trains the Generator within a Super Resolution Generative Adversarial Network.
+    Evaluates and/or trains the Generator for one minibatch
+    within a Super Resolution Generative Adversarial Network.
     Discriminator is not trainable, Generator is trained.
 
+    If train is set to False, only forward pass is run, i.e. evaluation/prediction only
+    If train is set to True, forward and backward pass are run, i.e. train with backprop
+
     Steps:
-    - Labels of the SRGAN output are set to Real(1)
-    - Generator is trained to match these Real(1) labels
+    - Generator produces fake images
+    - Fake images compared with real groundtruth images
+    - Generator is trained to be more like real image
 
-    >>> generator_inputs = [
-    ...     np.random.RandomState(seed=42).rand(32, s, s, 1) for s in [10, 100, 20]
-    ... ]
-    >>> groundtruth_images = np.random.RandomState(seed=42).rand(32,32,32,1)
-    >>> models = compile_srgan_model(
-    ...     g_network=generator_network(), d_network=discriminator_network()
+    >>> train_arrays = {
+    ...     "X": np.random.RandomState(seed=42).rand(2, 1, 10, 10).astype(np.float32),
+    ...     "W1": np.random.RandomState(seed=42).rand(2, 1, 100, 100).astype(np.float32),
+    ...     "W2": np.random.RandomState(seed=42).rand(2, 1, 20, 20).astype(np.float32),
+    ...     "Y": np.random.RandomState(seed=42).rand(2, 1, 32, 32).astype(np.float32),
+    ... }
+    >>> generator_model = GeneratorModel(
+    ...     inblock_class=DeepbedmapInputBlock,
+    ...     resblock_class=ResidualBlock,
+    ...     num_residual_blocks=1,
+    ... )
+    >>> generator_optimizer = chainer.optimizers.Adam(alpha=0.001, eps=1e-7).setup(
+    ...     link=generator_model
     ... )
 
-    >>> g_weight0 = K.eval(models['generator_model'].weights[0][0,0,0,0])
-    >>> _, _ = train_generator(
-    ...     models=models,
-    ...     generator_inputs=generator_inputs,
-    ...     groundtruth_images=groundtruth_images,
-    ...     verbose=0,
+    >>> g_weight0 = [g for g in generator_model.params()][0][0, 0, 0, 0].array
+    >>> _ = train_eval_generator(
+    ...     input_arrays=train_arrays,
+    ...     g_model=generator_model,
+    ...     d_model=None,
+    ...     g_optimizer=generator_optimizer,
     ... )
-    >>> g_weight1 = K.eval(models['generator_model'].weights[0][0,0,0,0])
-
+    >>> g_weight1 = [g for g in generator_model.params()][0][0, 0, 0, 0].array
     >>> g_weight0 != g_weight1  #check that training has occurred (i.e. weights changed)
     True
     """
 
     # @pytest.fixture
-    srgan_model = models["srgan_model"]
+    if train == True:
+        assert g_optimizer is not None  # Optimizer required for neural network training
+
+    # @given("fake generated images from a generator")
+    generator_inputs = {
+        "x": input_arrays["X"],
+        "w1": input_arrays["W1"],
+        "w2": input_arrays["W2"],
+    }
+    y_pred = g_model.forward(inputs=generator_inputs)
 
     # @given("what we think the discriminator believes is real")
-    true_labels = np.ones(shape=len(generator_inputs[0]))
+    groundtruth_images = input_arrays["Y"]
 
-    # @when("our inputs are fed into the super resolution model")
-    assert srgan_model.get_layer(name="discriminator_network").trainable == False
-    g_metrics = srgan_model.fit(
-        x=generator_inputs,
-        y={
-            "generator_network": groundtruth_images,
-            "discriminator_network": true_labels,
-        },
-        batch_size=32,
-        verbose=verbose,
-    ).history
+    # @when("we compare the fake images to the real ones")
+    g_loss = calculate_generator_loss(y_pred=y_pred, y_true=groundtruth_images)
+    g_psnr = psnr(y_pred=y_pred.array, y_true=groundtruth_images)
 
-    # @then("the generator should create a more authentic looking image")
-    # assert g_weight0 != g_weight1  # check that training occurred i.e. weights changed
+    # @then("the generator should learn to create a more authentic looking image")
+    if train == True:
+        g_model.cleargrads()  # clear/zero all gradients
+        g_loss.backward()  # renew gradients
+        g_optimizer.update()  # backpropagate the loss using optimizer
 
-    return models, [m[0] for m in g_metrics.values()]
-
-
-# %%
-def psnr(
-    y_true: cupy.ndarray, y_pred: cupy.ndarray, data_range=2 ** 32
-) -> cupy.ndarray:
-    """
-    Peak Signal-Noise Ratio (PSNR) metric, calculated batchwise.
-    See https://en.wikipedia.org/wiki/Peak_signal-to-noise_ratio#Definition
-
-    Can take in either numpy (CPU) or cupy (GPU) arrays as input.
-    Implementation is same as skimage.measure.compare_psnr with data_range=2**32
-
-    >>> psnr(
-    ...     y_true=np.ones(shape=(2, 1, 3, 3)),
-    ...     y_pred=np.full(shape=(2, 1, 3, 3), fill_value=2),
-    ... )
-    192.65919722494797
-    """
-    xp = chainer.backend.get_array_module(y_true)
-
-    # Calculate Mean Squred Error along predetermined axes
-    mse = xp.mean(xp.square(xp.subtract(y_pred, y_true)), axis=None)
-
-    # Calculate Peak Signal-Noise Ratio, setting MAX_I as 2^32, i.e. max for int32
-    return xp.multiply(20, xp.log10(data_range / xp.sqrt(mse)))
+    return float(g_loss.array), float(g_psnr)  # return generator loss and metric values
 
 
 # %%
 epochs = 100
-with tqdm.trange(epochs) as t:
 
-    metric_names = ["discriminator_network_loss_actual"] + models[
-        "srgan_model"
-    ].metrics_names
-    columns = metric_names + [f"val_{metric_name}" for metric_name in metric_names]
-    dataframe = pd.DataFrame(index=np.arange(0, epochs), columns=columns)
+metric_names = ["generator_loss", "generator_psnr"]
+columns = metric_names + [f"val_{metric_name}" for metric_name in metric_names]
+dataframe = pd.DataFrame(index=np.arange(epochs), columns=columns)
+progressbar = tqdm.tqdm(unit="epoch", total=epochs, position=0)
 
-    for i in t:
+train_iter.reset()
+dev_iter.reset()
+
+for i in range(epochs):
+    metrics_dict = {mn: [] for mn in columns}  # reset metrics dictionary
+
+    ## Training on training dataset
+    while i == train_iter.epoch:  # while we are in epoch i, run minibatch training
+        train_batch = train_iter.next()
+        train_arrays = chainer.dataset.concat_examples(batch=train_batch)
         ## Part 1 - Train Discriminator
-        _, d_train_loss = train_discriminator(
-            models=models,
-            generator_inputs=[X_train, W1_train, W2_train],
-            groundtruth_images=Y_train,
-        )
-        d_dev_loss = models["discriminator_model"].evaluate(
-            x=models["generator_model"].predict(
-                x=[X_dev, W1_dev, W2_dev], batch_size=32
-            ),
-            y=np.zeros(shape=len(X_dev)),
-        )
 
         ## Part 2 - Train Generator
-        _, g_train_metrics = train_generator(
-            models=models,
-            generator_inputs=[X_train, W1_train, W2_train],
-            groundtruth_images=Y_train,
+        g_train_loss, g_train_psnr = train_eval_generator(
+            input_arrays=train_arrays,
+            g_model=generator_model,
+            d_model=None,
+            g_optimizer=generator_optimizer,
         )
-        g_dev_metrics = models["srgan_model"].evaluate(
-            x=[X_dev, W1_dev, W2_dev],
-            y={
-                "generator_network": Y_dev,
-                "discriminator_network": np.ones(shape=len(X_dev)),
-            },
-        )
+        metrics_dict["generator_loss"].append(g_train_loss)
+        metrics_dict["generator_psnr"].append(g_train_psnr)
 
-        ## Plot loss and metric information using pandas and livelossplot
-        dataframe.loc[i] = (
-            [d_train_loss] + g_train_metrics + [d_dev_loss] + g_dev_metrics
+    ## Evaluation on development dataset
+    while i == dev_iter.epoch:  # while we are in epoch i, evaluate on each minibatch
+        dev_batch = dev_iter.next()
+        dev_arrays = chainer.dataset.concat_examples(batch=dev_batch)
+        ## Part 1 - Evaluate Discriminator
+
+        ## Part 2 - Evaluate Generator
+        g_dev_loss, g_dev_psnr = train_eval_generator(
+            input_arrays=dev_arrays, g_model=generator_model, d_model=None, train=False
         )
-        livelossplot.draw_plot(
-            logs=dataframe.to_dict(orient="records"),
-            metrics=metric_names,
-            max_cols=3,
-            figsize=(16, 9),
-            max_epoch=epochs,
-        )
-        t.set_postfix(ordered_dict=dataframe.loc[i].to_dict())
-        experiment.log_metrics(dic=dataframe.loc[i].to_dict(), step=i)
+        metrics_dict["val_generator_loss"].append(g_dev_loss)
+        metrics_dict["val_generator_psnr"].append(g_dev_psnr)
+
+    ## Average loss and metrics across all minibatches
+    dataframe.loc[i] = (
+        np.mean(metrics_dict["generator_loss"]),
+        np.mean(metrics_dict["generator_psnr"]),
+        np.mean(metrics_dict["val_generator_loss"]),
+        np.mean(metrics_dict["val_generator_psnr"]),
+    )
+
+    ## Plot loss and metric information using livelossplot
+    livelossplot.draw_plot(
+        logs=dataframe.to_dict(orient="records"),
+        metrics=metric_names,
+        max_cols=3,
+        figsize=(16, 9),
+        max_epoch=epochs,
+    )
+    progressbar.set_postfix(ordered_dict=dataframe.loc[i].to_dict())
+    experiment.log_metrics(dic=dataframe.loc[i].to_dict(), step=i)
+    progressbar.update(n=1)
+
+# %%
+experiment.end()
+raise ValueError("temp")
 
 # %%
 model = models["generator_model"]
