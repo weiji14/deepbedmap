@@ -1012,8 +1012,8 @@ discriminator_optimizer = chainer.optimizers.Adam(alpha=0.001, eps=1e-7).setup(
 #       Scenario: Train discriminator to beat generator
 #         Given fake generated images from a generator
 #           And real groundtruth images
-#          When the two sets of images are fed into the discriminator
-#          Then the discriminator should know the fakes from the real images
+#          When the two sets of images are fed into the discriminator for comparison
+#          Then the discriminator should learn to know the fakes from the real images
 #
 #       Scenario: Train generator to fool discriminator
 #         Given fake generated images from a generator
@@ -1023,12 +1023,13 @@ discriminator_optimizer = chainer.optimizers.Adam(alpha=0.001, eps=1e-7).setup(
 # ```
 
 # %%
-def train_discriminator(
-    models: typing.Dict[str, keras.engine.training.Model],
-    generator_inputs: typing.List[np.ndarray],
-    groundtruth_images: np.ndarray,
-    verbose: int = 1,
-) -> (typing.Dict[str, keras.engine.training.Model], list):
+def train_eval_discriminator(
+    input_arrays: typing.Dict[str, cupy.ndarray],
+    g_model,
+    d_model,
+    d_optimizer=None,
+    train: bool = True,
+) -> (float, float):
     """
     Trains the Discriminator within a Super Resolution Generative Adversarial Network.
     Discriminator is trainable, Generator is not trained (only produces predictions).
@@ -1038,58 +1039,66 @@ def train_discriminator(
     - Fake images combined with real groundtruth images
     - Discriminator trained with these images and their Fake(0)/Real(1) labels
 
-    >>> generator_inputs = [
-    ...     np.random.RandomState(seed=42).rand(32, s, s, 1) for s in [10, 100, 20]
-    ... ]
-    >>> groundtruth_images = np.random.RandomState(seed=42).rand(32,32,32,1)
-    >>> models = compile_srgan_model(
-    ...     g_network=generator_network(), d_network=discriminator_network()
+    >>> train_arrays = {
+    ...     "X": np.random.RandomState(seed=42).rand(2, 1, 10, 10).astype(np.float32),
+    ...     "W1": np.random.RandomState(seed=42).rand(2, 1, 100, 100).astype(np.float32),
+    ...     "W2": np.random.RandomState(seed=42).rand(2, 1, 20, 20).astype(np.float32),
+    ...     "Y": np.random.RandomState(seed=42).rand(2, 1, 32, 32).astype(np.float32),
+    ... }
+    >>> discriminator_model = DiscriminatorModel()
+    >>> discriminator_optimizer = chainer.optimizers.Adam(alpha=0.001, eps=1e-7).setup(
+    ...     link=discriminator_model
+    ... )
+    >>> generator_model = GeneratorModel(
+    ...     inblock_class=DeepbedmapInputBlock,
+    ...     resblock_class=ResidualBlock,
+    ...     num_residual_blocks=1,
     ... )
 
-    >>> d_weight0 = K.eval(models['discriminator_model'].weights[0][0,0,0,0])
-    >>> _, _ = train_discriminator(
-    ...     models=models,
-    ...     generator_inputs=generator_inputs,
-    ...     groundtruth_images=groundtruth_images,
-    ...     verbose=0,
+    >>> d_weight0 = [d for d in discriminator_model.params()][-1][0].array
+    >>> d_train_loss, d_train_accu = train_eval_discriminator(
+    ...     input_arrays=train_arrays,
+    ...     g_model=generator_model,
+    ...     d_model=discriminator_model,
+    ...     d_optimizer=discriminator_optimizer,
     ... )
-    >>> d_weight1 = K.eval(models['discriminator_model'].weights[0][0,0,0,0])
-
+    >>> d_weight1 = [d for d in discriminator_model.params()][-1][0].array
     >>> d_weight0 != d_weight1  #check that training has occurred (i.e. weights changed)
     True
     """
-
-    # hardcoded check that we are passing in 3 numpy arrays as input
-    assert len(generator_inputs) == 3
-    # check that X_data and W1_data have same length (batch size)
-    assert generator_inputs[0].shape[0] == generator_inputs[1].shape[0]
-    # check that X_data and W2_data have same length (batch size)
-    assert generator_inputs[0].shape[0] == generator_inputs[2].shape[0]
-
     # @pytest.fixture
-    g_model = models["generator_model"]
-    d_model = models["discriminator_model"]
+    if train == True:
+        assert d_optimizer is not None  # Optimizer required for neural network training
+    xp = chainer.backend.get_array_module(input_arrays["Y"])
 
     # @given("fake generated images from a generator")
-    fake_images = g_model.predict(x=generator_inputs, batch_size=32)
-    fake_labels = np.zeros(shape=len(generator_inputs[0]))
+    generator_inputs = {
+        "x": input_arrays["X"],
+        "w1": input_arrays["W1"],
+        "w2": input_arrays["W2"],
+    }
+    fake_images = g_model.forward(inputs=generator_inputs).array
+    fake_labels = xp.zeros(shape=(len(fake_images), 1)).astype(xp.int32)
 
     # @given("real groundtruth images")
-    real_images = groundtruth_images  # groundtruth images i.e. Y_data
-    real_labels = np.ones(shape=len(groundtruth_images))
+    real_images = input_arrays["Y"]
+    real_labels = xp.ones(shape=(len(real_images), 1)).astype(xp.int32)
 
-    # @when("the two sets of images are fed into the discriminator")
-    images = np.concatenate([fake_images, real_images])
-    labels = np.concatenate([fake_labels, real_labels])
-    assert d_model.trainable == True
-    d_metrics = d_model.fit(
-        x=images, y=labels, epochs=1, batch_size=32, shuffle=True, verbose=verbose
-    ).history
+    # @when("the two sets of images are fed into the discriminator for comparison")
+    images = xp.concatenate([fake_images, real_images])
+    labels = xp.concatenate([fake_labels, real_labels])
+    y_pred = d_model.forward(inputs={"x": images})
 
-    # @then("the discriminator should know the fakes from the real images")
-    # assert d_weight0 != d_weight1  # check that training occurred i.e. weights changed
+    d_loss = calculate_discriminator_loss(y_pred=y_pred, y_true=labels)
+    d_accu = F.binary_accuracy(y=y_pred, t=labels)
 
-    return models, d_metrics["loss"][0]
+    # @then("the discriminator should learn to know the fakes from the real images")
+    if train == True:
+        d_model.cleargrads()  # clear/zero all gradients
+        d_loss.backward()  # renew gradients
+        d_optimizer.update()  # backpropagate the loss using optimizer
+
+    return float(d_loss.array), float(d_accu.array)  # return discriminator metrics
 
 
 # %%
@@ -1180,7 +1189,12 @@ def train_eval_generator(
 # %%
 epochs = 100
 
-metric_names = ["generator_loss", "generator_psnr"]
+metric_names = [
+    "discriminator_loss",
+    "discriminator_accu",
+    "generator_loss",
+    "generator_psnr",
+]
 columns = metric_names + [f"val_{metric_name}" for metric_name in metric_names]
 dataframe = pd.DataFrame(index=np.arange(epochs), columns=columns)
 progressbar = tqdm.tqdm(unit="epoch", total=epochs, position=0)
@@ -1191,49 +1205,61 @@ dev_iter.reset()
 for i in range(epochs):
     metrics_dict = {mn: [] for mn in columns}  # reset metrics dictionary
 
-    ## Training on training dataset
+    ## Part 1 - Training on training dataset
     while i == train_iter.epoch:  # while we are in epoch i, run minibatch training
         train_batch = train_iter.next()
         train_arrays = chainer.dataset.concat_examples(batch=train_batch)
-        ## Part 1 - Train Discriminator
+        ## 1.1 - Train Discriminator
+        d_train_loss, d_train_accu = train_eval_discriminator(
+            input_arrays=train_arrays,
+            g_model=generator_model,
+            d_model=discriminator_model,
+            d_optimizer=discriminator_optimizer,
+        )
+        metrics_dict["discriminator_loss"].append(d_train_loss)
+        metrics_dict["discriminator_accu"].append(d_train_accu)
 
-        ## Part 2 - Train Generator
+        ## 1.2 - Train Generator
         g_train_loss, g_train_psnr = train_eval_generator(
             input_arrays=train_arrays,
             g_model=generator_model,
-            d_model=None,
+            d_model=discriminator_model,
             g_optimizer=generator_optimizer,
         )
         metrics_dict["generator_loss"].append(g_train_loss)
         metrics_dict["generator_psnr"].append(g_train_psnr)
 
-    ## Evaluation on development dataset
+    ## Part 2 - Evaluation on development dataset
     while i == dev_iter.epoch:  # while we are in epoch i, evaluate on each minibatch
         dev_batch = dev_iter.next()
         dev_arrays = chainer.dataset.concat_examples(batch=dev_batch)
-        ## Part 1 - Evaluate Discriminator
+        ## 2.1 - Evaluate Discriminator
+        d_train_loss, d_train_accu = train_eval_discriminator(
+            input_arrays=dev_arrays,
+            g_model=generator_model,
+            d_model=discriminator_model,
+            train=False,
+        )
+        metrics_dict["val_discriminator_loss"].append(d_train_loss)
+        metrics_dict["val_discriminator_accu"].append(d_train_accu)
 
-        ## Part 2 - Evaluate Generator
+        ## 2.2 - Evaluate Generator
         g_dev_loss, g_dev_psnr = train_eval_generator(
-            input_arrays=dev_arrays, g_model=generator_model, d_model=None, train=False
+            input_arrays=dev_arrays,
+            g_model=generator_model,
+            d_model=discriminator_model,
+            train=False,
         )
         metrics_dict["val_generator_loss"].append(g_dev_loss)
         metrics_dict["val_generator_psnr"].append(g_dev_psnr)
 
-    ## Average loss and metrics across all minibatches
-    dataframe.loc[i] = (
-        np.mean(metrics_dict["generator_loss"]),
-        np.mean(metrics_dict["generator_psnr"]),
-        np.mean(metrics_dict["val_generator_loss"]),
-        np.mean(metrics_dict["val_generator_psnr"]),
-    )
-
-    ## Plot loss and metric information using livelossplot
+    ## Part 3 - Plot loss and metric information using livelossplot
+    dataframe.loc[i] = [np.mean(metrics_dict[metric]) for metric in dataframe.keys()]
     livelossplot.draw_plot(
         logs=dataframe.to_dict(orient="records"),
         metrics=metric_names,
-        max_cols=3,
-        figsize=(16, 9),
+        max_cols=4,
+        figsize=(21, 9),
         max_epoch=epochs,
     )
     progressbar.set_postfix(ordered_dict=dataframe.loc[i].to_dict())
