@@ -663,7 +663,7 @@ class DiscriminatorModel(chainer.Chain):
         a9 = self.linear_1(x=a9)
         a9 = F.leaky_relu(x=a9, slope=0.2)
         a10 = self.linear_2(x=a9)
-        a10 = F.sigmoid(x=a10)
+        # a10 = F.sigmoid(x=a10)  # no sigmoid activation, as it is in the loss function
 
         return a10
 
@@ -739,7 +739,8 @@ def discriminator_network(
 # [note:Content-Loss]-.->[note:Perceptual-Loss{bg:gold}]
 # [note:Adversarial-Loss]-.->[note:Perceptual-Loss{bg:gold}]
 # -->
-#
+
+# %% [markdown]
 # ### Content Loss
 #
 # The original SRGAN paper by [Ledig et al. 2017](https://arxiv.org/abs/1609.04802v5) calculates *Content Loss* based on the ReLU activation layers of the pre-trained 19 layer VGG network.
@@ -753,7 +754,8 @@ def discriminator_network(
 # where $G(x_{i})$ is the Generator Network's predicted value, and $y_i$ is the groundtruth value, respectively at pixel $i$.
 # $e_i$ thus represents the absolute error (L1 loss) (denoted by $||\dots||_{1}$) between the predicted and groundtruth value.
 # We then sum all the pixel-wise errors $e_i,\dots,e_n$ and divide by the number of pixels $n$ to get the Arithmetic Mean $\dfrac{1}{n} \sum\limits_{i=1}^n$ of our error which is our *Content Loss*.
-#
+
+# %% [markdown]
 # ### Adversarial Loss
 #
 # The *Adversarial Loss* or *Generative Loss* (confusing I know) is the same as in the original SRGAN paper.
@@ -761,26 +763,79 @@ def discriminator_network(
 # The implementation below uses the [Binary CrossEntropy loss](https://keras.io/losses/#binary_crossentropy).
 # Specifically, this *Adversarial Loss* is calculated between the output of the discriminator model (a value between 0 and 1) and that of the groundtruth label (a boolean value of either 0 or 1).
 #
-# Source code for the implementations of these loss functions in Keras can be found at https://github.com/keras-team/keras/blob/master/keras/losses.py.
+# $$ Loss_{Adversarial} = Binary Cross Entropy Loss = -\dfrac{1}{n} \sum\limits_{i=1}^n ( y_i ln(\sigma(x_i)) + (1-y_i) ln(1 - \sigma(x_i) ) $$
+#
+# where $\sigma$ is the [Sigmoid](https://en.wikipedia.org/wiki/Sigmoid_function) activation function, $\sigma = \dfrac{1}{1+e^{-x}} = \dfrac{e^x}{e^x+1}$, $y_i$ is the groundtruth label (1 for real, 0 for fake) and $x_i$ is the prediction (before sigmoid activation is applied), all respectively at pixel $i$.
+#
+# $\sigma(x)$ is basically the sigmoid activated output from a Standard Discriminator neural network, which some people also denote as $D(.)$.
+# Technically, some people also write $D(x) = \sigma(C(x))$, where $C(x)$ is the raw, non-transformed output from the Discriminator neural network (i.e. no sigmoid activation applied) on the input data $x$.
+# For simplicity, we now denote $C(x)$ simply as $x$ in the following equations, i.e. using $\sigma(x)$ to replace $\sigma(C(x))$.
+#
+# Again, the [Binary Cross Entropy Loss](https://en.wikipedia.org/wiki/Cross_entropy#Cross-entropy_error_function_and_logistic_regression) calculated on one pixel is defined as follows:
+#
+# $$ -( y ln(\sigma(x)) + (1-y) ln(1 - \sigma(x) )$$
+#
+# With the full expansion as such:
+#
+# $$ -\bigg[ y ln\big(\dfrac{e^x}{e^x+1}\big) + (1-y) ln\big(1 - \dfrac{e^x}{e^x+1}\big) \bigg] $$
+#
+# The above equation is mathematically equivalent to the one below, and can be derived using [Logarithm rules](https://en.wikipedia.org/wiki/Logarithm#Product,_quotient,_power,_and_root) such as the Power Rule and Product Rule, and using the fact that $ln(e)=1$ and $ln(1)=0$:
+#
+# $$ -[ xy - ln(1+e^x) ] $$
+#
+# However, this reformed equation is numerically unstable (see discussion [here](https://www.reddit.com/r/MachineLearning/comments/4euzmk/logsumexp_for_logistic_regression/)), and is good for values of $x<0$.
+# For values of $x>=0$, there is an alternative representation which we can derive:
+#
+# $$ -[ xy - ln(1+e^x) - x + x ] $$
+# $$ -[ x(y-1) - ln(1 + e^x) + ln(e^x) ] $$
+# $$ -\bigg[ x(y-1) - ln\big(\dfrac{e^x}{1+e^x}\big) \bigg] $$
+# $$ -\bigg[ x(y-1) - ln\big(\dfrac{1}{1+e^{-x}}\big) \bigg] $$
+# $$ - [ x(y-1) - ln(1) + ln(1+e^{-x}) ] $$
+# $$ - [ x(y-1) + ln(1+e^{-x}) $$
+#
+# In order to have a numerically stable function that works for both $x<0$ and $x>=0$, we can write it like so as in Caffe's implementation:
+#
+# $$ -[ x(y - 1_{x>=0} - ln(1+e^{x-2x\cdot1_{x>=0}}) ] $$
+#
+# Alternatively, Chainer does it like so:
+#
+# $$ -[ x(y - 1_{x>=0} - ln(1+e^{-|x|}) ] $$
+#
+# Or in Python code (the Chainer implemention from [here](https://github.com/chainer/chainer/blob/v6.0.0b1/chainer/functions/loss/sigmoid_cross_entropy.py#L41-L44)), bearing in mind that the natural logarithm $ln$ is `np.log` in Numpy:
+#
+# ```python
+#     sigmoidbinarycrossentropyloss = -(x * (y - (x >= 0)) - np.log1p(np.exp(-np.abs(x))))
+# ```
+#
+# See also how [Pytorch](https://pytorch.org/docs/stable/nn.html?highlight=bcewithlogitsloss#torch.nn.BCEWithLogitsLoss) and [Tensorflow](https://www.tensorflow.org/api_docs/python/tf/nn/sigmoid_cross_entropy_with_logits) implements this in a numerically stable manner.
 
 # %%
 def calculate_generator_loss(
-    y_pred: chainer.variable.Variable, y_true: cupy.ndarray
+    y_pred: chainer.variable.Variable,
+    y_true: cupy.ndarray,
+    pred_labels: cupy.ndarray,
+    true_labels: cupy.ndarray,
 ) -> chainer.variable.Variable:
     """
-    Calculate the batchwise loss of the Generator Network
-    """
+    Calculate the batchwise loss of the Generator Network.
 
+    >>> calculate_generator_loss(
+    ...     y_pred=chainer.variable.Variable(data=np.ones(shape=(2, 1, 3, 3))),
+    ...     y_true=np.full(shape=(2, 1, 3, 3), fill_value=10.0),
+    ...     pred_labels=np.zeros(shape=(2, 1, 3, 3)),
+    ...     true_labels=np.ones(shape=(2, 1, 3, 3)).astype(np.int32),
+    ... )
+    variable(9.69314718)
+    """
     # Content Loss (L1, Mean Absolute Error)
     content_loss = F.mean_absolute_error(x0=y_pred, x1=y_true)
 
     # Adversarial Loss
-    # TODO
+    adversarial_loss = F.sigmoid_cross_entropy(x=pred_labels, t=true_labels)
 
-    # Get generator loss, averaged over entire batch
-    batchsize = len(y_true)
-    g_loss = content_loss / batchsize
-
+    # Get generator loss
+    g_loss = (1 * content_loss) + (1 * adversarial_loss)
+    g_loss
     return g_loss
 
 
@@ -808,6 +863,35 @@ def psnr(
 
     # Calculate Peak Signal-Noise Ratio, setting MAX_I as 2^32, i.e. max for int32
     return xp.multiply(20, xp.log10(data_range / xp.sqrt(mse)))
+
+
+# %%
+def calculate_discriminator_loss(
+    y_pred: chainer.variable.Variable, y_true: cupy.ndarray
+) -> chainer.variable.Variable:
+    """
+    Calculate the batchwise loss of the Discriminator Network.
+
+    Original formula:
+    -(y * np.log(sigmoid(x)) + (1 - y) * np.log(1 - sigmoid(x)))
+
+    Numerically stable formula:
+    -(x * (y - (x >= 0)) - np.log1p(np.exp(-np.abs(x))))
+
+    >>> calculate_discriminator_loss(
+    ...     y_pred=chainer.variable.Variable(data=np.array([[0.5], [1.5], [-0.5]])),
+    ...     y_true=np.array([[0], [1], [0]]),
+    ... )
+    variable(0.54985575)
+    """
+
+    # Binary Cross-Entropy Loss
+    bce_loss = F.sigmoid_cross_entropy(x=y_pred, t=y_true)
+
+    # Get discriminator loss
+    d_loss = bce_loss
+
+    return d_loss
 
 
 # %%
@@ -1043,12 +1127,13 @@ def train_eval_generator(
     >>> generator_optimizer = chainer.optimizers.Adam(alpha=0.001, eps=1e-7).setup(
     ...     link=generator_model
     ... )
+    >>> discriminator_model = DiscriminatorModel()
 
     >>> g_weight0 = [g for g in generator_model.params()][0][0, 0, 0, 0].array
     >>> _ = train_eval_generator(
     ...     input_arrays=train_arrays,
     ...     g_model=generator_model,
-    ...     d_model=None,
+    ...     d_model=discriminator_model,
     ...     g_optimizer=generator_optimizer,
     ... )
     >>> g_weight1 = [g for g in generator_model.params()][0][0, 0, 0, 0].array
@@ -1059,6 +1144,7 @@ def train_eval_generator(
     # @pytest.fixture
     if train == True:
         assert g_optimizer is not None  # Optimizer required for neural network training
+    xp = chainer.backend.get_array_module(input_arrays["Y"])
 
     # @given("fake generated images from a generator")
     generator_inputs = {
@@ -1067,12 +1153,19 @@ def train_eval_generator(
         "w2": input_arrays["W2"],
     }
     y_pred = g_model.forward(inputs=generator_inputs)
+    predicted_labels = d_model.forward(inputs={"x": y_pred}).array
 
     # @given("what we think the discriminator believes is real")
     groundtruth_images = input_arrays["Y"]
+    groundtruth_labels = xp.ones(shape=(len(groundtruth_images), 1)).astype(xp.int32)
 
     # @when("we compare the fake images to the real ones")
-    g_loss = calculate_generator_loss(y_pred=y_pred, y_true=groundtruth_images)
+    g_loss = calculate_generator_loss(
+        y_pred=y_pred,
+        y_true=groundtruth_images,
+        pred_labels=predicted_labels,
+        true_labels=groundtruth_labels,
+    )
     g_psnr = psnr(y_pred=y_pred.array, y_true=groundtruth_images)
 
     # @then("the generator should learn to create a more authentic looking image")
