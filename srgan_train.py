@@ -45,6 +45,7 @@ import chainer
 import chainer.functions as F
 import chainer.links as L
 import cupy
+import onnx_chainer
 
 import keras
 from keras import backend as K
@@ -1267,27 +1268,37 @@ for i in range(epochs):
     progressbar.update(n=1)
 
 # %%
-experiment.end()
-raise ValueError("temp")
-
-# %%
-model = models["generator_model"]
+model = generator_model
 
 # %%
 os.makedirs(name="model/weights", exist_ok=True)
-# generator model's parameter weights and architecture
-model.save(filepath="model/weights/srgan_generator_model.hdf5")
-# just the model weights
-model.save_weights(filepath="model/weights/srgan_generator_model_weights.hdf5")
-# just the model architecture
-with open("model/weights/srgan_generator_model_architecture.json", "w") as json_file:
-    json_file.write(model.to_json(indent=2))
+# Save generator model's parameter weights in Numpy Zipped format
+chainer.serializers.save_npz(
+    file="model/weights/srgan_generator_model_weights.npz", obj=model
+)
+# Save generator model's architecture in ONNX format
+dummy_inputs = {
+    "x": np.random.rand(32, 1, 10, 10).astype("float32"),
+    "w1": np.random.rand(32, 1, 100, 100).astype("float32"),
+    "w2": np.random.rand(32, 1, 20, 20).astype("float32"),
+}
+_ = onnx_chainer.export(
+    model=model,
+    args={"inputs": dummy_inputs},
+    filename="model/weights/srgan_generator_model_architecture.onnx",
+    export_params=False,
+    save_text=True,
+)
 
 # Upload model weights file to Comet.ML and finish Comet.ML experiment
 experiment.log_asset(
-    file_path="model/weights/srgan_generator_model_weights.hdf5",
+    file_path="model/weights/srgan_generator_model_weights.npz",
     file_name="srgan_generator_model_weights",
 )
+
+# %%
+experiment.end()
+raise ValueError("temp")
 
 # %% [markdown]
 # # 4. Evaluate model
