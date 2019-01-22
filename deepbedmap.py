@@ -22,6 +22,7 @@
 # %%
 import math
 import os
+import typing
 
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
@@ -36,7 +37,7 @@ import rasterio
 import skimage
 import xarray as xr
 
-import keras
+import chainer
 
 from features.environment import _load_ipynb_modules
 
@@ -44,7 +45,7 @@ from features.environment import _load_ipynb_modules
 # ## Get bounding box of area we want to predict on
 
 # %%
-def get_image_and_bounds(filepath: str):
+def get_image_and_bounds(filepath: str) -> (np.ndarray, rasterio.coords.BoundingBox):
     """
     Retrieve raster image in numpy array format and
     geographic bounds as (xmin, ymin, xmax, ymax)
@@ -53,8 +54,9 @@ def get_image_and_bounds(filepath: str):
         groundtruth = data.z.to_masked_array()
         groundtruth = np.flipud(groundtruth)  # flip on y-axis...
         groundtruth = np.expand_dims(
-            np.expand_dims(groundtruth, axis=-1), axis=0
+            np.expand_dims(groundtruth, axis=0), axis=0
         )  # add extra dimensions (batch and channel)
+        assert groundtruth.shape[0:2] == (1, 1)  # check that shape is like (1, 1, h, w)
 
         xmin, xmax = float(data.x.min()), float(data.x.max())
         ymin, ymax = float(data.y.min()), float(data.y.max())
@@ -69,7 +71,6 @@ def get_image_and_bounds(filepath: str):
 test_file = "2007tx"  # "istarxx"
 test_filepath = f"highres/{test_file}"
 groundtruth, window_bound = get_image_and_bounds(filepath=f"{test_filepath}.nc")
-print(window_bound)
 
 # %% [markdown]
 # ## Get neural network input datasets for our area of interest
@@ -77,7 +78,7 @@ print(window_bound)
 # %%
 def get_deepbedmap_model_inputs(
     window_bound: rasterio.coords.BoundingBox, padding=1000
-):
+) -> typing.Dict[str, np.ndarray]:
     """
     Outputs one large tile for each of
     BEDMAP2, REMA and MEASURES Ice Flow Velocity
@@ -104,7 +105,11 @@ def get_deepbedmap_model_inputs(
         padding=padding,
     )
 
-    return X_tile, W1_tile, W2_tile
+    return (
+        np.rollaxis(X_tile, axis=3, start=1),
+        np.rollaxis(W1_tile, axis=3, start=1),
+        np.rollaxis(W2_tile, axis=3, start=1),
+    )
 
 
 # %%
@@ -116,10 +121,10 @@ def plot_3d_view(
     cm_norm: matplotlib.colors.Normalize = None,
     title: str = None,
 ):
-    # Get x, y, z data
+    # Get x, y, z data, assuming image in NCHW format
     image = img[0, :, :, :]
-    xx, yy = np.mgrid[0 : image.shape[0], 0 : image.shape[1]]
-    zz = image[:, :, 0]
+    xx, yy = np.mgrid[0 : image.shape[1], 0 : image.shape[2]]
+    zz = image[0, :, :]
 
     # Make the 3D plot
     ax.view_init(elev=elev, azim=azim)
@@ -142,11 +147,11 @@ if reupload == True:
 
 # %%
 fig, axarr = plt.subplots(nrows=1, ncols=3, squeeze=False, figsize=(16, 12))
-axarr[0, 0].imshow(X_tile[0, :, :, 0], cmap="BrBG")
+axarr[0, 0].imshow(X_tile[0, 0, :, :], cmap="BrBG")
 axarr[0, 0].set_title("BEDMAP2\n(1000m resolution)")
-axarr[0, 1].imshow(W1_tile[0, :, :, 0], cmap="BrBG")
+axarr[0, 1].imshow(W1_tile[0, 0, :, :], cmap="BrBG")
 axarr[0, 1].set_title("Reference Elevation Model of Antarctica\n(100m resolution)")
-axarr[0, 2].imshow(W2_tile[0, :, :, 0], cmap="BrBG")
+axarr[0, 2].imshow(W2_tile[0, 0, :, :], cmap="BrBG")
 axarr[0, 2].set_title("MEaSUREs Ice Velocity\n(450m, resampled to 500m)")
 plt.show()
 
@@ -183,29 +188,23 @@ plt.show()
 # That way we can predict directly on an arbitrarily sized window.
 
 # %%
-def load_trained_model(model_inputs: tuple):
+def load_trained_model(
+    filepath: str = "model/weights/srgan_generator_model_weights.npz"
+):
     """
-    Creates a custom DeepBedMap neural network model
-    according to the shapes of the raster image inputs.
-
-    Also loads trained parameter weights into the model.
+    Builds the Generator component of the DeepBedMap neural network.
+    Also loads trained parameter weights into the model from a .npz file.
     """
     srgan_train = _load_ipynb_modules("srgan_train.ipynb")
 
-    X_tile, W1_tile, W2_tile = model_inputs
-
-    network = srgan_train.generator_network(
-        input1_shape=X_tile.shape[1:],
-        input2_shape=W1_tile.shape[1:],
-        input3_shape=W2_tile.shape[1:],
-    )
-
-    model = keras.models.Model(
-        inputs=network.inputs, outputs=network.outputs, name="generator_model"
+    model = srgan_train.GeneratorModel(
+        inblock_class=srgan_train.DeepbedmapInputBlock,
+        resblock_class=srgan_train.ResidualBlock,
+        num_residual_blocks=16,
     )
 
     # Load trained neural network weights into model
-    model.load_weights(filepath="model/weights/srgan_generator_model_weights.hdf5")
+    chainer.serializers.load_npz(file=filepath, obj=model)
 
     return model
 
@@ -214,8 +213,8 @@ def load_trained_model(model_inputs: tuple):
 # ## Make prediction
 
 # %%
-model = load_trained_model(model_inputs=(X_tile, W1_tile, W2_tile))
-Y_hat = model.predict(x=[X_tile, W1_tile, W2_tile], verbose=1)
+model = load_trained_model()
+Y_hat = model.forward(inputs={"x": X_tile, "w1": W1_tile, "w2": W2_tile}).array
 Y_hat.shape
 
 # %% [markdown]
@@ -223,11 +222,11 @@ Y_hat.shape
 
 # %%
 fig, axarr = plt.subplots(nrows=1, ncols=3, squeeze=False, figsize=(16, 12))
-axarr[0, 0].imshow(X_tile[0, :, :, 0], cmap="BrBG")
+axarr[0, 0].imshow(X_tile[0, 0, :, :], cmap="BrBG")
 axarr[0, 0].set_title("BEDMAP2")
-axarr[0, 1].imshow(Y_hat[0, :, :, 0], cmap="BrBG")
+axarr[0, 1].imshow(Y_hat[0, 0, :, :], cmap="BrBG")
 axarr[0, 1].set_title("Super Resolution Generative Adversarial Network prediction")
-axarr[0, 2].imshow(groundtruth[0, :, :, 0], cmap="BrBG")
+axarr[0, 2].imshow(groundtruth[0, 0, :, :], cmap="BrBG")
 axarr[0, 2].set_title("Groundtruth grids")
 plt.show()
 
@@ -262,14 +261,16 @@ plt.show()
 # %%
 def save_array_to_grid(window_bound: tuple, array: np.ndarray, outfilepath: str):
     """
-    Saves a numpy array to geotiff and netcdf format
+    Saves a numpy array to geotiff and netcdf format.
+    Appends ".tif" and ".nc" file extension to the outfilepath
+    for geotiff and netcdf outputs respectively.
     """
 
     assert array.ndim == 4
-    assert array.shape[3] == 1  # check that there is only one channel
+    assert array.shape[1] == 1  # check that there is only one channel
 
     transform = rasterio.transform.from_bounds(
-        *window_bound, height=array.shape[1], width=array.shape[2]
+        *window_bound, height=array.shape[2], width=array.shape[3]
     )
 
     # Save array as a GeoTiff first
@@ -277,14 +278,14 @@ def save_array_to_grid(window_bound: tuple, array: np.ndarray, outfilepath: str)
         f"{outfilepath}.tif",
         mode="w",
         driver="GTiff",
-        height=array.shape[1],
-        width=array.shape[2],
+        height=array.shape[2],
+        width=array.shape[3],
         count=1,
         crs="EPSG:3031",
         transform=transform,
         dtype=array.dtype,
     ) as new_geotiff:
-        new_geotiff.write(array[0, :, :, 0], 1)
+        new_geotiff.write(array[0, 0, :, :], 1)
 
     # Convert deepbedmap3 and cubicbedmap2 from geotiff to netcdf format
     xr.open_rasterio(f"{outfilepath}.tif").to_netcdf(f"{outfilepath}.nc")
@@ -299,17 +300,17 @@ save_array_to_grid(
 # %%
 # Save Bicubic Resampled BEDMAP2 to GeoTiff and NetCDF format
 cubicbedmap2 = skimage.transform.rescale(
-    image=X_tile[0].astype(np.int32),
-    scale=4,
-    order=3,
+    image=X_tile[0, 0, :, :].astype(np.int32),
+    scale=4,  # 4x upscaling
+    order=3,  # cubic interpolation
     mode="reflect",
     anti_aliasing=True,
-    multichannel=True,
+    multichannel=False,
     preserve_range=True,
 )
 save_array_to_grid(
     window_bound=window_bound,
-    array=np.expand_dims(cubicbedmap2, axis=0),
+    array=np.expand_dims(np.expand_dims(cubicbedmap2, axis=0), axis=0),
     outfilepath="model/cubicbedmap",
 )
 
