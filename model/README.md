@@ -8,6 +8,6 @@ This folder contains the files which are directly related to the training of the
   - \*_data.npy  (\*hidden in git, preprocessed raster tiles from data_prep.ipynb)
 
 - weights/
-  - [srgan_generator_model_architecture.json](weights/srgan_generator_model_architecture.json)  (Keras model architecture of Generator Network in JSON)
-  - srgan_generator_model_weights.hdf5  (\*hidden in git but available at https://www.comet.ml/weiji14/deepbedmap under experiment assets, trained neural network weights)
-  - srgan_generator_model.hdf5  (\*hidden in git, contains both neural network model architecture and weights)
+  - [srgan_generator_model_architecture.onnx.txt](weights/srgan_generator_model_architecture.onnx.txt)  (Chainer model architecture of Generator Network in ONNX text format)
+  - srgan_generator_model_architecture.onnx  (\*hidden in git, Chainer model architecture of Generator Network in ONNX binary format)
+  - srgan_generator_model_weights.npz  (\*hidden in git but available at https://www.comet.ml/weiji14/deepbedmap under experiment assets, trained neural network weights)
