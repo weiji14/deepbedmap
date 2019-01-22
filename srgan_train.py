@@ -45,33 +45,13 @@ import chainer
 import chainer.functions as F
 import chainer.links as L
 import cupy
-import onnx_chainer
-
-import keras
-from keras import backend as K
-from keras.layers import (
-    Add,
-    BatchNormalization,
-    Concatenate,
-    Conv2D,
-    Conv2DTranspose,
-    Dense,
-    Flatten,
-    Input,
-    Lambda,
-)
-from keras.layers.advanced_activations import LeakyReLU
-from keras.models import Model
 import livelossplot
+import onnx_chainer
 
 from features.environment import _load_ipynb_modules
 
 print("Python       :", sys.version.split("\n")[0])
-print("Numpy        :", np.__version__)
-print("Chainer      :", chainer.__version__)
-print("Keras        :", keras.__version__)
-print("Tensorflow   :", K.tf.__version__)
-K.tf.test.gpu_device_name()
+chainer.print_runtime_info()
 
 # %%
 # Set seed values
@@ -79,7 +59,6 @@ seed = 42
 random.seed = seed
 np.random.seed(seed=seed)
 # cupy.random.seed(seed=seed)
-K.tf.set_random_seed(seed=seed)
 
 # Start tracking experiment using Comet.ML
 experiment = comet_ml.Experiment(
@@ -437,116 +416,6 @@ class GeneratorModel(chainer.Chain):
         return a5
 
 
-# %%
-def generator_network(
-    input1_shape: typing.Tuple[int, int, int] = (10, 10, 1),
-    input2_shape: typing.Tuple[int, int, int] = (100, 100, 1),
-    input3_shape: typing.Tuple[int, int, int] = (20, 20, 1),
-    num_residual_blocks: int = 16,
-    scaling: int = 4,
-    output_channels: int = 1,
-) -> keras.engine.network.Network:
-    """
-    The generator network which is a deconvolutional neural network.
-    Converts a low resolution input into a super resolution output.
-
-    Parameters:
-      input_shape -- shape of input tensor in tuple format (height, width, channels)
-      num_residual_blocks -- how many Conv-LeakyReLU-Conv blocks to use
-      scaling -- even numbered integer to increase resolution (e.g. 0, 2, 4, 6, 8)
-      output_channels -- integer representing number of output channels/filters/kernels
-
-    Example:
-      An input_shape of (8,8,1) passing through 16 residual blocks with a scaling of 4
-      and output_channels 1 will result in an image of shape (32,32,1)
-
-    >>> generator_network().input_shape
-    [(None, 10, 10, 1), (None, 100, 100, 1), (None, 20, 20, 1)]
-    >>> generator_network().output_shape
-    (None, 32, 32, 1)
-    >>> generator_network().count_params()
-    1604929
-    """
-
-    assert num_residual_blocks >= 1  # ensure that we have 1 or more residual blocks
-    assert scaling % 2 == 0  # ensure scaling factor is even, i.e. 0, 2, 4, 8, etc
-    assert scaling >= 0  # ensure that scaling factor is zero or a positive number
-    assert output_channels >= 1  # ensure that we have 1 or more output channels
-
-    ## Input images
-    inp1 = Input(shape=input1_shape)  # low resolution image
-    assert inp1.shape.ndims == 4  # has to be shape like (?,10,10,1) for 10x10 grid
-    inp2 = Input(shape=input2_shape)  # other image (e.g. REMA)
-    assert inp2.shape.ndims == 4  # has to be shape like (?,100,100,1) for 100x100 grid
-    inp3 = Input(shape=input3_shape)  # other image (MEASURES Ice Flow)
-    assert inp3.shape.ndims == 4  # has to be shape like (?,20,20,1) for 20x20 grid
-
-    # 0 part
-    # Resize inputs to right scale using convolution (hardcoded kernel_size and strides)
-    inp1r = Conv2D(filters=32, kernel_size=(3, 3), strides=(1, 1), padding="valid")(
-        inp1
-    )
-    inp2r = Conv2D(filters=32, kernel_size=(30, 30), strides=(10, 10), padding="valid")(
-        inp2
-    )
-    inp3r = Conv2D(filters=32, kernel_size=(6, 6), strides=(2, 2), padding="valid")(
-        inp3
-    )
-
-    # Concatenate all inputs
-    # SEE https://distill.pub/2016/deconv-checkerboard/
-    X = Concatenate()([inp1r, inp2r, inp3r])  # Concatenate all the inputs together
-
-    # 1st part
-    # Pre-residual k3n64s1 (originally k9n64s1)
-    X0 = Conv2D(filters=64, kernel_size=(3, 3), strides=(1, 1), padding="same")(X)
-    X0 = LeakyReLU(alpha=0.2)(X0)
-
-    # 2nd part
-    # Residual blocks k3n64s1
-    def residual_block(input_tensor):
-        x = Conv2D(filters=64, kernel_size=(3, 3), strides=(1, 1), padding="same")(
-            input_tensor
-        )
-        x = LeakyReLU(alpha=0.2)(x)
-        x = Conv2D(filters=64, kernel_size=(3, 3), strides=(1, 1), padding="same")(x)
-        return Add()([x, input_tensor])
-
-    X = residual_block(X0)
-    for _ in range(num_residual_blocks - 1):
-        X = residual_block(X)
-
-    # 3rd part
-    # Post-residual blocks k3n64s1
-    X = Conv2D(filters=64, kernel_size=(3, 3), strides=(1, 1), padding="same")(X)
-    X = Add()([X, X0])
-
-    # 4th part
-    # Upsampling (if 4; run twice, if 8; run thrice, etc.) k3n256s1
-    for p, _ in enumerate(range(scaling // 2), start=1):
-        X = Conv2D(filters=256, kernel_size=(3, 3), strides=(1, 1), padding="same")(X)
-        pixelshuffleup = lambda images: K.tf.depth_to_space(input=images, block_size=2)
-        X = Lambda(function=pixelshuffleup, name=f"pixelshuffleup_{p}")(X)
-        X = LeakyReLU(alpha=0.2)(X)
-
-    # 5th part
-    # Generate high resolution output k9n1s1 (originally k9n3s1 for RGB image)
-    outp = Conv2D(
-        filters=output_channels,
-        kernel_size=(9, 9),
-        strides=(1, 1),
-        padding="same",
-        name="generator_output",
-    )(X)
-
-    # Create neural network with input low-res images and output prediction
-    network = keras.engine.network.Network(
-        inputs=[inp1, inp2, inp3], outputs=[outp], name="generator_network"
-    )
-
-    return network
-
-
 # %% [markdown]
 # ## 2.2 Discriminator Network Architecture
 #
@@ -667,56 +536,6 @@ class DiscriminatorModel(chainer.Chain):
         # a10 = F.sigmoid(x=a10)  # no sigmoid activation, as it is in the loss function
 
         return a10
-
-
-# %%
-def discriminator_network(
-    input_shape: typing.Tuple[int, int, int] = (32, 32, 1)
-) -> keras.engine.network.Network:
-    """
-    The discriminator network which is a convolutional neural network.
-    Takes ONE high resolution input image and predicts whether it is
-    real or fake on a scale of 0 to 1, where 0 is fake and 1 is real.
-
-    >>> discriminator_network().input_shape
-    (None, 32, 32, 1)
-    >>> discriminator_network().output_shape
-    (None, 1)
-    >>> discriminator_network().count_params()
-    6828033
-    """
-
-    ## Input images
-    inp = Input(shape=input_shape)  # high resolution/groundtruth image to discriminate
-    assert inp.shape.ndims == 4  # needs to be shape like (?,32,32,1) for 8x8 grid
-
-    # 1st part
-    # Convolutonal Block without Batch Normalization k3n64s1
-    X = Conv2D(filters=64, kernel_size=(3, 3), strides=(1, 1), padding="same")(inp)
-    X = LeakyReLU(alpha=0.2)(X)
-
-    # 2nd part
-    # Convolutional Blocks with Batch Normalization k3n{64*f}s{1or2}
-    for f, s in zip([1, 1, 2, 2, 4, 4, 8, 8], [1, 2, 1, 2, 1, 2, 1, 2]):
-        X = Conv2D(filters=64 * f, kernel_size=(3, 3), strides=(s, s), padding="same")(
-            X
-        )
-        X = BatchNormalization()(X)
-        X = LeakyReLU(alpha=0.2)(X)
-
-    # 3rd part
-    # Flatten, Dense (Fully Connected) Layers and Output
-    X = Flatten()(X)
-    X = Dense(units=1024)(X)  # ??!! Flatten?
-    X = LeakyReLU(alpha=0.2)(X)
-    outp = Dense(units=1, activation="sigmoid", name="discriminator_output")(X)
-
-    # Create neural network with input highres/groundtruth images, output validity 0/1
-    network = keras.engine.network.Network(
-        inputs=[inp], outputs=[outp], name="discriminator_network"
-    )
-
-    return network
 
 
 # %% [markdown]
@@ -893,86 +712,6 @@ def calculate_discriminator_loss(
     d_loss = bce_loss
 
     return d_loss
-
-
-# %%
-def compile_srgan_model(
-    g_network: keras.engine.network.Network,
-    d_network: keras.engine.network.Network,
-    metrics: typing.Dict[str, str] = None,
-) -> typing.Dict[str, keras.engine.training.Model]:
-    """
-    Creates a Super Resolution Generative Adversarial Network (SRGAN)
-    by joining a generator network with a discriminator network.
-
-    Returns a dictionary containing:
-    1) generator model (trainable, not compiled)
-    2) discriminator model (trainable, compiled)
-    3) srgan model (trainable generator, untrainable discriminator, compiled)
-
-    The SRGAN model will be compiled with an optimizer (e.g. Adam)
-    and have separate loss functions and metrics for its
-    generator and discriminator component.
-
-    >>> metrics = {"generator_network": 'mse', "discriminator_network": 'accuracy'}
-    >>> models = compile_srgan_model(
-    ...     g_network=generator_network(),
-    ...     d_network=discriminator_network(),
-    ...     metrics=metrics,
-    ... )
-    >>> models['discriminator_model'].trainable
-    True
-    >>> models['srgan_model'].get_layer(name='generator_network').trainable
-    True
-    >>> models['srgan_model'].get_layer(name='discriminator_network').trainable
-    False
-    >>> models['srgan_model'].count_params()
-    8432962
-    """
-
-    # Check that our neural networks are named properly
-    assert g_network.name == "generator_network"
-    assert d_network.name == "discriminator_network"
-    assert g_network.trainable == True  # check that generator is trainable
-    assert d_network.trainable == True  # check that discriminator is trainable
-
-    ## Both trainable
-    # Create keras models (trainable) out of the networks (graph only)
-    g_model = Model(
-        inputs=g_network.inputs, outputs=g_network.outputs, name="generator_model"
-    )
-    d_model = Model(
-        inputs=d_network.inputs, outputs=d_network.outputs, name="discriminator_model"
-    )
-    d_model.compile(
-        optimizer=keras.optimizers.Adam(lr=0.001),
-        loss={"discriminator_output": keras.losses.binary_crossentropy},
-    )
-
-    ## One trainable (generator), one untrainable (discriminator)
-    # Connect Generator Network to Discriminator Network
-    g_out = g_network(inputs=g_network.inputs)  # g_in --(g_network)--> g_out
-    d_out = d_network(inputs=g_out)  # g_out --(d_network)--> d_out
-
-    # Create and Compile the Super Resolution Generative Adversarial Network Model!
-    model = Model(inputs=g_network.inputs, outputs=[g_out, d_out])
-    model.get_layer(
-        name="discriminator_network"
-    ).trainable = False  # combined model should not train discriminator
-    model.compile(
-        optimizer=keras.optimizers.Adam(lr=0.001),
-        loss={
-            "generator_network": keras.losses.mean_absolute_error,
-            "discriminator_network": keras.losses.binary_crossentropy,
-        },
-        metrics=metrics,
-    )
-
-    return {
-        "generator_model": g_model,
-        "discriminator_model": d_model,
-        "srgan_model": model,
-    }
 
 
 # %%

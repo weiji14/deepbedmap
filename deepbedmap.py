@@ -138,7 +138,7 @@ def plot_3d_view(
 X_tile, W1_tile, W2_tile = get_deepbedmap_model_inputs(window_bound=window_bound)
 
 # Build quilt package for datasets covering our test region
-reupload = True
+reupload = False
 if reupload == True:
     quilt.build(package="weiji14/deepbedmap/model/test/W1_tile", path=W1_tile)
     quilt.build(package="weiji14/deepbedmap/model/test/W2_tile", path=W2_tile)
