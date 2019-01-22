@@ -113,7 +113,7 @@ def _download_deepbedmap_model_weights_from_comet():
 
     # Download the neural network weight file (hdf5 format) to the right place!
     r = requests.get(url=asset_url, headers=authHeader)
-    open(file="model/weights/srgan_generator_model_weights.hdf5", mode="wb").write(
+    open(file="model/weights/srgan_generator_model_weights.npz", mode="wb").write(
         r.content
     )
 

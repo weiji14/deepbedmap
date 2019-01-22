@@ -83,7 +83,7 @@ K.tf.set_random_seed(seed=seed)
 
 # Start tracking experiment using Comet.ML
 experiment = comet_ml.Experiment(
-    workspace="weiji14", project_name="deepbedmap", disabled=True
+    workspace="weiji14", project_name="deepbedmap", disabled=False
 )
 
 # %% [markdown]
@@ -1293,12 +1293,8 @@ _ = onnx_chainer.export(
 # Upload model weights file to Comet.ML and finish Comet.ML experiment
 experiment.log_asset(
     file_path="model/weights/srgan_generator_model_weights.npz",
-    file_name="srgan_generator_model_weights",
+    file_name="srgan_generator_model_weights.npz",
 )
-
-# %%
-experiment.end()
-raise ValueError("temp")
 
 # %% [markdown]
 # # 4. Evaluate model
@@ -1322,8 +1318,8 @@ def get_deepbedmap_test_result(test_filepath: str = "highres/2007tx"):
     )
 
     # Run input datasets through trained neural network model
-    model = deepbedmap.load_trained_model(model_inputs=(X_tile, W1_tile, W2_tile))
-    Y_hat = model.predict(x=[X_tile, W1_tile, W2_tile], verbose=1)
+    model = deepbedmap.load_trained_model()
+    Y_hat = model.forward(inputs={"x": X_tile, "w1": W1_tile, "w2": W2_tile}).array
 
     # Save infered deepbedmap to grid file(s)
     deepbedmap.save_array_to_grid(
