@@ -633,8 +633,9 @@ class DiscriminatorModel(chainer.Chain):
 def calculate_generator_loss(
     y_pred: chainer.variable.Variable,
     y_true: cupy.ndarray,
-    pred_labels: cupy.ndarray,
-    true_labels: cupy.ndarray,
+    fake_labels: cupy.ndarray,
+    real_labels: cupy.ndarray,
+    fake_minus_real_target: cupy.ndarray,
 ) -> chainer.variable.Variable:
     """
     Calculate the batchwise loss of the Generator Network.
@@ -642,16 +643,19 @@ def calculate_generator_loss(
     >>> calculate_generator_loss(
     ...     y_pred=chainer.variable.Variable(data=np.ones(shape=(2, 1, 3, 3))),
     ...     y_true=np.full(shape=(2, 1, 3, 3), fill_value=10.0),
-    ...     pred_labels=np.zeros(shape=(2, 1, 3, 3)),
-    ...     true_labels=np.ones(shape=(2, 1, 3, 3)).astype(np.int32),
+    ...     fake_labels=np.array([[-1.2], [0.5]]),
+    ...     real_labels=np.array([[0.5], [-0.8]]),
+    ...     fake_minus_real_target=np.array([[1], [1]]).astype(np.int32),
     ... )
-    variable(9.69314718)
+    variable(10.05439724)
     """
-    # Content Loss (L1, Mean Absolute Error)
+    # Content Loss (L1, Mean Absolute Error) between 2D images
     content_loss = F.mean_absolute_error(x0=y_pred, x1=y_true)
 
-    # Adversarial Loss
-    adversarial_loss = F.sigmoid_cross_entropy(x=pred_labels, t=true_labels)
+    # Adversarial Loss between 1D labels
+    adversarial_loss = F.sigmoid_cross_entropy(
+        x=(fake_labels - real_labels), t=fake_minus_real_target
+    )
 
     # Get generator loss
     g_loss = (1 * content_loss) + (1 * adversarial_loss)
@@ -687,10 +691,14 @@ def psnr(
 
 # %%
 def calculate_discriminator_loss(
-    y_pred: chainer.variable.Variable, y_true: cupy.ndarray
+    real_labels_pred: chainer.variable.Variable,
+    fake_labels_pred: chainer.variable.Variable,
+    real_minus_fake_target: cupy.ndarray,
 ) -> chainer.variable.Variable:
     """
     Calculate the batchwise loss of the Discriminator Network.
+    Uses the Relativistic Standard GAN (RSGAN) Discriminator.
+    See paper by Jolicoeur-Martineau, 2018 at https://arxiv.org/abs/1807.00734
 
     Original formula:
     -(y * np.log(sigmoid(x)) + (1 - y) * np.log(1 - sigmoid(x)))
@@ -698,15 +706,21 @@ def calculate_discriminator_loss(
     Numerically stable formula:
     -(x * (y - (x >= 0)) - np.log1p(np.exp(-np.abs(x))))
 
+    where y = the target difference between real and fake labels (i.e. 1 - 0 = 1)
+          x = the calculated difference between real_labels_pred and fake_labels_pred
+
     >>> calculate_discriminator_loss(
-    ...     y_pred=chainer.variable.Variable(data=np.array([[0.5], [1.5], [-0.5]])),
-    ...     y_true=np.array([[0], [1], [0]]),
+    ...     real_labels_pred=chainer.variable.Variable(data=np.array([[1.1], [-0.5]])),
+    ...     fake_labels_pred=chainer.variable.Variable(data=np.array([[-0.3], [1.0]])),
+    ...     real_minus_fake_target=np.array([[1], [1]]),
     ... )
-    variable(0.54985575)
+    variable(0.96091534)
     """
 
-    # Binary Cross-Entropy Loss
-    bce_loss = F.sigmoid_cross_entropy(x=y_pred, t=y_true)
+    # Binary Cross-Entropy Loss with Sigmoid
+    bce_loss = F.sigmoid_cross_entropy(
+        x=(real_labels_pred - fake_labels_pred), t=real_minus_fake_target
+    )
 
     # Get discriminator loss
     d_loss = bce_loss
@@ -795,14 +809,14 @@ def train_eval_discriminator(
     ...     num_residual_blocks=1,
     ... )
 
-    >>> d_weight0 = [d for d in discriminator_model.params()][-1][0].array
+    >>> d_weight0 = [d for d in discriminator_model.params()][-3][0].array
     >>> d_train_loss, d_train_accu = train_eval_discriminator(
     ...     input_arrays=train_arrays,
     ...     g_model=generator_model,
     ...     d_model=discriminator_model,
     ...     d_optimizer=discriminator_optimizer,
     ... )
-    >>> d_weight1 = [d for d in discriminator_model.params()][-1][0].array
+    >>> d_weight1 = [d for d in discriminator_model.params()][-3][0].array
     >>> d_weight0 != d_weight1  #check that training has occurred (i.e. weights changed)
     True
     """
@@ -825,12 +839,18 @@ def train_eval_discriminator(
     real_labels = xp.ones(shape=(len(real_images), 1)).astype(xp.int32)
 
     # @when("the two sets of images are fed into the discriminator for comparison")
-    images = xp.concatenate([fake_images, real_images])
-    labels = xp.concatenate([fake_labels, real_labels])
-    y_pred = d_model.forward(inputs={"x": images})
+    real_labels_pred = d_model.forward(inputs={"x": real_images})
+    fake_labels_pred = d_model.forward(inputs={"x": fake_images})
+    target_diff = xp.ones(shape=(len(real_images), 1)).astype(xp.int32)
+    d_loss = calculate_discriminator_loss(
+        real_labels_pred=real_labels_pred,  # real image should get close to 1
+        fake_labels_pred=fake_labels_pred,  # fake image should get close to 0
+        real_minus_fake_target=target_diff,  # where 1 (real) - 0 (fake) = 1 (target)
+    )
 
-    d_loss = calculate_discriminator_loss(y_pred=y_pred, y_true=labels)
-    d_accu = F.binary_accuracy(y=y_pred, t=labels)
+    predicted_labels = xp.concatenate([real_labels_pred.array, fake_labels_pred.array])
+    groundtruth_labels = xp.concatenate([real_labels, fake_labels])
+    d_accu = F.binary_accuracy(y=predicted_labels, t=groundtruth_labels)
 
     # @then("the discriminator should learn to know the fakes from the real images")
     if train == True:
@@ -901,21 +921,25 @@ def train_eval_generator(
         "w1": input_arrays["W1"],
         "w2": input_arrays["W2"],
     }
-    y_pred = g_model.forward(inputs=generator_inputs)
-    predicted_labels = d_model.forward(inputs={"x": y_pred}).array
+    fake_images = g_model.forward(inputs=generator_inputs)
+    fake_labels = d_model.forward(inputs={"x": fake_images}).array.astype(xp.float32)
 
     # @given("what we think the discriminator believes is real")
-    groundtruth_images = input_arrays["Y"]
-    groundtruth_labels = xp.ones(shape=(len(groundtruth_images), 1)).astype(xp.int32)
+    real_images = input_arrays["Y"]
+    real_labels = xp.ones(shape=(len(real_images), 1)).astype(xp.float32)
 
     # @when("we compare the fake images to the real ones")
+    target_diff = xp.ones(shape=(len(real_images), 1)).astype(xp.int32)
     g_loss = calculate_generator_loss(
-        y_pred=y_pred,
-        y_true=groundtruth_images,
-        pred_labels=predicted_labels,
-        true_labels=groundtruth_labels,
+        # content loss inputs, 2D images
+        y_pred=fake_images,
+        y_true=real_images,
+        # adversarial loss inputs, 1D labels
+        fake_labels=fake_labels,  # fake label 'should' get close to 1
+        real_labels=real_labels,  # real label 'should' get close to 0
+        fake_minus_real_target=target_diff,  # where 1 (fake) - 0 (real) = 1 (target)
     )
-    g_psnr = psnr(y_pred=y_pred.array, y_true=groundtruth_images)
+    g_psnr = psnr(y_pred=fake_images.array, y_true=real_images)
 
     # @then("the generator should learn to create a more authentic looking image")
     if train == True:
