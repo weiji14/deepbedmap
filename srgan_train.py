@@ -636,9 +636,11 @@ def calculate_generator_loss(
     fake_labels: cupy.ndarray,
     real_labels: cupy.ndarray,
     fake_minus_real_target: cupy.ndarray,
+    real_minus_fake_target: cupy.ndarray,
 ) -> chainer.variable.Variable:
     """
-    Calculate the batchwise loss of the Generator Network.
+    This function calculates "Content Loss" + "Adversarial Loss"
+    which forms the basis for training the Generator Network.
 
     >>> calculate_generator_loss(
     ...     y_pred=chainer.variable.Variable(data=np.ones(shape=(2, 1, 3, 3))),
@@ -646,15 +648,19 @@ def calculate_generator_loss(
     ...     fake_labels=np.array([[-1.2], [0.5]]),
     ...     real_labels=np.array([[0.5], [-0.8]]),
     ...     fake_minus_real_target=np.array([[1], [1]]).astype(np.int32),
+    ...     real_minus_fake_target=np.array([[0], [0]]).astype(np.int32),
     ... )
-    variable(10.05439724)
+    variable(10.73461391)
     """
     # Content Loss (L1, Mean Absolute Error) between 2D images
     content_loss = F.mean_absolute_error(x0=y_pred, x1=y_true)
 
     # Adversarial Loss between 1D labels
-    adversarial_loss = F.sigmoid_cross_entropy(
-        x=(fake_labels - real_labels), t=fake_minus_real_target
+    adversarial_loss = calculate_discriminator_loss(
+        real_labels_pred=real_labels,
+        fake_labels_pred=fake_labels,
+        real_minus_fake_target=real_minus_fake_target,  # Zeros (0) instead of ones (1)
+        fake_minus_real_target=fake_minus_real_target,  # Ones (1) instead of zeros (0)
     )
 
     # Get generator loss
@@ -694,13 +700,19 @@ def calculate_discriminator_loss(
     real_labels_pred: chainer.variable.Variable,
     fake_labels_pred: chainer.variable.Variable,
     real_minus_fake_target: cupy.ndarray,
+    fake_minus_real_target: cupy.ndarray,
 ) -> chainer.variable.Variable:
     """
-    Calculate the batchwise loss of the Discriminator Network.
-    Uses the Relativistic Standard GAN (RSGAN) Discriminator.
-    See paper by Jolicoeur-Martineau, 2018 at https://arxiv.org/abs/1807.00734
+    This function purely calculates the "Adversarial Loss"
+    in a Relativistic Average Generative Adversarial Network (RaGAN).
 
-    Original formula:
+    It forms the basis for training the Discriminator Network,
+    but it is also used as part of the Generator Network's loss function.
+
+    See paper by Jolicoeur-Martineau, 2018 at https://arxiv.org/abs/1807.00734
+    for the mathematical details of the RaGAN loss function.
+
+    Original Sigmoid_Cross_Entropy formula:
     -(y * np.log(sigmoid(x)) + (1 - y) * np.log(1 - sigmoid(x)))
 
     Numerically stable formula:
@@ -713,17 +725,25 @@ def calculate_discriminator_loss(
     ...     real_labels_pred=chainer.variable.Variable(data=np.array([[1.1], [-0.5]])),
     ...     fake_labels_pred=chainer.variable.Variable(data=np.array([[-0.3], [1.0]])),
     ...     real_minus_fake_target=np.array([[1], [1]]),
+    ...     fake_minus_real_target=np.array([[0], [0]]),
     ... )
-    variable(0.96091534)
+    variable(1.56670504)
     """
 
-    # Binary Cross-Entropy Loss with Sigmoid
-    bce_loss = F.sigmoid_cross_entropy(
-        x=(real_labels_pred - fake_labels_pred), t=real_minus_fake_target
-    )
+    # Calculate arithmetic mean of real/fake predicted labels
+    real_labels_pred_avg = F.mean(real_labels_pred)
+    fake_labels_pred_avg = F.mean(fake_labels_pred)
 
-    # Get discriminator loss
-    d_loss = bce_loss
+    # Binary Cross-Entropy Loss with Sigmoid
+    real_versus_fake_loss = F.sigmoid_cross_entropy(
+        x=(real_labels_pred - fake_labels_pred_avg), t=real_minus_fake_target
+    )  # let predicted labels from real images be more realistic than those from fake
+    fake_versus_real_loss = F.sigmoid_cross_entropy(
+        x=(fake_labels_pred - real_labels_pred_avg), t=fake_minus_real_target
+    )  # let predicted labels from fake images be less realistic than those from real
+
+    # Relativistic average Standard GAN's Discriminator Loss
+    d_loss = real_versus_fake_loss + fake_versus_real_loss
 
     return d_loss
 
@@ -841,11 +861,13 @@ def train_eval_discriminator(
     # @when("the two sets of images are fed into the discriminator for comparison")
     real_labels_pred = d_model.forward(inputs={"x": real_images})
     fake_labels_pred = d_model.forward(inputs={"x": fake_images})
-    target_diff = xp.ones(shape=(len(real_images), 1)).astype(xp.int32)
+    real_minus_fake_target = xp.ones(shape=(len(real_images), 1)).astype(xp.int32)
+    fake_minus_real_target = xp.zeros(shape=(len(real_images), 1)).astype(xp.int32)
     d_loss = calculate_discriminator_loss(
         real_labels_pred=real_labels_pred,  # real image should get close to 1
         fake_labels_pred=fake_labels_pred,  # fake image should get close to 0
-        real_minus_fake_target=target_diff,  # where 1 (real) - 0 (fake) = 1 (target)
+        real_minus_fake_target=real_minus_fake_target,  # where 1 (real) - 0 (fake) = 1 (target)
+        fake_minus_real_target=fake_minus_real_target,  # where 0 (fake) - 1 (real) = 0 (target)?
     )
 
     predicted_labels = xp.concatenate([real_labels_pred.array, fake_labels_pred.array])
@@ -929,7 +951,8 @@ def train_eval_generator(
     real_labels = xp.ones(shape=(len(real_images), 1)).astype(xp.float32)
 
     # @when("we compare the fake images to the real ones")
-    target_diff = xp.ones(shape=(len(real_images), 1)).astype(xp.int32)
+    fake_minus_real_target = xp.ones(shape=(len(real_images), 1)).astype(xp.int32)
+    real_minus_fake_target = xp.zeros(shape=(len(real_images), 1)).astype(xp.int32)
     g_loss = calculate_generator_loss(
         # content loss inputs, 2D images
         y_pred=fake_images,
@@ -937,7 +960,8 @@ def train_eval_generator(
         # adversarial loss inputs, 1D labels
         fake_labels=fake_labels,  # fake label 'should' get close to 1
         real_labels=real_labels,  # real label 'should' get close to 0
-        fake_minus_real_target=target_diff,  # where 1 (fake) - 0 (real) = 1 (target)
+        fake_minus_real_target=fake_minus_real_target,  # where 1 (fake) - 0 (real) = 1 (target)
+        real_minus_fake_target=real_minus_fake_target,  # where 0 (real) - 1 (fake) = 0 (target)?
     )
     g_psnr = psnr(y_pred=fake_images.array, y_true=real_images)
 
