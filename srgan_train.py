@@ -179,7 +179,7 @@ class DeepbedmapInputBlock(chainer.Chain):
 
     def __init__(self, out_channels=32):
         super().__init__()
-        init_weights = chainer.initializers.GlorotUniform(scale=1.0)
+        init_weights = chainer.initializers.HeNormal(scale=0.1, fan_option="fan_in")
 
         with self.init_scope():
             self.conv_on_X = L.Convolution2D(
@@ -233,7 +233,7 @@ class ResidualDenseBlock(chainer.Chain):
 
     def __init__(self, in_out_channels: int = 64, inter_channels: int = 32):
         super().__init__()
-        init_weights = chainer.initializers.GlorotUniform(scale=1.0)
+        init_weights = chainer.initializers.HeNormal(scale=0.1, fan_option="fan_in")
 
         with self.init_scope():
             self.conv_layer1 = L.Convolution2D(
@@ -382,18 +382,18 @@ class GeneratorModel(chainer.Chain):
     >>> y_pred.shape
     (1, 1, 32, 32)
     >>> generator_model.count_params()
-    1862081
+    3300929
     """
 
     def __init__(
         self,
         inblock_class=DeepbedmapInputBlock,
         resblock_class=ResInResDenseBlock,
-        num_residual_blocks: int = 2,
+        num_residual_blocks: int = 4,
         out_channels: int = 1,
     ):
         super().__init__()
-        init_weights = chainer.initializers.GlorotUniform(scale=1.0)
+        init_weights = chainer.initializers.HeNormal(scale=0.1, fan_option="fan_in")
 
         with self.init_scope():
 
