@@ -222,51 +222,125 @@ class DeepbedmapInputBlock(chainer.Chain):
 # %% [markdown]
 # ### 2.1.2 Residual Block
 #
-# ![The Residual in Residual Dense Block in detail](https://arxiv-sanity-sanity-production.s3.amazonaws.com/render-output/518727/x4.png)
+# ![The Residual in Residual Dense Block in detail](https://raw.githubusercontent.com/xinntao/ESRGAN/master/figures/RRDB.png)
 
 # %%
-class ResidualBlock(chainer.Chain):
+class ResidualDenseBlock(chainer.Chain):
     """
-    Residual block made of Convoutional2D-LeakyReLU-Convoutional2D layers
-
-       -----------------------------
-      |                             |
-    -----Conv2D--LeakyReLu--Conv2D-(+)--
-
+    Residual Dense Block made up of 5 Convolutional2D-LeakyReLU layers.
+    Final output has a residual scaling factor.
     """
 
-    def __init__(self, out_channels=64):
+    def __init__(self, in_out_channels: int = 64, inter_channels: int = 32):
         super().__init__()
         init_weights = chainer.initializers.GlorotUniform(scale=1.0)
 
         with self.init_scope():
             self.conv_layer1 = L.Convolution2D(
-                in_channels=None,
-                out_channels=out_channels,
+                in_channels=in_out_channels,
+                out_channels=inter_channels,
                 ksize=(3, 3),
                 stride=(1, 1),
                 pad=1,  # 'same' padding
                 initialW=init_weights,
             )
             self.conv_layer2 = L.Convolution2D(
-                in_channels=out_channels,
-                out_channels=out_channels,
+                in_channels=None,
+                out_channels=inter_channels,
+                ksize=(3, 3),
+                stride=(1, 1),
+                pad=1,  # 'same' padding
+                initialW=init_weights,
+            )
+            self.conv_layer3 = L.Convolution2D(
+                in_channels=None,
+                out_channels=inter_channels,
+                ksize=(3, 3),
+                stride=(1, 1),
+                pad=1,  # 'same' padding
+                initialW=init_weights,
+            )
+            self.conv_layer4 = L.Convolution2D(
+                in_channels=None,
+                out_channels=inter_channels,
+                ksize=(3, 3),
+                stride=(1, 1),
+                pad=1,  # 'same' padding
+                initialW=init_weights,
+            )
+            self.conv_layer5 = L.Convolution2D(
+                in_channels=None,
+                out_channels=in_out_channels,
                 ksize=(3, 3),
                 stride=(1, 1),
                 pad=1,  # 'same' padding
                 initialW=init_weights,
             )
 
+    def forward(self, x, residual_scaling: float = 0.2):
+        """
+        Forward computation, i.e. evaluate based on input x
+        """
+
+        a0 = x
+
+        a1 = self.conv_layer1(a0)
+        a1 = F.leaky_relu(x=a1, slope=0.2)
+        a1_cat = F.concat(xs=(a0, a1), axis=1)
+
+        a2 = self.conv_layer2(a1_cat)
+        a2 = F.leaky_relu(x=a2, slope=0.2)
+        a2_cat = F.concat(xs=(a0, a1, a2), axis=1)
+
+        a3 = self.conv_layer3(a2_cat)
+        a3 = F.leaky_relu(x=a3, slope=0.2)
+        a3_cat = F.concat(xs=(a0, a1, a2, a3), axis=1)
+
+        a4 = self.conv_layer4(a3_cat)
+        a4 = F.leaky_relu(x=a4, slope=0.2)
+        a4_cat = F.concat(xs=(a0, a1, a2, a3, a4), axis=1)
+
+        a5 = self.conv_layer5(a4_cat)
+
+        # Final concatenation, with residual scaling of 0.2
+        a6 = F.add(a5 * residual_scaling, a0)
+
+        return a6
+
+
+# %%
+class ResInResDenseBlock(chainer.Chain):
+    """
+    Residual in Residual Dense block made of 3 Residual Dense Blocks
+
+       ------------  ----------  ------------
+      |            ||          ||            |
+    -----DenseBlock--DenseBlock--DenseBlock-(+)--
+      |                                      |
+       --------------------------------------
+
+    """
+
+    def __init__(self, denseblock_class=ResidualDenseBlock, out_channels: int = 64):
+        super().__init__()
+
+        with self.init_scope():
+            self.residual_dense_block1 = denseblock_class()
+            self.residual_dense_block2 = denseblock_class()
+            self.residual_dense_block3 = denseblock_class()
+
     def forward(self, x):
         """
         Forward computation, i.e. evaluate based on input x
         """
-        a = self.conv_layer1(x)
-        a = F.leaky_relu(x=a, slope=0.2)
-        a = self.conv_layer2(a)
+        a1 = self.residual_dense_block1(x)
+        a2 = self.residual_dense_block2(a1)
+        a3 = self.residual_dense_block3(a2)
 
-        a = F.add(x, a)
-        return a
+        # Final concatenation, with residual scaling of 0.2
+        a4 = F.add(x, a3)
+
+        return a4
 
 
 # %% [markdown]
@@ -297,11 +371,7 @@ class GeneratorModel(chainer.Chain):
       An input_shape of (8,8,1) passing through 16 residual blocks with a scaling of 4
       and output_channels 1 will result in an image of shape (32,32,1)
 
-    >>> generator_model = GeneratorModel(
-    ...     inblock_class=DeepbedmapInputBlock,
-    ...     resblock_class=ResidualBlock,
-    ...     num_residual_blocks=16,
-    ... )
+    >>> generator_model = GeneratorModel()
     >>> y_pred = generator_model.forward(
     ...     inputs={
     ...         "x": np.random.rand(1, 1, 10, 10).astype("float32"),
@@ -312,14 +382,14 @@ class GeneratorModel(chainer.Chain):
     >>> y_pred.shape
     (1, 1, 32, 32)
     >>> generator_model.count_params()
-    1604929
+    1862081
     """
 
     def __init__(
         self,
-        inblock_class,
-        resblock_class,
-        num_residual_blocks: int = 16,
+        inblock_class=DeepbedmapInputBlock,
+        resblock_class=ResInResDenseBlock,
+        num_residual_blocks: int = 2,
         out_channels: int = 1,
     ):
         super().__init__()
@@ -750,11 +820,7 @@ def calculate_discriminator_loss(
 
 # %%
 # Build the models
-generator_model = GeneratorModel(
-    inblock_class=DeepbedmapInputBlock,
-    resblock_class=ResidualBlock,
-    num_residual_blocks=16,
-)
+generator_model = GeneratorModel()
 discriminator_model = DiscriminatorModel()
 
 # Transfer models to GPU if available
@@ -823,11 +889,7 @@ def train_eval_discriminator(
     >>> discriminator_optimizer = chainer.optimizers.Adam(alpha=0.001, eps=1e-7).setup(
     ...     link=discriminator_model
     ... )
-    >>> generator_model = GeneratorModel(
-    ...     inblock_class=DeepbedmapInputBlock,
-    ...     resblock_class=ResidualBlock,
-    ...     num_residual_blocks=1,
-    ... )
+    >>> generator_model = GeneratorModel()
 
     >>> d_weight0 = [d for d in discriminator_model.params()][-3][0].array
     >>> d_train_loss, d_train_accu = train_eval_discriminator(
@@ -910,11 +972,7 @@ def train_eval_generator(
     ...     "W2": np.random.RandomState(seed=42).rand(2, 1, 20, 20).astype(np.float32),
     ...     "Y": np.random.RandomState(seed=42).rand(2, 1, 32, 32).astype(np.float32),
     ... }
-    >>> generator_model = GeneratorModel(
-    ...     inblock_class=DeepbedmapInputBlock,
-    ...     resblock_class=ResidualBlock,
-    ...     num_residual_blocks=1,
-    ... )
+    >>> generator_model = GeneratorModel()
     >>> generator_optimizer = chainer.optimizers.Adam(alpha=0.001, eps=1e-7).setup(
     ...     link=generator_model
     ... )
@@ -975,7 +1033,7 @@ def train_eval_generator(
 
 
 # %%
-epochs = 100
+epochs = 50
 
 metric_names = [
     "discriminator_loss",

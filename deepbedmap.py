@@ -197,11 +197,7 @@ def load_trained_model(
     """
     srgan_train = _load_ipynb_modules("srgan_train.ipynb")
 
-    model = srgan_train.GeneratorModel(
-        inblock_class=srgan_train.DeepbedmapInputBlock,
-        resblock_class=srgan_train.ResidualBlock,
-        num_residual_blocks=16,
-    )
+    model = srgan_train.GeneratorModel()
 
     # Load trained neural network weights into model
     chainer.serializers.load_npz(file=filepath, obj=model)
