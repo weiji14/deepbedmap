@@ -140,7 +140,7 @@ dev_iter = chainer.iterators.SerialIterator(
 )
 
 # %% [markdown]
-# # 2. Architect model **(Note: Work in Progress!!)**
+# # 2. Architect model
 #
 # Enhanced Super Resolution Generative Adversarial Network (ESRGAN) model based on [Wang et al. 2018](https://arxiv.org/abs/1809.00219v2).
 # Refer to original Pytorch implementation at https://github.com/xinntao/ESRGAN.
@@ -716,9 +716,12 @@ def calculate_generator_loss(
     real_labels: cupy.ndarray,
     fake_minus_real_target: cupy.ndarray,
     real_minus_fake_target: cupy.ndarray,
+    content_loss_weighting: float = 5e-3,
+    adversarial_loss_weighting: float = 1e-2,
 ) -> chainer.variable.Variable:
     """
-    This function calculates "Content Loss" + "Adversarial Loss"
+    This function calculates the weighted sum between
+    "Content Loss" and "Adversarial Loss".
     which forms the basis for training the Generator Network.
 
     >>> calculate_generator_loss(
@@ -729,7 +732,7 @@ def calculate_generator_loss(
     ...     fake_minus_real_target=np.array([[1], [1]]).astype(np.int32),
     ...     real_minus_fake_target=np.array([[0], [0]]).astype(np.int32),
     ... )
-    variable(10.73461391)
+    variable(0.06234614)
     """
     # Content Loss (L1, Mean Absolute Error) between 2D images
     content_loss = F.mean_absolute_error(x0=y_pred, x1=y_true)
@@ -743,8 +746,10 @@ def calculate_generator_loss(
     )
 
     # Get generator loss
-    g_loss = (1 * content_loss) + (1 * adversarial_loss)
-    g_loss
+    weighted_content_loss = content_loss_weighting * content_loss
+    weighted_adversarial_loss = adversarial_loss_weighting * adversarial_loss
+    g_loss = weighted_content_loss + weighted_adversarial_loss
+
     return g_loss
 
 
