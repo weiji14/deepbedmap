@@ -3883,16 +3883,64 @@ graph {
     }
     attribute {
       name: "kernel_shape"
-      ints: 9
-      ints: 9
+      ints: 3
+      ints: 3
       type: INTS
     }
     attribute {
       name: "pads"
-      ints: 4
-      ints: 4
-      ints: 4
-      ints: 4
+      ints: 1
+      ints: 1
+      ints: 1
+      ints: 1
+      type: INTS
+    }
+    attribute {
+      name: "strides"
+      ints: 1
+      ints: 1
+      type: INTS
+    }
+  }
+  node {
+    input: "Conv_67"
+    output: "LeakyRelu_51"
+    op_type: "LeakyRelu"
+    attribute {
+      name: "alpha"
+      f: 0.20000000298023224
+      type: FLOAT
+    }
+  }
+  node {
+    input: "LeakyRelu_51"
+    input: "Input_151"
+    input: "Input_152"
+    output: "Conv_68"
+    op_type: "Conv"
+    attribute {
+      name: "dilations"
+      ints: 1
+      ints: 1
+      type: INTS
+    }
+    attribute {
+      name: "group"
+      i: 1
+      type: INT
+    }
+    attribute {
+      name: "kernel_shape"
+      ints: 3
+      ints: 3
+      type: INTS
+    }
+    attribute {
+      name: "pads"
+      ints: 1
+      ints: 1
+      ints: 1
+      ints: 1
       type: INTS
     }
     attribute {
@@ -3903,6 +3951,76 @@ graph {
     }
   }
   name: "Graph"
+  input {
+    name: "Input_149"
+    type {
+      tensor_type {
+        elem_type: FLOAT
+        shape {
+          dim {
+            dim_value: 64
+          }
+          dim {
+            dim_value: 64
+          }
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 3
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "Input_150"
+    type {
+      tensor_type {
+        elem_type: FLOAT
+        shape {
+          dim {
+            dim_value: 64
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "Input_151"
+    type {
+      tensor_type {
+        elem_type: FLOAT
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 64
+          }
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 3
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "Input_152"
+    type {
+      tensor_type {
+        elem_type: FLOAT
+        shape {
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
   input {
     name: "Input_4"
     type {
@@ -4038,41 +4156,6 @@ graph {
         shape {
           dim {
             dim_value: 64
-          }
-        }
-      }
-    }
-  }
-  input {
-    name: "Input_149"
-    type {
-      tensor_type {
-        elem_type: FLOAT
-        shape {
-          dim {
-            dim_value: 1
-          }
-          dim {
-            dim_value: 64
-          }
-          dim {
-            dim_value: 9
-          }
-          dim {
-            dim_value: 9
-          }
-        }
-      }
-    }
-  }
-  input {
-    name: "Input_150"
-    type {
-      tensor_type {
-        elem_type: FLOAT
-        shape {
-          dim {
-            dim_value: 1
           }
         }
       }
@@ -6614,7 +6697,7 @@ graph {
     }
   }
   output {
-    name: "Conv_67"
+    name: "Conv_68"
     type {
       tensor_type {
         elem_type: FLOAT

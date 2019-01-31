@@ -390,7 +390,7 @@ class GeneratorModel(chainer.Chain):
     >>> y_pred.shape
     (1, 1, 32, 32)
     >>> generator_model.count_params()
-    3300929
+    3333249
     """
 
     def __init__(
@@ -445,12 +445,22 @@ class GeneratorModel(chainer.Chain):
                 pad=1,  # 'same' padding
                 initialW=init_weights,
             )
-            self.post_upsample_conv_layer = L.Convolution2D(
+
+            # Final post-upsamle layers
+            self.final_conv_layer1 = L.Convolution2D(
+                in_channels=None,
+                out_channels=64,
+                ksize=(3, 3),
+                stride=(1, 1),
+                pad=1,  # 'same' padding
+                initialW=init_weights,
+            )
+            self.final_conv_layer2 = L.Convolution2D(
                 in_channels=None,
                 out_channels=out_channels,
-                ksize=(9, 9),
+                ksize=(3, 3),
                 stride=(1, 1),
-                pad=4,  # 'same' padding
+                pad=1,  # 'same' padding
                 initialW=init_weights,
             )
 
@@ -466,7 +476,7 @@ class GeneratorModel(chainer.Chain):
         a0 = self.input_block(x=inputs["x"], w1=inputs["w1"], w2=inputs["w2"])
 
         # 1st part
-        # Pre-residual k3n64s1 (originally k9n64s1)
+        # Pre-residual k3n64s1
         a1 = self.pre_residual_conv_layer(a0)
         a1 = F.leaky_relu(x=a1, slope=0.2)
 
@@ -489,10 +499,12 @@ class GeneratorModel(chainer.Chain):
         a4_2 = F.leaky_relu(x=a4_2, slope=0.2)
 
         # 5th part
-        # Generate high resolution output k9n1s1 (originally k9n3s1 for RGB image)
-        a5 = self.post_upsample_conv_layer(a4_2)
+        # Generate high resolution output k3n64s1 and k3n1s1
+        a5_1 = self.final_conv_layer1(a4_2)
+        a5_1 = F.leaky_relu(x=a5_1, slope=0.2)
+        a5_2 = self.final_conv_layer2(a5_1)
 
-        return a5
+        return a5_2
 
 
 # %% [markdown]
@@ -1009,14 +1021,14 @@ def train_eval_generator(
     ... )
     >>> discriminator_model = DiscriminatorModel()
 
-    >>> g_weight0 = [g for g in generator_model.params()][0][0, 0, 0, 0].array
+    >>> g_weight0 = [g for g in generator_model.params()][8][0, 0, 0, 0].array
     >>> _ = train_eval_generator(
     ...     input_arrays=train_arrays,
     ...     g_model=generator_model,
     ...     d_model=discriminator_model,
     ...     g_optimizer=generator_optimizer,
     ... )
-    >>> g_weight1 = [g for g in generator_model.params()][0][0, 0, 0, 0].array
+    >>> g_weight1 = [g for g in generator_model.params()][8][0, 0, 0, 0].array
     >>> g_weight0 != g_weight1  #check that training has occurred (i.e. weights changed)
     True
     """
