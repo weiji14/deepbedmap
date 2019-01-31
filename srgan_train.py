@@ -72,7 +72,7 @@ experiment = comet_ml.Experiment(
 hash = "1ccc9dc7f6344e1ec27b7aa972f2739d192d3e5adef8a64528b86bc799e2df60"
 quilt.install(package="weiji14/deepbedmap/model/train", hash=hash, force=True)
 pkg = quilt.load(pkginfo="weiji14/deepbedmap/model/train", hash=hash)
-experiment.log_parameter("dataset_hash", hash)
+experiment.log_parameter(name="dataset_hash", value=hash)
 
 # %%
 W1_data = pkg.W1_data()  # miscellaneous data REMA
@@ -96,6 +96,7 @@ try:
     cupy.cuda.get_device_id()
     xp = cupy
     print("Using GPU")
+    experiment.log_parameter(name="use_gpu", value=True)
 
     W1_data = chainer.backend.cuda.to_gpu(array=W1_data)
     W2_data = chainer.backend.cuda.to_gpu(array=W2_data)
@@ -104,6 +105,7 @@ try:
 except:  # CUDARuntimeError
     xp = np
     print("Using CPU only")
+    experiment.log_parameter(name="use_gpu", value=False)
 
 # %%
 W1_data = xp.rollaxis(a=W1_data, axis=3, start=1)
@@ -120,10 +122,16 @@ dataset = chainer.datasets.DictDataset(X=X_data, W1=W1_data, W2=W2_data, Y=Y_dat
 train_set, dev_set = chainer.datasets.split_dataset_random(
     dataset=dataset, first_size=int(len(X_data) * 0.95), seed=seed
 )
-print(f"Training dataset: {len(train_set)} tiles, Test dataset: {len(dev_set)} tiles")
+experiment.log_parameters(
+    dic={"train_set_samples": len(train_set), "dev_set_samples": len(dev_set)}
+)
+print(
+    f"Training dataset: {len(train_set)} tiles, Development dataset: {len(dev_set)} tiles"
+)
 
 # %%
 batch_size = 32
+experiment.log_parameter(name="batch_size", value=batch_size)
 train_iter = chainer.iterators.SerialIterator(
     dataset=train_set, batch_size=batch_size, repeat=True, shuffle=True
 )
@@ -393,6 +401,7 @@ class GeneratorModel(chainer.Chain):
         out_channels: int = 1,
     ):
         super().__init__()
+        self.num_residual_blocks = num_residual_blocks
         init_weights = chainer.initializers.HeNormal(scale=0.1, fan_option="fan_in")
 
         with self.init_scope():
@@ -822,6 +831,9 @@ def calculate_discriminator_loss(
 # Build the models
 generator_model = GeneratorModel()
 discriminator_model = DiscriminatorModel()
+experiment.log_parameter(
+    name="num_residual_blocks", value=generator_model.num_residual_blocks
+)
 
 # Transfer models to GPU if available
 if xp == cupy:  # Check if CuPy was loaded, i.e. GPU is available
@@ -830,11 +842,25 @@ if xp == cupy:  # Check if CuPy was loaded, i.e. GPU is available
 
 # %%
 # Setup optimizer, using Adam
-generator_optimizer = chainer.optimizers.Adam(alpha=0.001, eps=1e-7).setup(
+generator_optimizer = chainer.optimizers.Adam(alpha=2e-4, eps=1e-8).setup(
     link=generator_model
 )
-discriminator_optimizer = chainer.optimizers.Adam(alpha=0.001, eps=1e-7).setup(
+experiment.log_parameters(
+    dic={
+        "generator_optimizer": "adam",
+        "generator_lr": generator_optimizer.alpha,  # learning rate
+        "generator_epsilon": generator_optimizer.eps,
+    }
+)
+discriminator_optimizer = chainer.optimizers.Adam(alpha=2e-4, eps=1e-8).setup(
     link=discriminator_model
+)
+experiment.log_parameters(
+    dic={
+        "discriminator_optimizer": "adam",
+        "discriminator_lr": discriminator_optimizer.alpha,  # learning rate
+        "discriminator_adam_epsilon": discriminator_optimizer.eps,
+    }
 )
 
 # %% [markdown]
@@ -1034,6 +1060,7 @@ def train_eval_generator(
 
 # %%
 epochs = 50
+experiment.log_parameter(name="num_epochs", value=epochs)
 
 metric_names = [
     "discriminator_loss",
