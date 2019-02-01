@@ -337,7 +337,7 @@ class ResInResDenseBlock(chainer.Chain):
             self.residual_dense_block2 = denseblock_class()
             self.residual_dense_block3 = denseblock_class()
 
-    def forward(self, x):
+    def forward(self, x, residual_scaling: float = 0.2):
         """
         Forward computation, i.e. evaluate based on input x
         """
@@ -346,7 +346,7 @@ class ResInResDenseBlock(chainer.Chain):
         a3 = self.residual_dense_block3(a2)
 
         # Final concatenation, with residual scaling of 0.2
-        a4 = F.add(x, a3)
+        a4 = F.add(a3 * residual_scaling, x)
 
         return a4
 
