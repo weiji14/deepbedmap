@@ -859,7 +859,7 @@ if xp == cupy:  # Check if CuPy was loaded, i.e. GPU is available
 
 # %%
 # Setup optimizer, using Adam
-generator_optimizer = chainer.optimizers.Adam(alpha=2e-4, eps=1e-8).setup(
+generator_optimizer = chainer.optimizers.Adam(alpha=6e-4, eps=1e-8).setup(
     link=generator_model
 )
 experiment.log_parameters(
@@ -869,7 +869,7 @@ experiment.log_parameters(
         "generator_epsilon": generator_optimizer.eps,
     }
 )
-discriminator_optimizer = chainer.optimizers.Adam(alpha=2e-4, eps=1e-8).setup(
+discriminator_optimizer = chainer.optimizers.Adam(alpha=6e-4, eps=1e-8).setup(
     link=discriminator_model
 )
 experiment.log_parameters(
