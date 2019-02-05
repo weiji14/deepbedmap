@@ -15,7 +15,7 @@ gmt = {editable = true, ref = "0.1a3-131-g9772fa3", git = "https://github.com/we
 ipython = "==7.2.0"
 jupyterlab = "==0.35.4"
 jupytext = "==0.8.6"
-livelossplot = "==0.2.3"
+livelossplot = "==0.3.0"
 matplotlib = "==3.0.2"
 netcdf4 = "==1.4.1"
 numpy = "==1.14.5"
