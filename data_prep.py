@@ -35,7 +35,7 @@ import tqdm
 import yaml
 
 import geopandas as gpd
-import gmt
+import pygmt as gmt
 import IPython.display
 import matplotlib.pyplot as plt
 import numpy as np

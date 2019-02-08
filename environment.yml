@@ -6,7 +6,6 @@ dependencies:
   - defaults::cudnn=7.2.1[md5=6a84069dcf4aca8ba9493d3cb320090e]
   - hcc::cuda_driver=410.73[md5=941787b750b372f4a240287634589d24]
   - defaults::cudatoolkit=9.2[md5=f81c96e01ccb9028800101b35e71b844]
-  - gmt=6.0.0a18[md5=3ee3679433e1bf57640d86e4bc8dfc81]
   - pip=18.1[md5=d68c7e5109ba0bf4b1cfe60f0f47870a]
   - conda-forge::python=3.6.6[md5=fe9f54422cdaf8779147b6a02cab2dd1]
   - pip:

@@ -48,6 +48,36 @@ RUN conda env create -n deepbedmap -f environment.yml && \
     conda clean -tipsy && \
     conda list -n deepbedmap
 
+# Install Generic Mapping Tools binary from source
+ENV GMT_COMMIT_HASH 9f24c96d09e42d66ddbca4b1505b5c18498e7847
+ENV INSTALLDIR ${HOME}/gmt
+ENV COASTLINEDIR ${INSTALLDIR}/coast
+
+RUN git clone --depth=1 https://github.com/GenericMappingTools/gmt.git && \
+    cd gmt && \
+    git checkout ${GMT_COMMIT_HASH}
+RUN cd gmt && \
+    mkdir -p ${INSTALLDIR} && \
+    mkdir -p ${COASTLINEDIR} && \
+    bash ci/download-coastlines.sh
+USER root
+RUN apt-get -qq update && \
+    apt-get install -y --no-install-recommends \
+        cmake \
+        ninja-build \
+        libcurl4-gnutls-dev \
+        libnetcdf-dev \
+        libgdal-dev \
+        libfftw3-dev \
+        libpcre3-dev \
+        liblapack-dev \
+        ghostscript \
+        curl && \
+    cd gmt && \
+    TEST=false bash ci/build-gmt.sh && \
+    rm -rf /var/lib/apt/lists/*
+USER ${NB_USER}
+
 # Install dependencies in Pipfile.lock using pipenv
 COPY Pipfile* ${HOME}/
 RUN source activate deepbedmap && \

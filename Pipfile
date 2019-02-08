@@ -11,7 +11,7 @@ cupy-cuda92 = "==6.0.0b1"
 cython = "==0.29.2"
 descartes = "==1.1.0"
 geopandas = {editable = true, ref = "0.4.0-26-g9e584cc", git = "https://github.com/geopandas/geopandas.git"}
-gmt = {editable = true, ref = "0.1a3-131-g9772fa3", git = "https://github.com/weiji14/gmt-python.git"}
+gmt = {editable = true, ref = "0.0.1a0-16-g7004aa0", git = "https://github.com/GenericMappingTools/pygmt.git"}
 ipython = "==7.2.0"
 jupyterlab = "==0.35.4"
 jupytext = "==0.8.6"
