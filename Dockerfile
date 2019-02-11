@@ -49,11 +49,11 @@ RUN conda env create -n deepbedmap -f environment.yml && \
     conda list -n deepbedmap
 
 # Install Generic Mapping Tools binary from source
-ENV GMT_COMMIT_HASH 9f24c96d09e42d66ddbca4b1505b5c18498e7847
+ENV GMT_COMMIT_HASH 2f1f82999ff9ee9b892c83c22324d2ea7a12c76e
 ENV INSTALLDIR ${HOME}/gmt
 ENV COASTLINEDIR ${INSTALLDIR}/coast
 
-RUN git clone --depth=1 https://github.com/GenericMappingTools/gmt.git && \
+RUN git clone https://github.com/GenericMappingTools/gmt.git && \
     cd gmt && \
     git checkout ${GMT_COMMIT_HASH}
 RUN cd gmt && \
