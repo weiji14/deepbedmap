@@ -265,7 +265,7 @@ def ascii_to_xyz(pipeline_file: str) -> pd.DataFrame:
     assert len(files) > 0  # check that there are actually files being matched!
 
     df = pd.concat(
-        pd.read_table(f, sep=sep, header=skip, names=names, usecols=usecols)
+        pd.read_csv(f, sep=sep, header=skip, names=names, usecols=usecols)
         for f in files
     )
     df.reset_index(drop=True, inplace=True)  # reset index after concatenation
