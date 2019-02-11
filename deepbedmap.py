@@ -101,15 +101,11 @@ def get_deepbedmap_model_inputs(
     W2_tile = data_prep.selective_tile(
         filepath="misc/MEaSUREs_IceFlowSpeed_450m.tif",
         window_bounds=[[*window_bound]],
-        out_shape=(2 * X_tile.shape[1], 2 * X_tile.shape[2]),
+        out_shape=(2 * X_tile.shape[2], 2 * X_tile.shape[3]),
         padding=padding,
     )
 
-    return (
-        np.rollaxis(X_tile, axis=3, start=1),
-        np.rollaxis(W1_tile, axis=3, start=1),
-        np.rollaxis(W2_tile, axis=3, start=1),
-    )
+    return X_tile, W1_tile, W2_tile
 
 
 # %%
@@ -341,15 +337,10 @@ track_test.to_csv("track_test.xyz", sep="\t", index=False)
 # ### Get table statistics
 
 # %%
-df_groundtruth = pd.read_table(
-    "track_groundtruth.xyzi", header=1, names=["x", "y", "z", "z_interpolated"]
-)
-df_deepbedmap3 = pd.read_table(
-    "track_deepbedmap3.xyzi", header=1, names=["x", "y", "z", "z_interpolated"]
-)
-df_cubicbedmap = pd.read_table(
-    "track_cubicbedmap.xyzi", header=1, names=["x", "y", "z", "z_interpolated"]
-)
+names = ["x", "y", "z", "z_interpolated"]
+df_groundtruth = pd.read_csv("track_groundtruth.xyzi", sep="\t", header=1, names=names)
+df_deepbedmap3 = pd.read_csv("track_deepbedmap3.xyzi", sep="\t", header=1, names=names)
+df_cubicbedmap = pd.read_csv("track_cubicbedmap.xyzi", sep="\t", header=1, names=names)
 
 # %%
 df_groundtruth["error"] = df_groundtruth.z_interpolated - df_groundtruth.z

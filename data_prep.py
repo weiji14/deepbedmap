@@ -447,9 +447,7 @@ def get_window_bounds(
 
         # Get boolean true/false mask of where the data/nodata pixels lie
         mask = dataset.to_masked_array(copy=False).mask
-        mask = np.rollaxis(a=mask, axis=0, start=3)[
-            :, :, 0
-        ]  # change to shape (height, width)
+        mask = mask[0, :, :]  # change to shape (height, width)
 
         # Sliding window view of the input geographical raster image
         window_views = skimage.util.shape.view_as_windows(
@@ -538,18 +536,12 @@ def selective_tile(
     ...    window_bounds=[(1.0, 4.0, 3.0, 6.0), (2.0, 5.0, 4.0, 7.0)],
     ... )
     Tiling: /tmp/tmp_st.nc
-    array([[[[0.18485446],
-             [0.96958464]],
-    <BLANKLINE>
-            [[0.4951769 ],
-             [0.03438852]]],
+    array([[[[0.18485446, 0.96958464],
+             [0.4951769 , 0.03438852]]],
     <BLANKLINE>
     <BLANKLINE>
-           [[[0.04522729],
-             [0.32533032]],
-    <BLANKLINE>
-            [[0.96958464],
-             [0.77513283]]]], dtype=float32)
+           [[[0.04522729, 0.32533032],
+             [0.96958464, 0.77513283]]]], dtype=float32)
     >>> os.remove("/tmp/tmp_st.nc")
     """
     array_list = []
@@ -577,9 +569,8 @@ def selective_tile(
                 window=window,
                 out_shape=out_shape,
             )
-            array = np.rollaxis(
-                a=array, axis=0, start=3
-            )  # change to shape (height, width, 1)
+            assert array.ndim == 3  # check that we have shape like (1, height, width)
+            assert array.shape[0] == 1  # channel-first (assuming only 1 channel)
 
             try:
                 assert not array.mask.any()  # check that there are no NAN values
@@ -595,15 +586,14 @@ def selective_tile(
                             indexes=list(range(1, dataset2.count + 1)),
                             masked=True,
                             window=window2,
-                            out_shape=array.shape[:2],
+                            out_shape=array.shape[1:],
                         )
-                        array2 = np.rollaxis(a=array2, axis=0, start=3)
 
                     np.copyto(
                         dst=array, src=array2, where=array.mask
                     )  # fill in gaps where mask is True
                 else:
-                    plt.imshow(array.data[:, :, 0])
+                    plt.imshow(array.data[0, :, :])
                     plt.show()
                     raise ValueError(
                         f"Tile has missing data, try passing in gapfill_raster_filepath"
