@@ -47,6 +47,7 @@ import chainer.links as L
 import cupy
 import livelossplot
 import onnx_chainer
+import optuna
 
 from features.environment import _load_ipynb_modules
 
@@ -60,84 +61,83 @@ random.seed = seed
 np.random.seed(seed=seed)
 # cupy.random.seed(seed=seed)
 
-# Start tracking experiment using Comet.ML
-experiment = comet_ml.Experiment(
-    workspace="weiji14", project_name="deepbedmap", disabled=False
-)
 
 # %% [markdown]
 # # 1. Load data
+# - Download pre-packaged data from [Quilt](https://github.com/quiltdata/quilt)
+# - Convert arrays for Chainer, from Numpy (CPU) to CuPy (GPU) format (if available)
 
 # %%
-hash = "1ccc9dc7f6344e1ec27b7aa972f2739d192d3e5adef8a64528b86bc799e2df60"
-quilt.install(package="weiji14/deepbedmap/model/train", hash=hash, force=True)
-pkg = quilt.load(pkginfo="weiji14/deepbedmap/model/train", hash=hash)
-experiment.log_parameter(name="dataset_hash", value=hash)
+def load_data_into_memory(
+    quilt_hash="07346a5773aad87a71a57f83624289f5af507ad12f7008aec29eee209f98c399"
+) -> (chainer.datasets.dict_dataset.DictDataset, str):
+    """
+    Downloads the prepackaged tiled data from quilt based on a hash,
+    and loads it into CPU or GPU memory depending on what is available.
+    """
 
-# %%
-W1_data = pkg.W1_data()  # miscellaneous data REMA
-W2_data = pkg.W2_data()  # miscellaneous data MEASURES Ice Flow
-X_data = pkg.X_data()  # low resolution BEDMAP2
-Y_data = pkg.Y_data()  # high resolution groundtruth
-# W1_data = np.load(file="model/train/W1_data.npy")
-# W2_data = np.load(file="model/train/W2_data.npy")
-# X_data = np.load(file="model/train/X_data.npy")
-# Y_data = np.load(file="model/train/Y_data.npy")
-print(W1_data.shape, W2_data.shape, X_data.shape, Y_data.shape)
+    quilt.install(package="weiji14/deepbedmap/model/train", hash=quilt_hash, force=True)
+    pkg = quilt.load(pkginfo="weiji14/deepbedmap/model/train", hash=quilt_hash)
+
+    W1_data = pkg.W1_data()  # miscellaneous data REMA
+    W2_data = pkg.W2_data()  # miscellaneous data MEASURES Ice Flow
+    X_data = pkg.X_data()  # low resolution BEDMAP2
+    Y_data = pkg.Y_data()  # high resolution groundtruth
+    print(W1_data.shape, W2_data.shape, X_data.shape, Y_data.shape)
+
+    # Detect if there is a CUDA GPU first
+    if cupy.is_available():
+        print("Using GPU")
+        W1_data = chainer.backend.cuda.to_gpu(array=W1_data)
+        W2_data = chainer.backend.cuda.to_gpu(array=W2_data)
+        X_data = chainer.backend.cuda.to_gpu(array=X_data)
+        Y_data = chainer.backend.cuda.to_gpu(array=Y_data)
+    else:
+        print("Using CPU only")
+
+    return (
+        chainer.datasets.DictDataset(X=X_data, W1=W1_data, W2=W2_data, Y=Y_data),
+        quilt_hash,
+    )
+
 
 # %% [markdown]
-# ## 1.1 Convert arrays for Chainer
-# - From Numpy (CPU) to CuPy (GPU) format
-# - From NHWC format to NCHW format, where N=number of tiles, H=height, W=width, C=channels
+# ## 1.1 Split dataset into training (train) and development (dev) sets
 
 # %%
-# Detect if there is a CUDA GPU first
-try:
-    cupy.cuda.get_device_id()
-    xp = cupy
-    print("Using GPU")
-    experiment.log_parameter(name="use_gpu", value=True)
+def get_train_dev_iterators(
+    dataset: chainer.datasets.dict_dataset.DictDataset, batch_size: int = 32
+) -> (
+    chainer.iterators.serial_iterator.SerialIterator,
+    int,
+    chainer.iterators.serial_iterator.SerialIterator,
+    int,
+):
+    """
+    Create Chainer Dataset Iterators after splitting dataset into
+    training and development (validation) sets.
+    """
 
-    W1_data = chainer.backend.cuda.to_gpu(array=W1_data)
-    W2_data = chainer.backend.cuda.to_gpu(array=W2_data)
-    X_data = chainer.backend.cuda.to_gpu(array=X_data)
-    Y_data = chainer.backend.cuda.to_gpu(array=Y_data)
-except:  # CUDARuntimeError
-    xp = np
-    print("Using CPU only")
-    experiment.log_parameter(name="use_gpu", value=False)
+    # Train/Dev split of the dataset
+    train_set, dev_set = chainer.datasets.split_dataset_random(
+        dataset=dataset, first_size=int(len(dataset) * 0.95), seed=seed
+    )
 
-# %%
-W1_data = xp.rollaxis(a=W1_data, axis=3, start=1)
-W2_data = xp.rollaxis(a=W2_data, axis=3, start=1)
-X_data = xp.rollaxis(a=X_data, axis=3, start=1)
-Y_data = xp.rollaxis(a=Y_data, axis=3, start=1)
-print(W1_data.shape, W2_data.shape, X_data.shape, Y_data.shape)
+    # Create Chainer Dataset Iterators out of the split datasets
+    train_iter = chainer.iterators.SerialIterator(
+        dataset=train_set, batch_size=batch_size, repeat=True, shuffle=True
+    )
+    dev_iter = chainer.iterators.SerialIterator(
+        dataset=dev_set, batch_size=batch_size, repeat=True, shuffle=False
+    )
 
-# %% [markdown]
-# ## 1.2 Split dataset into training (train) and development (dev) sets
+    print(
+        f"Training dataset: {len(train_set)} tiles,",
+        f"Development dataset: {len(dev_set)} tiles",
+    )
 
-# %%
-dataset = chainer.datasets.DictDataset(X=X_data, W1=W1_data, W2=W2_data, Y=Y_data)
-train_set, dev_set = chainer.datasets.split_dataset_random(
-    dataset=dataset, first_size=int(len(X_data) * 0.95), seed=seed
-)
-experiment.log_parameters(
-    dic={"train_set_samples": len(train_set), "dev_set_samples": len(dev_set)}
-)
-print(
-    f"Training dataset: {len(train_set)} tiles, Development dataset: {len(dev_set)} tiles"
-)
+    return train_iter, len(train_set), dev_iter, len(dev_set)
 
-# %%
-batch_size = 32
-experiment.log_parameter(name="batch_size", value=batch_size)
-train_iter = chainer.iterators.SerialIterator(
-    dataset=train_set, batch_size=batch_size, repeat=True, shuffle=True
-)
-dev_iter = chainer.iterators.SerialIterator(
-    dataset=dev_set, batch_size=batch_size, repeat=True, shuffle=False
-)
 
 # %% [markdown]
 # # 2. Architect model
@@ -846,39 +846,43 @@ def calculate_discriminator_loss(
 
 # %%
 # Build the models
-generator_model = GeneratorModel()
-discriminator_model = DiscriminatorModel()
-experiment.log_parameter(
-    name="num_residual_blocks", value=generator_model.num_residual_blocks
-)
+def compile_srgan_model(num_residual_blocks: int = 4, learning_rate: float = 6e-4):
+    """
+    Instantiate our Super Resolution Generative Adversarial Network (SRGAN) model here.
+    The Generator and Discriminator neural networks are created,
+    and an Adam loss optimization function is linked to the models.
 
-# Transfer models to GPU if available
-if xp == cupy:  # Check if CuPy was loaded, i.e. GPU is available
-    generator_model.to_gpu(device=0)
-    discriminator_model.to_gpu(device=0)
+    Returns:
+    1) generator_model
+    2) generator_optimizer
+    3) discriminator_model
+    4) discriminator_optimizer
+    """
 
-# %%
-# Setup optimizer, using Adam
-generator_optimizer = chainer.optimizers.Adam(alpha=6e-4, eps=1e-8).setup(
-    link=generator_model
-)
-experiment.log_parameters(
-    dic={
-        "generator_optimizer": "adam",
-        "generator_lr": generator_optimizer.alpha,  # learning rate
-        "generator_epsilon": generator_optimizer.eps,
-    }
-)
-discriminator_optimizer = chainer.optimizers.Adam(alpha=6e-4, eps=1e-8).setup(
-    link=discriminator_model
-)
-experiment.log_parameters(
-    dic={
-        "discriminator_optimizer": "adam",
-        "discriminator_lr": discriminator_optimizer.alpha,  # learning rate
-        "discriminator_adam_epsilon": discriminator_optimizer.eps,
-    }
-)
+    # Instantiate our Generator and Discriminator Neural Network models
+    generator_model = GeneratorModel(num_residual_blocks=num_residual_blocks)
+    discriminator_model = DiscriminatorModel()
+
+    # Transfer models to GPU if available
+    if cupy.is_available():  # Check if CuPy was loaded, i.e. GPU is available
+        generator_model.to_gpu(device=0)
+        discriminator_model.to_gpu(device=0)
+
+    # Setup optimizer, using Adam
+    generator_optimizer = chainer.optimizers.Adam(alpha=learning_rate, eps=1e-8).setup(
+        link=generator_model
+    )
+    discriminator_optimizer = chainer.optimizers.Adam(
+        alpha=learning_rate, eps=1e-8
+    ).setup(link=discriminator_model)
+
+    return (
+        generator_model,
+        generator_optimizer,
+        discriminator_model,
+        discriminator_optimizer,
+    )
+
 
 # %% [markdown]
 # # 3. Train model
@@ -1076,24 +1080,25 @@ def train_eval_generator(
 
 
 # %%
-epochs = 50
-experiment.log_parameter(name="num_epochs", value=epochs)
+def trainer(
+    i: int,  # current epoch
+    dataframe: pd.DataFrame,
+    train_iter: chainer.iterators.serial_iterator.SerialIterator,
+    dev_iter: chainer.iterators.serial_iterator.SerialIterator,
+    g_model,  # generator_model
+    g_optimizer,  # generator_optimizer
+    d_model,  # discriminator_model
+    d_optimizer,  # discriminator_optimizer
+    metric_names: list,  # metric names (without the val_)
+    progressbar,
+) -> pd.DataFrame:
+    """
+    Trains the Super Resolution Generative Adversarial Networks (SRGAN)'s
+    Discriminator and Generator components one after another for one epoch.
+    Also does evaluation on a development dataset and reports metrics.
+    """
 
-metric_names = [
-    "discriminator_loss",
-    "discriminator_accu",
-    "generator_loss",
-    "generator_psnr",
-]
-columns = metric_names + [f"val_{metric_name}" for metric_name in metric_names]
-dataframe = pd.DataFrame(index=np.arange(epochs), columns=columns)
-progressbar = tqdm.tqdm(unit="epoch", total=epochs, position=0)
-
-train_iter.reset()
-dev_iter.reset()
-
-for i in range(epochs):
-    metrics_dict = {mn: [] for mn in columns}  # reset metrics dictionary
+    metrics_dict = {mn: [] for mn in dataframe.columns}  # reset metrics dictionary
 
     ## Part 1 - Training on training dataset
     while i == train_iter.epoch:  # while we are in epoch i, run minibatch training
@@ -1102,9 +1107,9 @@ for i in range(epochs):
         ## 1.1 - Train Discriminator
         d_train_loss, d_train_accu = train_eval_discriminator(
             input_arrays=train_arrays,
-            g_model=generator_model,
-            d_model=discriminator_model,
-            d_optimizer=discriminator_optimizer,
+            g_model=g_model,
+            d_model=d_model,
+            d_optimizer=d_optimizer,
         )
         metrics_dict["discriminator_loss"].append(d_train_loss)
         metrics_dict["discriminator_accu"].append(d_train_accu)
@@ -1112,9 +1117,9 @@ for i in range(epochs):
         ## 1.2 - Train Generator
         g_train_loss, g_train_psnr = train_eval_generator(
             input_arrays=train_arrays,
-            g_model=generator_model,
-            d_model=discriminator_model,
-            g_optimizer=generator_optimizer,
+            g_model=g_model,
+            d_model=d_model,
+            g_optimizer=g_optimizer,
         )
         metrics_dict["generator_loss"].append(g_train_loss)
         metrics_dict["generator_psnr"].append(g_train_psnr)
@@ -1125,20 +1130,14 @@ for i in range(epochs):
         dev_arrays = chainer.dataset.concat_examples(batch=dev_batch)
         ## 2.1 - Evaluate Discriminator
         d_train_loss, d_train_accu = train_eval_discriminator(
-            input_arrays=dev_arrays,
-            g_model=generator_model,
-            d_model=discriminator_model,
-            train=False,
+            input_arrays=dev_arrays, g_model=g_model, d_model=d_model, train=False
         )
         metrics_dict["val_discriminator_loss"].append(d_train_loss)
         metrics_dict["val_discriminator_accu"].append(d_train_accu)
 
         ## 2.2 - Evaluate Generator
         g_dev_loss, g_dev_psnr = train_eval_generator(
-            input_arrays=dev_arrays,
-            g_model=generator_model,
-            d_model=discriminator_model,
-            train=False,
+            input_arrays=dev_arrays, g_model=g_model, d_model=d_model, train=False
         )
         metrics_dict["val_generator_loss"].append(g_dev_loss)
         metrics_dict["val_generator_psnr"].append(g_dev_psnr)
@@ -1150,40 +1149,51 @@ for i in range(epochs):
         metrics=metric_names,
         max_cols=4,
         figsize=(21, 9),
-        max_epoch=epochs,
+        max_epoch=None,
     )
     progressbar.set_postfix(ordered_dict=dataframe.loc[i].to_dict())
-    experiment.log_metrics(dic=dataframe.loc[i].to_dict(), step=i)
     progressbar.update(n=1)
 
-# %%
-model = generator_model
+    return dataframe
+
 
 # %%
-os.makedirs(name="model/weights", exist_ok=True)
-# Save generator model's parameter weights in Numpy Zipped format
-chainer.serializers.save_npz(
-    file="model/weights/srgan_generator_model_weights.npz", obj=model
-)
-# Save generator model's architecture in ONNX format
-dummy_inputs = {
-    "x": np.random.rand(32, 1, 10, 10).astype("float32"),
-    "w1": np.random.rand(32, 1, 100, 100).astype("float32"),
-    "w2": np.random.rand(32, 1, 20, 20).astype("float32"),
-}
-_ = onnx_chainer.export(
-    model=model,
-    args={"inputs": dummy_inputs},
-    filename="model/weights/srgan_generator_model_architecture.onnx",
-    export_params=False,
-    save_text=True,
-)
+def save_model_weights_and_architecture(
+    trained_model,
+    model_basename: str = "srgan_generator_model",
+    save_path: str = "model/weights",
+) -> (str, str):
+    """
+    Save the trained neural network's parameter weights and architecture,
+    respectively to zipped Numpy (.npz) and ONNX (.onnx, .onnx.txt) format.
+    """
 
-# Upload model weights file to Comet.ML and finish Comet.ML experiment
-experiment.log_asset(
-    file_path="model/weights/srgan_generator_model_weights.npz",
-    file_name="srgan_generator_model_weights.npz",
-)
+    os.makedirs(name=save_path, exist_ok=True)
+
+    # Save generator model's parameter weights in Numpy Zipped format
+    model_weights_path: str = os.path.join(save_path, f"{model_basename}_weights.npz")
+    chainer.serializers.save_npz(file=model_weights_path, obj=trained_model)
+
+    # Save generator model's architecture in ONNX format
+    dummy_inputs = {
+        "x": np.random.rand(32, 1, 10, 10).astype("float32"),
+        "w1": np.random.rand(32, 1, 100, 100).astype("float32"),
+        "w2": np.random.rand(32, 1, 20, 20).astype("float32"),
+    }
+    model_architecture_path: str = os.path.join(
+        save_path, f"{model_basename}_architecture.onnx"
+    )
+    _ = onnx_chainer.export(
+        model=trained_model,
+        args={"inputs": dummy_inputs},
+        filename=model_architecture_path,
+        export_params=False,
+        save_text=True,
+    )
+    assert os.path.exists(f"{model_architecture_path}.txt")
+
+    return model_weights_path, model_architecture_path
+
 
 # %% [markdown]
 # # 4. Evaluate model
@@ -1192,7 +1202,11 @@ experiment.log_asset(
 # ## Evaluation on independent test set
 
 # %%
-def get_deepbedmap_test_result(test_filepath: str = "highres/2007tx"):
+def get_deepbedmap_test_result(
+    test_filepath: str = "highres/2007tx",
+    model=None,
+    model_weights_path: str = "model/weights/srgan_generator_model_weights.npz",
+) -> float:
     """
     Gets Root Mean Squared Error of elevation difference between
     DeepBedMap topography and reference groundtruth xyz tracks
@@ -1207,7 +1221,9 @@ def get_deepbedmap_test_result(test_filepath: str = "highres/2007tx"):
     )
 
     # Run input datasets through trained neural network model
-    model = deepbedmap.load_trained_model()
+    model = deepbedmap.load_trained_model(
+        model=model, model_weights_path=model_weights_path
+    )
     Y_hat = model.forward(inputs={"x": X_tile, "w1": W1_tile, "w2": W2_tile}).array
 
     # Save infered deepbedmap to grid file(s)
@@ -1222,8 +1238,11 @@ def get_deepbedmap_test_result(test_filepath: str = "highres/2007tx"):
 
     # Get the elevation (z) value at specified x, y points along the groundtruth track
     !gmt grdtrack track_test.xyz -Gmodel/deepbedmap3.nc -h1 -i0,1,2 > track_deepbedmap3.xyzi
-    df_deepbedmap3 = pd.read_table(
-        "track_deepbedmap3.xyzi", header=1, names=["x", "y", "z", "z_interpolated"]
+    df_deepbedmap3 = pd.read_csv(
+        "track_deepbedmap3.xyzi",
+        sep="\t",
+        header=1,
+        names=["x", "y", "z", "z_interpolated"],
     )
 
     # Calculate elevation error between groundtruth xyz tracks and deepbedmap
@@ -1233,10 +1252,126 @@ def get_deepbedmap_test_result(test_filepath: str = "highres/2007tx"):
     return rmse_deepbedmap3
 
 
-# %%
-rmse_test = get_deepbedmap_test_result()
-print(f"Experiment yielded Root Mean Square Error of {rmse_test:.2f} on test set")
-experiment.log_metric(name="rmse_test", value=rmse_test)
+# %% [markdown]
+# # 5. Hyperparameter tuning
+
+# %% [markdown]
+# Tuning the various hyperparameters on our test area using [Optuna](https://github.com/pfnet/optuna).
+# Yes, not exactly proper I know, but we have lots of areas we can test on later.
+#
+# Also logging all the experiments using [Comet.ML](https://www.comet.ml) to https://www.comet.ml/weiji14/deepbedmap.
 
 # %%
-experiment.end()
+def objective(trial: optuna.trial.Trial) -> float:
+    """
+    Objective function for tuning the Hyperparameters of our DeepBedMap model.
+    Uses the Optuna (https://github.com/pfnet/optuna) library.
+
+    List of hyperparameters tuned:
+    - Learning rate
+    - Number of residual blocks
+    - Batch Size
+    - Number of training epochs
+    """
+
+    # Start tracking experiment using Comet.ML
+    experiment = comet_ml.Experiment(
+        workspace="weiji14", project_name="deepbedmap", disabled=False
+    )
+
+    ## Load Dataset
+    dataset, quilt_hash = load_data_into_memory()
+    experiment.log_parameter(name="dataset_hash", value=quilt_hash)
+    experiment.log_parameter(name="use_gpu", value=cupy.is_available())
+    batch_size: int = trial.suggest_categorical(name="batch_size", choices=[16, 32, 64])
+    experiment.log_parameter(name="batch_size", value=batch_size)
+    train_iter, train_len, dev_iter, dev_len = get_train_dev_iterators(
+        dataset=dataset, batch_size=batch_size
+    )
+    experiment.log_parameters(
+        dic={"train_set_samples": train_len, "dev_set_samples": dev_len}
+    )
+
+    ## Compile Model
+    num_residual_blocks: int = trial.suggest_int(
+        name="num_residual_blocks", low=2, high=8
+    )
+    learning_rate: float = trial.suggest_discrete_uniform(
+        name="learning_rate", high=1e-3, low=1e-4, q=5e-5
+    )
+    g_model, g_optimizer, d_model, d_optimizer = compile_srgan_model(
+        num_residual_blocks=num_residual_blocks, learning_rate=learning_rate
+    )
+    experiment.log_parameters(
+        dic={
+            "num_residual_blocks": g_model.num_residual_blocks,
+            "generator_optimizer": "adam",
+            "generator_lr": g_optimizer.alpha,  # learning rate
+            "generator_epsilon": g_optimizer.eps,  # epsilon
+            "discriminator_optimizer": "adam",
+            "discriminator_lr": d_optimizer.alpha,  # learning rate
+            "discriminator_adam_epsilon": d_optimizer.eps,  # epsilon
+        }
+    )
+
+    ## Run Trainer and save trained model
+    epochs: int = trial.suggest_int(name="num_epochs", low=1, high=3)
+    experiment.log_parameter(name="num_epochs", value=epochs)
+
+    metric_names = [
+        "discriminator_loss",
+        "discriminator_accu",
+        "generator_loss",
+        "generator_psnr",
+    ]
+    columns = metric_names + [f"val_{metric_name}" for metric_name in metric_names]
+    dataframe = pd.DataFrame(index=np.arange(epochs), columns=columns)
+    progressbar = tqdm.tqdm(unit="epoch", total=epochs, position=0)
+
+    train_iter.reset()
+    dev_iter.reset()
+
+    for i in range(epochs):
+        dataframe = trainer(
+            i=i,
+            dataframe=dataframe,
+            train_iter=train_iter,
+            dev_iter=dev_iter,
+            g_model=g_model,
+            g_optimizer=g_optimizer,
+            d_model=d_model,
+            d_optimizer=d_optimizer,
+            metric_names=metric_names,
+            progressbar=progressbar,
+        )
+        experiment.log_metrics(dic=dataframe.loc[i].to_dict(), step=i)
+
+    model_weights_path, model_architecture_path = save_model_weights_and_architecture(
+        trained_model=g_model
+    )
+    experiment.log_asset(
+        file_path=model_weights_path, file_name=os.path.basename(model_weights_path)
+    )
+    experiment.log_asset(
+        file_path=model_architecture_path,
+        file_name=os.path.basename(model_architecture_path),
+    )
+
+    ## Evaluate model and return metrics
+    rmse_test = get_deepbedmap_test_result(
+        model=g_model, model_weights_path=model_weights_path
+    )
+    print(f"Experiment yielded Root Mean Square Error of {rmse_test:.2f} on test set")
+    experiment.log_metric(name="rmse_test", value=rmse_test)
+    experiment.end()
+
+    return rmse_test
+
+
+# %%
+sampler = optuna.samplers.TPESampler(seed=seed)  # Tree-structured Parzen Estimator
+study = optuna.create_study(study_name="DeepBedMap_tuning", sampler=sampler)
+study.optimize(func=objective, n_trials=2, n_jobs=1)
+
+# %%
+study.trials_dataframe()
