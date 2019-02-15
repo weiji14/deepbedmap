@@ -30,7 +30,7 @@ scikit-image = "==0.14.2"
 shapely = "==1.7a1"
 toolz = "==0.9.0"
 tornado = "==5.1.1"
-tqdm = "==4.28.1"
+tqdm = "==4.30.0"
 
 [dev-packages]
 behave = "==1.2.6"
