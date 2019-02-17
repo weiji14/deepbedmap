@@ -1,4 +1,4 @@
-ir_version: 3
+ir_version: 4
 producer_name: "Chainer"
 producer_version: "6.0.0b1"
 graph {
@@ -3979,7 +3979,7 @@ graph {
     name: "Input_153"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 64
@@ -4001,7 +4001,7 @@ graph {
     name: "Input_154"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 64
@@ -4014,7 +4014,7 @@ graph {
     name: "Input_155"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 1
@@ -4036,7 +4036,7 @@ graph {
     name: "Input_156"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 1
@@ -4049,7 +4049,7 @@ graph {
     name: "Input_4"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -4071,7 +4071,7 @@ graph {
     name: "Input_5"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -4084,7 +4084,7 @@ graph {
     name: "Input_1"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -4106,7 +4106,7 @@ graph {
     name: "Input_2"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -4119,7 +4119,7 @@ graph {
     name: "Input_7"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -4141,7 +4141,7 @@ graph {
     name: "Input_8"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -4154,7 +4154,7 @@ graph {
     name: "Input_147"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 64
@@ -4176,7 +4176,7 @@ graph {
     name: "Input_148"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 64
@@ -4189,7 +4189,7 @@ graph {
     name: "Input_9"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 64
@@ -4211,7 +4211,7 @@ graph {
     name: "Input_10"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 64
@@ -4224,7 +4224,7 @@ graph {
     name: "Input_149"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 256
@@ -4246,7 +4246,7 @@ graph {
     name: "Input_150"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 256
@@ -4259,7 +4259,7 @@ graph {
     name: "Input_151"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 256
@@ -4281,7 +4281,7 @@ graph {
     name: "Input_152"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 256
@@ -4294,7 +4294,7 @@ graph {
     name: "Input_11"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -4316,7 +4316,7 @@ graph {
     name: "Input_12"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -4329,7 +4329,7 @@ graph {
     name: "Input_13"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -4351,7 +4351,7 @@ graph {
     name: "Input_14"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -4364,7 +4364,7 @@ graph {
     name: "Input_15"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -4386,7 +4386,7 @@ graph {
     name: "Input_16"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -4399,7 +4399,7 @@ graph {
     name: "Input_17"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -4421,7 +4421,7 @@ graph {
     name: "Input_18"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -4434,7 +4434,7 @@ graph {
     name: "Input_19"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 64
@@ -4456,7 +4456,7 @@ graph {
     name: "Input_20"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 64
@@ -4469,7 +4469,7 @@ graph {
     name: "Input_22"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -4491,7 +4491,7 @@ graph {
     name: "Input_23"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -4504,7 +4504,7 @@ graph {
     name: "Input_24"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -4526,7 +4526,7 @@ graph {
     name: "Input_25"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -4539,7 +4539,7 @@ graph {
     name: "Input_26"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -4561,7 +4561,7 @@ graph {
     name: "Input_27"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -4574,7 +4574,7 @@ graph {
     name: "Input_28"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -4596,7 +4596,7 @@ graph {
     name: "Input_29"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -4609,7 +4609,7 @@ graph {
     name: "Input_30"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 64
@@ -4631,7 +4631,7 @@ graph {
     name: "Input_31"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 64
@@ -4644,7 +4644,7 @@ graph {
     name: "Input_33"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -4666,7 +4666,7 @@ graph {
     name: "Input_34"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -4679,7 +4679,7 @@ graph {
     name: "Input_35"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -4701,7 +4701,7 @@ graph {
     name: "Input_36"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -4714,7 +4714,7 @@ graph {
     name: "Input_37"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -4736,7 +4736,7 @@ graph {
     name: "Input_38"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -4749,7 +4749,7 @@ graph {
     name: "Input_39"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -4771,7 +4771,7 @@ graph {
     name: "Input_40"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -4784,7 +4784,7 @@ graph {
     name: "Input_41"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 64
@@ -4806,7 +4806,7 @@ graph {
     name: "Input_42"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 64
@@ -4819,7 +4819,7 @@ graph {
     name: "Input_113"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -4841,7 +4841,7 @@ graph {
     name: "Input_114"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -4854,7 +4854,7 @@ graph {
     name: "Input_115"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -4876,7 +4876,7 @@ graph {
     name: "Input_116"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -4889,7 +4889,7 @@ graph {
     name: "Input_117"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -4911,7 +4911,7 @@ graph {
     name: "Input_118"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -4924,7 +4924,7 @@ graph {
     name: "Input_119"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -4946,7 +4946,7 @@ graph {
     name: "Input_120"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -4959,7 +4959,7 @@ graph {
     name: "Input_121"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 64
@@ -4981,7 +4981,7 @@ graph {
     name: "Input_122"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 64
@@ -4994,7 +4994,7 @@ graph {
     name: "Input_124"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -5016,7 +5016,7 @@ graph {
     name: "Input_125"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -5029,7 +5029,7 @@ graph {
     name: "Input_126"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -5051,7 +5051,7 @@ graph {
     name: "Input_127"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -5064,7 +5064,7 @@ graph {
     name: "Input_128"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -5086,7 +5086,7 @@ graph {
     name: "Input_129"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -5099,7 +5099,7 @@ graph {
     name: "Input_130"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -5121,7 +5121,7 @@ graph {
     name: "Input_131"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -5134,7 +5134,7 @@ graph {
     name: "Input_132"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 64
@@ -5156,7 +5156,7 @@ graph {
     name: "Input_133"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 64
@@ -5169,7 +5169,7 @@ graph {
     name: "Input_135"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -5191,7 +5191,7 @@ graph {
     name: "Input_136"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -5204,7 +5204,7 @@ graph {
     name: "Input_137"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -5226,7 +5226,7 @@ graph {
     name: "Input_138"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -5239,7 +5239,7 @@ graph {
     name: "Input_139"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -5261,7 +5261,7 @@ graph {
     name: "Input_140"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -5274,7 +5274,7 @@ graph {
     name: "Input_141"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -5296,7 +5296,7 @@ graph {
     name: "Input_142"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -5309,7 +5309,7 @@ graph {
     name: "Input_143"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 64
@@ -5331,7 +5331,7 @@ graph {
     name: "Input_144"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 64
@@ -5344,7 +5344,7 @@ graph {
     name: "Input_79"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -5366,7 +5366,7 @@ graph {
     name: "Input_80"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -5379,7 +5379,7 @@ graph {
     name: "Input_81"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -5401,7 +5401,7 @@ graph {
     name: "Input_82"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -5414,7 +5414,7 @@ graph {
     name: "Input_83"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -5436,7 +5436,7 @@ graph {
     name: "Input_84"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -5449,7 +5449,7 @@ graph {
     name: "Input_85"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -5471,7 +5471,7 @@ graph {
     name: "Input_86"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -5484,7 +5484,7 @@ graph {
     name: "Input_87"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 64
@@ -5506,7 +5506,7 @@ graph {
     name: "Input_88"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 64
@@ -5519,7 +5519,7 @@ graph {
     name: "Input_90"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -5541,7 +5541,7 @@ graph {
     name: "Input_91"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -5554,7 +5554,7 @@ graph {
     name: "Input_92"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -5576,7 +5576,7 @@ graph {
     name: "Input_93"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -5589,7 +5589,7 @@ graph {
     name: "Input_94"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -5611,7 +5611,7 @@ graph {
     name: "Input_95"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -5624,7 +5624,7 @@ graph {
     name: "Input_96"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -5646,7 +5646,7 @@ graph {
     name: "Input_97"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -5659,7 +5659,7 @@ graph {
     name: "Input_98"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 64
@@ -5681,7 +5681,7 @@ graph {
     name: "Input_99"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 64
@@ -5694,7 +5694,7 @@ graph {
     name: "Input_101"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -5716,7 +5716,7 @@ graph {
     name: "Input_102"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -5729,7 +5729,7 @@ graph {
     name: "Input_103"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -5751,7 +5751,7 @@ graph {
     name: "Input_104"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -5764,7 +5764,7 @@ graph {
     name: "Input_105"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -5786,7 +5786,7 @@ graph {
     name: "Input_106"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -5799,7 +5799,7 @@ graph {
     name: "Input_107"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -5821,7 +5821,7 @@ graph {
     name: "Input_108"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -5834,7 +5834,7 @@ graph {
     name: "Input_109"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 64
@@ -5856,7 +5856,7 @@ graph {
     name: "Input_110"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 64
@@ -5869,7 +5869,7 @@ graph {
     name: "Input_45"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -5891,7 +5891,7 @@ graph {
     name: "Input_46"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -5904,7 +5904,7 @@ graph {
     name: "Input_47"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -5926,7 +5926,7 @@ graph {
     name: "Input_48"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -5939,7 +5939,7 @@ graph {
     name: "Input_49"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -5961,7 +5961,7 @@ graph {
     name: "Input_50"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -5974,7 +5974,7 @@ graph {
     name: "Input_51"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -5996,7 +5996,7 @@ graph {
     name: "Input_52"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -6009,7 +6009,7 @@ graph {
     name: "Input_53"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 64
@@ -6031,7 +6031,7 @@ graph {
     name: "Input_54"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 64
@@ -6044,7 +6044,7 @@ graph {
     name: "Input_56"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -6066,7 +6066,7 @@ graph {
     name: "Input_57"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -6079,7 +6079,7 @@ graph {
     name: "Input_58"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -6101,7 +6101,7 @@ graph {
     name: "Input_59"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -6114,7 +6114,7 @@ graph {
     name: "Input_60"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -6136,7 +6136,7 @@ graph {
     name: "Input_61"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -6149,7 +6149,7 @@ graph {
     name: "Input_62"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -6171,7 +6171,7 @@ graph {
     name: "Input_63"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -6184,7 +6184,7 @@ graph {
     name: "Input_64"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 64
@@ -6206,7 +6206,7 @@ graph {
     name: "Input_65"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 64
@@ -6219,7 +6219,7 @@ graph {
     name: "Input_67"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -6241,7 +6241,7 @@ graph {
     name: "Input_68"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -6254,7 +6254,7 @@ graph {
     name: "Input_69"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -6276,7 +6276,7 @@ graph {
     name: "Input_70"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -6289,7 +6289,7 @@ graph {
     name: "Input_71"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -6311,7 +6311,7 @@ graph {
     name: "Input_72"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -6324,7 +6324,7 @@ graph {
     name: "Input_73"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -6346,7 +6346,7 @@ graph {
     name: "Input_74"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -6359,7 +6359,7 @@ graph {
     name: "Input_75"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 64
@@ -6381,7 +6381,7 @@ graph {
     name: "Input_76"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 64
@@ -6394,7 +6394,7 @@ graph {
     name: "Input_146"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -6416,7 +6416,7 @@ graph {
     name: "Input_145"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -6438,7 +6438,7 @@ graph {
     name: "Input_134"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -6460,7 +6460,7 @@ graph {
     name: "Input_123"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -6482,7 +6482,7 @@ graph {
     name: "Input_112"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -6504,7 +6504,7 @@ graph {
     name: "Input_111"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -6526,7 +6526,7 @@ graph {
     name: "Input_100"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -6548,7 +6548,7 @@ graph {
     name: "Input_89"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -6570,7 +6570,7 @@ graph {
     name: "Input_78"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -6592,7 +6592,7 @@ graph {
     name: "Input_77"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -6614,7 +6614,7 @@ graph {
     name: "Input_66"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -6636,7 +6636,7 @@ graph {
     name: "Input_55"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -6658,7 +6658,7 @@ graph {
     name: "Input_44"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -6680,7 +6680,7 @@ graph {
     name: "Input_43"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -6702,7 +6702,7 @@ graph {
     name: "Input_32"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -6724,7 +6724,7 @@ graph {
     name: "Input_21"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -6746,7 +6746,7 @@ graph {
     name: "Input_6"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -6768,7 +6768,7 @@ graph {
     name: "Input_3"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -6790,7 +6790,7 @@ graph {
     name: "Input_0"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -6812,7 +6812,7 @@ graph {
     name: "Conv_68"
     type {
       tensor_type {
-        elem_type: FLOAT
+        elem_type: 1
         shape {
           dim {
             dim_value: 32
@@ -6833,6 +6833,6 @@ graph {
 }
 opset_import {
   domain: ""
-  version: 8
+  version: 9
 }
 

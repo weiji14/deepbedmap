@@ -30,7 +30,7 @@ import random
 import sys
 import typing
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
 import comet_ml
 import IPython.display
@@ -1315,7 +1315,7 @@ def objective(trial: optuna.trial.Trial) -> float:
     )
 
     ## Run Trainer and save trained model
-    epochs: int = trial.suggest_int(name="num_epochs", low=1, high=3)
+    epochs: int = trial.suggest_int(name="num_epochs", low=30, high=60)
     experiment.log_parameter(name="num_epochs", value=epochs)
 
     metric_names = [
@@ -1344,7 +1344,16 @@ def objective(trial: optuna.trial.Trial) -> float:
             metric_names=metric_names,
             progressbar=progressbar,
         )
-        experiment.log_metrics(dic=dataframe.loc[i].to_dict(), step=i)
+        epoch_metrics = dataframe.loc[i].to_dict()
+        experiment.log_metrics(dic=epoch_metrics, step=i)
+        ## Pruning unpromising trials with vanishing/exploding gradients
+        if (
+            epoch_metrics["val_generator_psnr"] < 0
+            or np.isnan(epoch_metrics["val_generator_loss"])
+            or np.isnan(epoch_metrics["val_discriminator_loss"])
+        ):
+            experiment.end()
+            raise optuna.structs.TrialPruned()
 
     model_weights_path, model_architecture_path = save_model_weights_and_architecture(
         trained_model=g_model
@@ -1370,8 +1379,14 @@ def objective(trial: optuna.trial.Trial) -> float:
 
 # %%
 sampler = optuna.samplers.TPESampler(seed=seed)  # Tree-structured Parzen Estimator
-study = optuna.create_study(study_name="DeepBedMap_tuning", sampler=sampler)
-study.optimize(func=objective, n_trials=2, n_jobs=1)
+study = optuna.create_study(
+    storage="sqlite:///model/logs/train.db",
+    study_name="DeepBedMap_tuning",
+    load_if_exists=True,
+    sampler=sampler,
+)
+study.optimize(func=objective, n_trials=50, n_jobs=1)
 
 # %%
-study.trials_dataframe()
+study = optuna.Study(study_name='DeepBedMap_tuning', storage='sqlite:///model/logs/train.db')
+study.trials_dataframe().tail(n=50)
