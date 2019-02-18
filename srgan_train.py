@@ -59,7 +59,8 @@ chainer.print_runtime_info()
 seed = 42
 random.seed = seed
 np.random.seed(seed=seed)
-# cupy.random.seed(seed=seed)
+if cupy.is_available():
+    cupy.random.seed(seed=42)
 
 
 # %% [markdown]
@@ -106,7 +107,7 @@ def load_data_into_memory(
 
 # %%
 def get_train_dev_iterators(
-    dataset: chainer.datasets.dict_dataset.DictDataset, batch_size: int = 32
+    dataset: chainer.datasets.dict_dataset.DictDataset, batch_size: int = 64
 ) -> (
     chainer.iterators.serial_iterator.SerialIterator,
     int,
@@ -390,14 +391,14 @@ class GeneratorModel(chainer.Chain):
     >>> y_pred.shape
     (1, 1, 32, 32)
     >>> generator_model.count_params()
-    3333249
+    6210945
     """
 
     def __init__(
         self,
         inblock_class=DeepbedmapInputBlock,
         resblock_class=ResInResDenseBlock,
-        num_residual_blocks: int = 4,
+        num_residual_blocks: int = 8,
         out_channels: int = 1,
     ):
         super().__init__()
@@ -846,7 +847,7 @@ def calculate_discriminator_loss(
 
 # %%
 # Build the models
-def compile_srgan_model(num_residual_blocks: int = 4, learning_rate: float = 6e-4):
+def compile_srgan_model(num_residual_blocks: int = 8, learning_rate: float = 6.5e-4):
     """
     Instantiate our Super Resolution Generative Adversarial Network (SRGAN) model here.
     The Generator and Discriminator neural networks are created,
@@ -1262,7 +1263,16 @@ def get_deepbedmap_test_result(
 # Also logging all the experiments using [Comet.ML](https://www.comet.ml) to https://www.comet.ml/weiji14/deepbedmap.
 
 # %%
-def objective(trial: optuna.trial.Trial) -> float:
+def objective(
+    trial: optuna.trial.Trial = optuna.trial.FixedTrial(
+        params={
+            "batch_size": 64,
+            "num_residual_blocks": 8,
+            "learning_rate": 6.5e-4,
+            "num_epochs": 45,
+        }
+    )
+) -> float:
     """
     Objective function for tuning the Hyperparameters of our DeepBedMap model.
     Uses the Optuna (https://github.com/pfnet/optuna) library.
@@ -1283,7 +1293,7 @@ def objective(trial: optuna.trial.Trial) -> float:
     dataset, quilt_hash = load_data_into_memory()
     experiment.log_parameter(name="dataset_hash", value=quilt_hash)
     experiment.log_parameter(name="use_gpu", value=cupy.is_available())
-    batch_size: int = trial.suggest_categorical(name="batch_size", choices=[16, 32, 64])
+    batch_size: int = trial.suggest_categorical(name="batch_size", choices=[64])
     experiment.log_parameter(name="batch_size", value=batch_size)
     train_iter, train_len, dev_iter, dev_len = get_train_dev_iterators(
         dataset=dataset, batch_size=batch_size
@@ -1294,10 +1304,10 @@ def objective(trial: optuna.trial.Trial) -> float:
 
     ## Compile Model
     num_residual_blocks: int = trial.suggest_int(
-        name="num_residual_blocks", low=2, high=8
+        name="num_residual_blocks", low=8, high=8
     )
     learning_rate: float = trial.suggest_discrete_uniform(
-        name="learning_rate", high=1e-3, low=1e-4, q=5e-5
+        name="learning_rate", high=8e-4, low=4e-4, q=5e-5
     )
     g_model, g_optimizer, d_model, d_optimizer = compile_srgan_model(
         num_residual_blocks=num_residual_blocks, learning_rate=learning_rate
@@ -1385,8 +1395,10 @@ study = optuna.create_study(
     load_if_exists=True,
     sampler=sampler,
 )
-study.optimize(func=objective, n_trials=50, n_jobs=1)
+study.optimize(func=objective, n_trials=10, n_jobs=1)
 
 # %%
-study = optuna.Study(study_name='DeepBedMap_tuning', storage='sqlite:///model/logs/train.db')
-study.trials_dataframe().tail(n=50)
+study = optuna.Study(
+    study_name="DeepBedMap_tuning", storage="sqlite:///model/logs/train.db"
+)
+study.trials_dataframe().tail(n=10)

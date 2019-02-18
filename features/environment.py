@@ -10,7 +10,6 @@ import nbconvert
 import nbformat
 import pandas as pd
 import quilt
-import requests
 
 
 def _load_ipynb_modules(ipynb_path: str):
@@ -87,34 +86,31 @@ def _quick_download_lowres_misc_datasets():
 def _download_deepbedmap_model_weights_from_comet():
     """
     Download latest neural network model weights from Comet.ML
-    Uses their REST API endpoint https://www.comet.ml/docs/rest-api/endpoints/
+    Uses their Python REST API class at https://www.comet.ml/docs/python-sdk/API/
     Requires the COMET_REST_API_KEY environment variable to be set in the .env file
     """
-    authHeader = {"Authorization": base64.b64decode(s=os.environ["COMET_REST_API_KEY"])}
-
-    # Get list of DeepBedMap experiments (projectId a7e4f47215b94cd98d6db8a092d78232)
-    r = requests.get(
-        url="https://www.comet.ml/api/rest/v1/experiments",
-        params={"projectId": "a7e4f47215b94cd98d6db8a092d78232"},
-        headers=authHeader,
+    comet_api = comet_ml.API(
+        rest_api_key=base64.b64decode(s=os.environ["COMET_REST_API_KEY"])
     )
-    df = pd.io.json.json_normalize(r.json()["experiments"])
+
+    # Get list of DeepBedMap experiments
+    project = comet_api.get(workspace="weiji14", project="deepbedmap")
+    df = pd.io.json.json_normalize(data=project.data["experiments"].values())
 
     # Get the key to the latest DeepBedMap experiment on Comet ML
     experiment_key = df.loc[df["start_server_timestamp"].idxmax()].experiment_key
-
-    # Use key to access url to the experiment's asset which is the hdf5 weight file
-    r = requests.get(
-        url="https://www.comet.ml/api/rest/v1/asset/get-asset-list",
-        params={"experimentKey": experiment_key},
-        headers=authHeader,
+    experiment = comet_api.get(
+        workspace="weiji14", project="deepbedmap", experiment=experiment_key
     )
-    asset_url = r.json()[0]["link"]
 
-    # Download the neural network weight file (hdf5 format) to the right place!
-    r = requests.get(url=asset_url, headers=authHeader)
+    # Use key to access url to the experiment's asset which is the npz weight file
+    assets = experiment.asset_list
+    assert assets[1]["fileName"].endswith(".npz")  # make sure we pick the .npz file
+    asset_id = assets[1]["assetId"]
+
+    # Download the neural network weight file (npz format) to the right place!
     open(file="model/weights/srgan_generator_model_weights.npz", mode="wb").write(
-        r.content
+        experiment.get_asset(asset_id=asset_id)
     )
 
 
