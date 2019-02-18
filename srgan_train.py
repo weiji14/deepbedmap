@@ -107,7 +107,9 @@ def load_data_into_memory(
 
 # %%
 def get_train_dev_iterators(
-    dataset: chainer.datasets.dict_dataset.DictDataset, batch_size: int = 64
+    dataset: chainer.datasets.dict_dataset.DictDataset,
+    batch_size: int = 64,
+    seed: int = 42,
 ) -> (
     chainer.iterators.serial_iterator.SerialIterator,
     int,
@@ -1083,15 +1085,13 @@ def train_eval_generator(
 # %%
 def trainer(
     i: int,  # current epoch
-    dataframe: pd.DataFrame,
+    columns: list,  # dataframe column names, i.e. the metric names
     train_iter: chainer.iterators.serial_iterator.SerialIterator,
     dev_iter: chainer.iterators.serial_iterator.SerialIterator,
     g_model,  # generator_model
     g_optimizer,  # generator_optimizer
     d_model,  # discriminator_model
     d_optimizer,  # discriminator_optimizer
-    metric_names: list,  # metric names (without the val_)
-    progressbar,
 ) -> pd.DataFrame:
     """
     Trains the Super Resolution Generative Adversarial Networks (SRGAN)'s
@@ -1099,7 +1099,7 @@ def trainer(
     Also does evaluation on a development dataset and reports metrics.
     """
 
-    metrics_dict = {mn: [] for mn in dataframe.columns}  # reset metrics dictionary
+    metrics_dict = {mn: [] for mn in columns}  # reset metrics dictionary
 
     ## Part 1 - Training on training dataset
     while i == train_iter.epoch:  # while we are in epoch i, run minibatch training
@@ -1143,19 +1143,7 @@ def trainer(
         metrics_dict["val_generator_loss"].append(g_dev_loss)
         metrics_dict["val_generator_psnr"].append(g_dev_psnr)
 
-    ## Part 3 - Plot loss and metric information using livelossplot
-    dataframe.loc[i] = [np.mean(metrics_dict[metric]) for metric in dataframe.keys()]
-    livelossplot.draw_plot(
-        logs=dataframe.to_dict(orient="records"),
-        metrics=metric_names,
-        max_cols=4,
-        figsize=(21, 9),
-        max_epoch=None,
-    )
-    progressbar.set_postfix(ordered_dict=dataframe.loc[i].to_dict())
-    progressbar.update(n=1)
-
-    return dataframe
+    return metrics_dict
 
 
 # %%
@@ -1271,7 +1259,9 @@ def objective(
             "learning_rate": 6.5e-4,
             "num_epochs": 45,
         }
-    )
+    ),
+    enable_livelossplot: bool = False,  # Default: False, no plots makes it go faster!
+    enable_comet_logging: bool = True,  # Default: True, log experiment to Comet.ML
 ) -> float:
     """
     Objective function for tuning the Hyperparameters of our DeepBedMap model.
@@ -1286,7 +1276,9 @@ def objective(
 
     # Start tracking experiment using Comet.ML
     experiment = comet_ml.Experiment(
-        workspace="weiji14", project_name="deepbedmap", disabled=False
+        workspace="weiji14",
+        project_name="deepbedmap",
+        disabled=not enable_comet_logging,
     )
 
     ## Load Dataset
@@ -1342,20 +1334,34 @@ def objective(
     dev_iter.reset()
 
     for i in range(epochs):
-        dataframe = trainer(
+        metrics_dict = trainer(
             i=i,
-            dataframe=dataframe,
+            columns=columns,
             train_iter=train_iter,
             dev_iter=dev_iter,
             g_model=g_model,
             g_optimizer=g_optimizer,
             d_model=d_model,
             d_optimizer=d_optimizer,
-            metric_names=metric_names,
-            progressbar=progressbar,
         )
+
+        ## Record loss and metric information, and plot using livelossplot if enabled
+        dataframe.loc[i] = [
+            np.mean(metrics_dict[metric]) for metric in dataframe.keys()
+        ]
         epoch_metrics = dataframe.loc[i].to_dict()
+        if enable_livelossplot == True:
+            livelossplot.draw_plot(
+                logs=dataframe.to_dict(orient="records"),
+                metrics=metric_names,
+                max_cols=4,
+                figsize=(21, 9),
+                max_epoch=None,
+            )
+        progressbar.set_postfix(ordered_dict=epoch_metrics)
+        progressbar.update(n=1)
         experiment.log_metrics(dic=epoch_metrics, step=i)
+
         ## Pruning unpromising trials with vanishing/exploding gradients
         if (
             epoch_metrics["val_generator_psnr"] < 0
@@ -1401,4 +1407,4 @@ study.optimize(func=objective, n_trials=10, n_jobs=1)
 study = optuna.Study(
     study_name="DeepBedMap_tuning", storage="sqlite:///model/logs/train.db"
 )
-study.trials_dataframe().tail(n=10)
+study.trials_dataframe().nsmallest(n=10, columns="value")
