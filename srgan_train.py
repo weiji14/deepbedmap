@@ -30,7 +30,7 @@ import random
 import sys
 import typing
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 import comet_ml
 import IPython.display
@@ -60,7 +60,9 @@ seed = 42
 random.seed = seed
 np.random.seed(seed=seed)
 if cupy.is_available():
-    cupy.random.seed(seed=42)
+    for c in range(cupy.cuda.runtime.getDeviceCount()):
+        with cupy.cuda.Device(c):
+            cupy.random.seed(seed=42)
 
 
 # %% [markdown]
@@ -89,10 +91,10 @@ def load_data_into_memory(
     # Detect if there is a CUDA GPU first
     if cupy.is_available():
         print("Using GPU")
-        W1_data = chainer.backend.cuda.to_gpu(array=W1_data)
-        W2_data = chainer.backend.cuda.to_gpu(array=W2_data)
-        X_data = chainer.backend.cuda.to_gpu(array=X_data)
-        Y_data = chainer.backend.cuda.to_gpu(array=Y_data)
+        W1_data = chainer.backend.cuda.to_gpu(array=W1_data, device=None)
+        W2_data = chainer.backend.cuda.to_gpu(array=W2_data, device=None)
+        X_data = chainer.backend.cuda.to_gpu(array=X_data, device=None)
+        Y_data = chainer.backend.cuda.to_gpu(array=Y_data, device=None)
     else:
         print("Using CPU only")
 
@@ -868,8 +870,8 @@ def compile_srgan_model(num_residual_blocks: int = 8, learning_rate: float = 6.5
 
     # Transfer models to GPU if available
     if cupy.is_available():  # Check if CuPy was loaded, i.e. GPU is available
-        generator_model.to_gpu(device=0)
-        discriminator_model.to_gpu(device=0)
+        generator_model.to_gpu(device=None)
+        discriminator_model.to_gpu(device=None)
 
     # Setup optimizer, using Adam
     generator_optimizer = chainer.optimizers.Adam(alpha=learning_rate, eps=1e-8).setup(
@@ -1401,7 +1403,7 @@ study = optuna.create_study(
     load_if_exists=True,
     sampler=sampler,
 )
-study.optimize(func=objective, n_trials=10, n_jobs=1)
+study.optimize(func=objective, n_trials=45, n_jobs=1)
 
 # %%
 study = optuna.Study(

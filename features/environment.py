@@ -105,9 +105,10 @@ def _download_deepbedmap_model_weights_from_comet():
 
     # Use key to access url to the experiment's asset which is the npz weight file
     assets = experiment.asset_list
-    assert assets[1]["fileName"].endswith(".npz")  # make sure we pick the .npz file
-    asset_id = assets[1]["assetId"]
-
+    for asset in experiment.asset_list:
+        if asset["fileName"].endswith(".npz"):  # make sure we pick the .npz file
+            asset_id = asset["assetId"]
+            break
     # Download the neural network weight file (npz format) to the right place!
     open(file="model/weights/srgan_generator_model_weights.npz", mode="wb").write(
         experiment.get_asset(asset_id=asset_id)
