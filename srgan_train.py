@@ -72,21 +72,25 @@ if cupy.is_available():
 
 # %%
 def load_data_into_memory(
-    quilt_hash="07346a5773aad87a71a57f83624289f5af507ad12f7008aec29eee209f98c399"
+    redownload: bool = True,
+    quilt_hash: str = "07346a5773aad87a71a57f83624289f5af507ad12f7008aec29eee209f98c399",
 ) -> (chainer.datasets.dict_dataset.DictDataset, str):
     """
     Downloads the prepackaged tiled data from quilt based on a hash,
     and loads it into CPU or GPU memory depending on what is available.
     """
 
-    quilt.install(package="weiji14/deepbedmap/model/train", hash=quilt_hash, force=True)
+    if redownload:
+        quilt.install(
+            package="weiji14/deepbedmap/model/train", hash=quilt_hash, force=True
+        )
     pkg = quilt.load(pkginfo="weiji14/deepbedmap/model/train", hash=quilt_hash)
 
     W1_data = pkg.W1_data()  # miscellaneous data REMA
     W2_data = pkg.W2_data()  # miscellaneous data MEASURES Ice Flow
     X_data = pkg.X_data()  # low resolution BEDMAP2
     Y_data = pkg.Y_data()  # high resolution groundtruth
-    print(W1_data.shape, W2_data.shape, X_data.shape, Y_data.shape)
+    # print(W1_data.shape, W2_data.shape, X_data.shape, Y_data.shape)
 
     # Detect if there is a CUDA GPU first
     if cupy.is_available():
@@ -1197,6 +1201,8 @@ def get_deepbedmap_test_result(
     test_filepath: str = "highres/2007tx",
     model=None,
     model_weights_path: str = "model/weights/srgan_generator_model_weights.npz",
+    outfilesuffix: str = "",  # unique suffix (e.g. ID) for temporary files
+    redo_testtrack: bool = True,
 ) -> float:
     """
     Gets Root Mean Squared Error of elevation difference between
@@ -1218,19 +1224,22 @@ def get_deepbedmap_test_result(
     Y_hat = model.forward(inputs={"x": X_tile, "w1": W1_tile, "w2": W2_tile}).array
 
     # Save infered deepbedmap to grid file(s)
+    outfilepath: str = f"model/deepbedmap3_{outfilesuffix}"
     deepbedmap.save_array_to_grid(
-        window_bound=window_bound, array=Y_hat, outfilepath="model/deepbedmap3"
+        window_bound=window_bound, array=Y_hat, outfilepath=outfilepath
     )
 
     # Load xyz table for test region
-    data_prep = _load_ipynb_modules("data_prep.ipynb")
-    track_test = data_prep.ascii_to_xyz(pipeline_file=f"{test_filepath}.json")
-    track_test.to_csv("track_test.xyz", sep="\t", index=False)
+    if redo_testtrack:
+        data_prep = _load_ipynb_modules("data_prep.ipynb")
+        track_test = data_prep.ascii_to_xyz(pipeline_file=f"{test_filepath}.json")
+        track_test.to_csv("track_test.xyz", sep="\t", index=False)
 
     # Get the elevation (z) value at specified x, y points along the groundtruth track
-    !gmt grdtrack track_test.xyz -Gmodel/deepbedmap3.nc -h1 -i0,1,2 > track_deepbedmap3.xyzi
+    outtrackpath: str = f"model/track_deepbedmap3_{outfilesuffix}"
+    !gmt grdtrack track_test.xyz -G{outfilepath}.nc -h1 -i0,1,2 > {outtrackpath}.xyzi
     df_deepbedmap3 = pd.read_csv(
-        "track_deepbedmap3.xyzi",
+        f"{outtrackpath}.xyzi",
         sep="\t",
         header=1,
         names=["x", "y", "z", "z_interpolated"],
@@ -1240,7 +1249,11 @@ def get_deepbedmap_test_result(
     df_deepbedmap3["error"] = df_deepbedmap3.z_interpolated - df_deepbedmap3.z
     rmse_deepbedmap3 = (df_deepbedmap3.error ** 2).mean() ** 0.5
 
-    return rmse_deepbedmap3
+    os.remove(path=f"{outfilepath}.nc")
+    # os.remove(path=f"{outfilepath}.tif")
+    os.remove(path=f"{outtrackpath}.xyzi")
+
+    return float(rmse_deepbedmap3)
 
 
 # %% [markdown]
@@ -1284,10 +1297,14 @@ def objective(
     )
 
     ## Load Dataset
-    dataset, quilt_hash = load_data_into_memory()
+    dataset, quilt_hash = load_data_into_memory(
+        redownload=True if trial.trial_id == 1 else False
+    )
     experiment.log_parameter(name="dataset_hash", value=quilt_hash)
     experiment.log_parameter(name="use_gpu", value=cupy.is_available())
-    batch_size: int = trial.suggest_categorical(name="batch_size", choices=[64])
+    batch_size: int = int(
+        2 ** trial.suggest_int(name="batch_size_exponent", low=6, high=7)
+    )
     experiment.log_parameter(name="batch_size", value=batch_size)
     train_iter, train_len, dev_iter, dev_len = get_train_dev_iterators(
         dataset=dataset, batch_size=batch_size
@@ -1298,7 +1315,7 @@ def objective(
 
     ## Compile Model
     num_residual_blocks: int = trial.suggest_int(
-        name="num_residual_blocks", low=8, high=8
+        name="num_residual_blocks", low=8, high=12
     )
     learning_rate: float = trial.suggest_discrete_uniform(
         name="learning_rate", high=8e-4, low=4e-4, q=5e-5
@@ -1386,7 +1403,10 @@ def objective(
 
     ## Evaluate model and return metrics
     rmse_test = get_deepbedmap_test_result(
-        model=g_model, model_weights_path=model_weights_path
+        model=g_model,
+        model_weights_path=model_weights_path,
+        outfilesuffix=f"{trial.trial_id}",
+        redo_testtrack=True if trial.trial_id == 1 else False,
     )
     print(f"Experiment yielded Root Mean Square Error of {rmse_test:.2f} on test set")
     experiment.log_metric(name="rmse_test", value=rmse_test)
@@ -1403,7 +1423,7 @@ study = optuna.create_study(
     load_if_exists=True,
     sampler=sampler,
 )
-study.optimize(func=objective, n_trials=45, n_jobs=1)
+study.optimize(func=objective, n_trials=25, n_jobs=1)
 
 # %%
 study = optuna.Study(
