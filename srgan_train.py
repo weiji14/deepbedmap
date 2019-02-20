@@ -30,7 +30,10 @@ import random
 import sys
 import typing
 
-# os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+try:  # check if CUDA_VISIBLE_DEVICES environment variable is set
+    os.environ["CUDA_VISIBLE_DEVICES"]
+except KeyError:  # if not set, then set it to the first GPU
+    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 import comet_ml
 import IPython.display
@@ -248,8 +251,14 @@ class ResidualDenseBlock(chainer.Chain):
     Final output has a residual scaling factor.
     """
 
-    def __init__(self, in_out_channels: int = 64, inter_channels: int = 32):
+    def __init__(
+        self,
+        in_out_channels: int = 64,
+        inter_channels: int = 32,
+        residual_scaling: float = 0.2,
+    ):
         super().__init__()
+        self.residual_scaling = residual_scaling
         init_weights = chainer.initializers.HeNormal(scale=0.1, fan_option="fan_in")
 
         with self.init_scope():
@@ -294,7 +303,7 @@ class ResidualDenseBlock(chainer.Chain):
                 initialW=init_weights,
             )
 
-    def forward(self, x, residual_scaling: float = 0.2):
+    def forward(self, x):
         """
         Forward computation, i.e. evaluate based on input x
         """
@@ -320,7 +329,7 @@ class ResidualDenseBlock(chainer.Chain):
         a5 = self.conv_layer5(a4_cat)
 
         # Final concatenation, with residual scaling of 0.2
-        a6 = F.add(a5 * residual_scaling, a0)
+        a6 = F.add(a5 * self.residual_scaling, a0)
 
         return a6
 
@@ -338,15 +347,27 @@ class ResInResDenseBlock(chainer.Chain):
 
     """
 
-    def __init__(self, denseblock_class=ResidualDenseBlock, out_channels: int = 64):
+    def __init__(
+        self,
+        denseblock_class=ResidualDenseBlock,
+        out_channels: int = 64,
+        residual_scaling: float = 0.2,
+    ):
         super().__init__()
+        self.residual_scaling = residual_scaling
 
         with self.init_scope():
-            self.residual_dense_block1 = denseblock_class()
-            self.residual_dense_block2 = denseblock_class()
-            self.residual_dense_block3 = denseblock_class()
+            self.residual_dense_block1 = denseblock_class(
+                residual_scaling=residual_scaling
+            )
+            self.residual_dense_block2 = denseblock_class(
+                residual_scaling=residual_scaling
+            )
+            self.residual_dense_block3 = denseblock_class(
+                residual_scaling=residual_scaling
+            )
 
-    def forward(self, x, residual_scaling: float = 0.2):
+    def forward(self, x):
         """
         Forward computation, i.e. evaluate based on input x
         """
@@ -355,7 +376,7 @@ class ResInResDenseBlock(chainer.Chain):
         a3 = self.residual_dense_block3(a2)
 
         # Final concatenation, with residual scaling of 0.2
-        a4 = F.add(a3 * residual_scaling, x)
+        a4 = F.add(a3 * self.residual_scaling, x)
 
         return a4
 
@@ -407,10 +428,12 @@ class GeneratorModel(chainer.Chain):
         inblock_class=DeepbedmapInputBlock,
         resblock_class=ResInResDenseBlock,
         num_residual_blocks: int = 8,
+        residual_scaling: float = 0.2,
         out_channels: int = 1,
     ):
         super().__init__()
         self.num_residual_blocks = num_residual_blocks
+        self.residual_scaling = residual_scaling
         init_weights = chainer.initializers.HeNormal(scale=0.1, fan_option="fan_in")
 
         with self.init_scope():
@@ -425,9 +448,9 @@ class GeneratorModel(chainer.Chain):
                 pad=1,  # 'same' padding
                 initialW=init_weights,
             )
-            self.residual_network = resblock_class().repeat(
-                n_repeat=num_residual_blocks
-            )
+            self.residual_network = resblock_class(
+                residual_scaling=residual_scaling
+            ).repeat(n_repeat=num_residual_blocks)
             self.post_residual_conv_layer = L.Convolution2D(
                 in_channels=None,
                 out_channels=64,
@@ -855,7 +878,11 @@ def calculate_discriminator_loss(
 
 # %%
 # Build the models
-def compile_srgan_model(num_residual_blocks: int = 8, learning_rate: float = 6.5e-4):
+def compile_srgan_model(
+    num_residual_blocks: int = 8,
+    residual_scaling: float = 0.2,
+    learning_rate: float = 6.5e-4,
+):
     """
     Instantiate our Super Resolution Generative Adversarial Network (SRGAN) model here.
     The Generator and Discriminator neural networks are created,
@@ -869,7 +896,9 @@ def compile_srgan_model(num_residual_blocks: int = 8, learning_rate: float = 6.5
     """
 
     # Instantiate our Generator and Discriminator Neural Network models
-    generator_model = GeneratorModel(num_residual_blocks=num_residual_blocks)
+    generator_model = GeneratorModel(
+        num_residual_blocks=num_residual_blocks, residual_scaling=residual_scaling
+    )
     discriminator_model = DiscriminatorModel()
 
     # Transfer models to GPU if available
@@ -1271,6 +1300,7 @@ def objective(
         params={
             "batch_size": 64,
             "num_residual_blocks": 8,
+            "residual_scaling": 0.2,
             "learning_rate": 6.5e-4,
             "num_epochs": 45,
         }
@@ -1317,15 +1347,21 @@ def objective(
     num_residual_blocks: int = trial.suggest_int(
         name="num_residual_blocks", low=8, high=12
     )
+    residual_scaling: float = trial.suggest_discrete_uniform(
+        name="residual_scaling", low=0.1, high=0.3, q=0.05
+    )
     learning_rate: float = trial.suggest_discrete_uniform(
         name="learning_rate", high=8e-4, low=4e-4, q=5e-5
     )
     g_model, g_optimizer, d_model, d_optimizer = compile_srgan_model(
-        num_residual_blocks=num_residual_blocks, learning_rate=learning_rate
+        num_residual_blocks=num_residual_blocks,
+        residual_scaling=residual_scaling,
+        learning_rate=learning_rate,
     )
     experiment.log_parameters(
         dic={
             "num_residual_blocks": g_model.num_residual_blocks,
+            "residual_scaling": g_model.residual_scaling,
             "generator_optimizer": "adam",
             "generator_lr": g_optimizer.alpha,  # learning rate
             "generator_epsilon": g_optimizer.eps,  # epsilon
@@ -1383,9 +1419,9 @@ def objective(
 
         ## Pruning unpromising trials with vanishing/exploding gradients
         if (
-            epoch_metrics["val_generator_psnr"] < 0
-            or np.isnan(epoch_metrics["val_generator_loss"])
-            or np.isnan(epoch_metrics["val_discriminator_loss"])
+            epoch_metrics["generator_psnr"] < 0
+            or np.isnan(epoch_metrics["generator_loss"])
+            or np.isnan(epoch_metrics["discriminator_loss"])
         ):
             experiment.end()
             raise optuna.structs.TrialPruned()
@@ -1416,14 +1452,15 @@ def objective(
 
 
 # %%
-sampler = optuna.samplers.TPESampler(seed=seed)  # Tree-structured Parzen Estimator
+tpe_seed = int(os.environ["CUDA_VISIBLE_DEVICES"])  # different seed for different GPU
+sampler = optuna.samplers.TPESampler(seed=tpe_seed)  # Tree-structured Parzen Estimator
 study = optuna.create_study(
     storage="sqlite:///model/logs/train.db",
     study_name="DeepBedMap_tuning",
     load_if_exists=True,
     sampler=sampler,
 )
-study.optimize(func=objective, n_trials=25, n_jobs=1)
+study.optimize(func=objective, n_trials=100, n_jobs=1)
 
 # %%
 study = optuna.Study(
