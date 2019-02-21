@@ -123,6 +123,13 @@ def fixture_data_prep(context):
 
 
 @fixture
+def fixture_srgan_train(context):
+    # set context.srgan_train to have all the module functions
+    context.srgan_train = _load_ipynb_modules(ipynb_path="srgan_train.ipynb")
+    return context.srgan_train
+
+
+@fixture
 def fixture_deepbedmap(context):
     # Quickly download all the neural network input datasets
     # _quick_download_lowres_misc_datasets()
@@ -136,5 +143,7 @@ def fixture_deepbedmap(context):
 def before_tag(context, tag):
     if tag == "fixture.data_prep":
         use_fixture(fixture_func=fixture_data_prep, context=context)
+    elif tag == "fixture.srgan_train":
+        use_fixture(fixture_func=fixture_srgan_train, context=context)
     elif tag == "fixture.deepbedmap":
         use_fixture(fixture_func=fixture_deepbedmap, context=context)

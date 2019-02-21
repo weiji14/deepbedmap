@@ -117,6 +117,7 @@ def load_data_into_memory(
 # %%
 def get_train_dev_iterators(
     dataset: chainer.datasets.dict_dataset.DictDataset,
+    first_size: int,  # size of training set
     batch_size: int = 64,
     seed: int = 42,
 ) -> (
@@ -132,7 +133,7 @@ def get_train_dev_iterators(
 
     # Train/Dev split of the dataset
     train_set, dev_set = chainer.datasets.split_dataset_random(
-        dataset=dataset, first_size=int(len(dataset) * 0.95), seed=seed
+        dataset=dataset, first_size=first_size, seed=seed
     )
 
     # Create Chainer Dataset Iterators out of the split datasets
@@ -255,7 +256,7 @@ class ResidualDenseBlock(chainer.Chain):
         self,
         in_out_channels: int = 64,
         inter_channels: int = 32,
-        residual_scaling: float = 0.2,
+        residual_scaling: float = 0.3,
     ):
         super().__init__()
         self.residual_scaling = residual_scaling
@@ -351,7 +352,7 @@ class ResInResDenseBlock(chainer.Chain):
         self,
         denseblock_class=ResidualDenseBlock,
         out_channels: int = 64,
-        residual_scaling: float = 0.2,
+        residual_scaling: float = 0.3,
     ):
         super().__init__()
         self.residual_scaling = residual_scaling
@@ -420,15 +421,15 @@ class GeneratorModel(chainer.Chain):
     >>> y_pred.shape
     (1, 1, 32, 32)
     >>> generator_model.count_params()
-    6210945
+    7649793
     """
 
     def __init__(
         self,
         inblock_class=DeepbedmapInputBlock,
         resblock_class=ResInResDenseBlock,
-        num_residual_blocks: int = 8,
-        residual_scaling: float = 0.2,
+        num_residual_blocks: int = 10,
+        residual_scaling: float = 0.3,
         out_channels: int = 1,
     ):
         super().__init__()
@@ -879,8 +880,8 @@ def calculate_discriminator_loss(
 # %%
 # Build the models
 def compile_srgan_model(
-    num_residual_blocks: int = 8,
-    residual_scaling: float = 0.2,
+    num_residual_blocks: int = 10,
+    residual_scaling: float = 0.3,
     learning_rate: float = 6.5e-4,
 ):
     """
@@ -1298,11 +1299,11 @@ def get_deepbedmap_test_result(
 def objective(
     trial: optuna.trial.Trial = optuna.trial.FixedTrial(
         params={
-            "batch_size": 64,
-            "num_residual_blocks": 8,
-            "residual_scaling": 0.2,
-            "learning_rate": 6.5e-4,
-            "num_epochs": 45,
+            "batch_size_exponent": 7,
+            "num_residual_blocks": 10,
+            "residual_scaling": 0.3,
+            "learning_rate": 5e-4,
+            "num_epochs": 100,
         }
     ),
     enable_livelossplot: bool = False,  # Default: False, no plots makes it go faster!
@@ -1326,9 +1327,15 @@ def objective(
         disabled=not enable_comet_logging,
     )
 
+    # Don't use cached stuff if it's a FixedTrial or the first trial
+    if not hasattr(trial, "trial_id") or trial.trial_id == 1:
+        refresh_cache = True
+    elif trial.trial_id > 1:  # Use cache if trial.trial_id > 1
+        refresh_cache = False
+
     ## Load Dataset
     dataset, quilt_hash = load_data_into_memory(
-        redownload=True if trial.trial_id == 1 else False
+        redownload=True if refresh_cache else False
     )
     experiment.log_parameter(name="dataset_hash", value=quilt_hash)
     experiment.log_parameter(name="use_gpu", value=cupy.is_available())
@@ -1337,7 +1344,7 @@ def objective(
     )
     experiment.log_parameter(name="batch_size", value=batch_size)
     train_iter, train_len, dev_iter, dev_len = get_train_dev_iterators(
-        dataset=dataset, batch_size=batch_size
+        dataset=dataset, first_size=int(len(dataset) * 0.95), batch_size=batch_size
     )
     experiment.log_parameters(
         dic={"train_set_samples": train_len, "dev_set_samples": dev_len}
@@ -1441,8 +1448,8 @@ def objective(
     rmse_test = get_deepbedmap_test_result(
         model=g_model,
         model_weights_path=model_weights_path,
-        outfilesuffix=f"{trial.trial_id}",
-        redo_testtrack=True if trial.trial_id == 1 else False,
+        outfilesuffix=f"{trial.trial_id if hasattr(trial, 'trial_id') else ''}",
+        redo_testtrack=True if refresh_cache else False,
     )
     print(f"Experiment yielded Root Mean Square Error of {rmse_test:.2f} on test set")
     experiment.log_metric(name="rmse_test", value=rmse_test)
@@ -1452,18 +1459,28 @@ def objective(
 
 
 # %%
-tpe_seed = int(os.environ["CUDA_VISIBLE_DEVICES"])  # different seed for different GPU
-sampler = optuna.samplers.TPESampler(seed=tpe_seed)  # Tree-structured Parzen Estimator
-study = optuna.create_study(
-    storage="sqlite:///model/logs/train.db",
-    study_name="DeepBedMap_tuning",
-    load_if_exists=True,
-    sampler=sampler,
-)
-study.optimize(func=objective, n_trials=100, n_jobs=1)
+n_trials = 1
+if n_trials == 1:  # run training once only, i.e. just test the objective function
+    objective(enable_livelossplot=True, enable_comet_logging=True)
+elif n_trials > 1:  # perform hyperparameter tuning with multiple experimental trials
+    tpe_seed = int(
+        os.environ["CUDA_VISIBLE_DEVICES"]
+    )  # different seed for different GPU
+    sampler = optuna.samplers.TPESampler(
+        seed=tpe_seed
+    )  # Tree-structured Parzen Estimator
+    study = optuna.create_study(
+        storage="sqlite:///model/logs/train.db",
+        study_name="DeepBedMap_tuning",
+        load_if_exists=True,
+        sampler=sampler,
+    )
+    study.optimize(func=objective, n_trials=100, n_jobs=1)
+
 
 # %%
-study = optuna.Study(
-    study_name="DeepBedMap_tuning", storage="sqlite:///model/logs/train.db"
-)
-study.trials_dataframe().nsmallest(n=10, columns="value")
+if n_trials > 1:
+    study = optuna.Study(
+        study_name="DeepBedMap_tuning", storage="sqlite:///model/logs/train.db"
+    )
+    study.trials_dataframe().nsmallest(n=10, columns="value")
