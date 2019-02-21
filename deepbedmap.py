@@ -185,7 +185,8 @@ plt.show()
 
 # %%
 def load_trained_model(
-    filepath: str = "model/weights/srgan_generator_model_weights.npz"
+    model=None,
+    model_weights_path: str = "model/weights/srgan_generator_model_weights.npz",
 ):
     """
     Builds the Generator component of the DeepBedMap neural network.
@@ -193,10 +194,11 @@ def load_trained_model(
     """
     srgan_train = _load_ipynb_modules("srgan_train.ipynb")
 
-    model = srgan_train.GeneratorModel()
+    if model is None:
+        model = srgan_train.GeneratorModel()
 
     # Load trained neural network weights into model
-    chainer.serializers.load_npz(file=filepath, obj=model)
+    chainer.serializers.load_npz(file=model_weights_path, obj=model)
 
     return model
 
