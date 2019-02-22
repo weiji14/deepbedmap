@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "2ce7db1114915158542979a1b6975e42be58acc8c933593f20d71ac952cbbab1"
+            "sha256": "0812bef9b775847611fa6878fdde616a4531e4280c1bee91ed54abc79962df5b"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -689,10 +689,10 @@
         },
         "onnx-chainer": {
             "hashes": [
-                "sha256:3f73fa0a446621d95bc234236e65485908dba7bfd9f0557ed5b3595341ced268"
+                "sha256:9cce7efcaf752429805c0898db8b228f44c2cd940b2e9158507fc6a9aa51df74"
             ],
             "index": "pypi",
-            "version": "==1.3.0a1"
+            "version": "==1.3.2"
         },
         "optuna": {
             "hashes": [
