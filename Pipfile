@@ -5,7 +5,7 @@ name = "pypi"
 
 [packages]
 black = "==18.9b0"
-chainer = "==6.0.0b1"
+chainer = "==6.0.0b2"
 comet-ml = "==1.0.45"
 cupy-cuda92 = "==6.0.0b1"
 cython = "==0.29.2"
