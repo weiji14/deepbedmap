@@ -160,3 +160,16 @@
       filename: 2017_Antarctica_Basler.csv
       url: "https://data.cresis.ku.edu/data/rds/2017_Antarctica_Basler/csv_good/2017_Antarctica_Basler.csv"
       sha256: c97d0d92f3095ee8c3941d915028728423758594cc95e7b819889b51693f0712
+-
+  citekey: Ferraccioli2018Wilkes
+  folder: highres
+  location: Wilkes Subglacial Basin
+  resolution: nan
+  doi:
+    dataset: "https://doi.org/10.5285/59e5a6f5-e67d-4a05-99af-30f656569401"
+    literature: "https://doi.org/10.1111/j.1365-3121.2010.00944.x"
+  files:
+    -
+       filename: WISE_ISODYN_RadarByFlight_ASCII.zip
+       url: https://ramadda.data.bas.ac.uk/repository/entry/get/WISE_ISODYN_RadarByFlight_ASCII.zip?entryid=synth%3A59e5a6f5-e67d-4a05-99af-30f656569401%3AL1dJU0VfSVNPRFlOX1JhZGFyQnlGbGlnaHRfQVNDSUkuemlw
+       sha256: dfb20a4ff133f361f64b5730e7593a46cb3d599ae62b0dc874685794990c8d91
