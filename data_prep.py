@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.2'
-#       jupytext_version: 0.8.6
+#       jupytext_version: 1.0.1
 #   kernelspec:
 #     display_name: deepbedmap
 #     language: python
@@ -259,13 +259,16 @@ def ascii_to_xyz(pipeline_file: str) -> pd.DataFrame:
     sep = reader.separator  # delimiter to use
     names = reader.header.split(sep=sep)  # header/column names as list
     usecols = reader.usecols.split(sep=sep)  # column names to use
+    na_values = None if not hasattr(reader, "na_values") else reader.na_values
 
     path_pattern = os.path.join(os.path.dirname(pipeline_file), reader.filename)
     files = [file for file in glob.glob(path_pattern)]
     assert len(files) > 0  # check that there are actually files being matched!
 
     df = pd.concat(
-        pd.read_csv(f, sep=sep, header=skip, names=names, usecols=usecols)
+        pd.read_csv(
+            f, sep=sep, header=skip, names=names, usecols=usecols, na_values=na_values
+        )
         for f in files
     )
     df.reset_index(drop=True, inplace=True)  # reset index after concatenation
