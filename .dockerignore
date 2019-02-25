@@ -1,4 +1,5 @@
 .git
+gmt/
 **/.ipynb_checkpoints
 **/*.csv
 **/*.txt

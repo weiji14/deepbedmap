@@ -1,4 +1,5 @@
 .jupyter/
+gmt/
 **/.ipynb_checkpoints
 **/*.csv
 **/*.txt
