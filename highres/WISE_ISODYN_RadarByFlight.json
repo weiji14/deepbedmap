@@ -1,0 +1,18 @@
+{
+    "pipeline":[
+        {
+          "type":"readers.text",
+          "filename":"WISE_ISODYN_RadarByFlight_ASCII.zip",
+          "separator":"\\s+",
+          "skip":11,
+          "header":"FlightID\\s+Line_name\\s+X\\s+Y\\s+x\\s+y\\s+Height_WGS1984\\s+Date\\s+Time\\s+Segy_name\\s+traceNum\\s+PriNum\\s+surfPickLoc\\s+bedPickLoc\\s+Z\\s+Bedrock_and_BEDMAP2\\s+Mask\\s+picked_bedElev\\s+surfElev\\s+tIce",
+          "usecols":"X\\s+Y\\s+Z",
+          "na_values": "*"
+        },
+        {
+          "type":"filters.reprojection",
+          "in_srs":"EPSG:4326",
+          "out_srs":"EPSG:3031"
+        }
+    ]
+}
