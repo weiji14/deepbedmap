@@ -14,7 +14,7 @@ geopandas = {editable = true, ref = "0.4.0-26-g9e584cc", git = "https://github.c
 gmt = {editable = true, ref = "0.0.1a0-16-g7004aa0", git = "https://github.com/GenericMappingTools/pygmt.git"}
 ipython = "==7.3.0"
 jupyterlab = "==0.35.4"
-jupytext = "==1.0.1"
+jupytext = "==1.0.2"
 livelossplot = "==0.3.0"
 matplotlib = "==3.0.2"
 netcdf4 = "==1.4.1"
