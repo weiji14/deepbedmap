@@ -9,7 +9,7 @@
 %% Please use the following documentclass and journal abbreviations for discussion papers and final revised papers.
 
 %% 2-column papers and discussion papers
-\documentclass[journal abbreviation, manuscript]{copernicus}
+\documentclass[tc, manuscript]{copernicus}
 
 
 
@@ -72,17 +72,16 @@
 
 \begin{document}
 
-\title{TEXT}
+\title{DeepBedMap: Using a deep neural network to better resolve the bed
+topography of Antarctica}
 
 
 % \Author[affil]{given_name}{surname}
 
-\Author[]{}{}
-\Author[]{}{}
-\Author[]{}{}
+\Author[1]{Wei Ji}{Leong}
+\Author[1]{Huw}{Horgan}
 
-\affil[]{ADDRESS}
-\affil[]{ADDRESS}
+\affil[1]{Antarctic Research Centre, Victoria University of Wellington, Wellington, New Zealand}
 
 %% The [] brackets identify the author with the corresponding affiliation. 1, 2, 3, etc. should be inserted.
 
@@ -92,7 +91,7 @@
 
 \runningauthor{TEXT}
 
-\correspondence{NAME (EMAIL)}
+\correspondence{W. J. Leong (weiji.leong@vuw.ac.nz)}
 
 
 
@@ -112,15 +111,41 @@
 
 
 \begin{abstract}
-TEXT
+To better resolve the bed elevation of Antarctica, we present a novel deep convolutional neural network that produces realistic terrain given multiple remote sensing data inputs.
+Our super-resolution DeepBedMap neural network model is trained on scattered regions in Antarctica where high resolution groundtruth bed elevation grids are available, and later used to generate high resolution bed topography in less well surveyed areas.
+DeepBedMap improves on previous interpolation methods by not restricting itself to a low spatial resolution (1000m) BEDMAP2 raster image as its prior.
+It takes in additional high spatial resolution datasets, such as Antarctic ice surface velocity and surface elevation maps, which can be used to better inform the bed topography even in the absence of direct ice-penetrating radar survey data.
+Our DeepBedMap model is based on an adapted Enhanced Super Resolution Generative Adversarial Network architecture, chosen to minimize the per-pixel elevation error while producing realistic topography.
+The final product is a four times upsampled (250m) bed elevation model of Antarctica that can be used by glaciologists interested in the subglacial terrain, and also ice sheet modellers wanting to run catchment or continent-scale ice sheet model simulations.
+We show that DeepBedMap produces a more accurate digital elevation model than a baseline bicubic interpolation product, and also compare it with other synthetic bed elevation models on reference groundtruth survey tracks.
 \end{abstract}
 
 
-\copyrightstatement{TEXT}
+\copyrightstatement{This work is distributed under the Creative Commons Attribution 4.0 License}
 
 
 \introduction  %% \introduction[modified heading if necessary]
-TEXT
+
+In order to create a more detailed map of Antarctica's bed, we present a novel deep convolutional neural network that produces realistic terrain given multiple remote sensing data inputs.
+A higher resolution digital bed elevation model of Antarctica provides a clearer picture which will enable better understanding of glacier ice flow mechanics.
+This in turn allows for the development of more accurate ice sheet models useful for generating realistic estimates of how past and future sea level can change over time.
+
+There are two techniques for mapping the subglacial terrain of Antarctica.
+The main way is via the use of ice-penetrating radar - a method that images the ice-bed interface along survey lines.
+Although this is the most direct way, it is geographically limited and involves manual, time consuming work.
+
+Another potential way to overcome these geographical limitations is via an indirect inversion method - using surface data observations to determine bed characteristics.
+A complex non-linear relationship exists between the surface elevation and bed elevation of glaciers, ice streams and ice sheets \citep{Raymondrelationshipsurfacebasal2005}, meaning one can theoretically use a well resolved surface to infer bed properties \citep[e.g.][]{Farinottimethodestimateice2009}.
+Using inputs such as the glacier outline, surface digital elevation models, surface mass balance, surface rate of elevation change and surface ice flow velocity, \citet{FarinottiHowaccurateare2017} have tested various models in the Ice Thickness Models Intercomparison eXperiment (ITMIX) to determine ice thickness (bed elevation minus surface elevation).
+While significant inter-model uncertainties do exist, they can be mitigated by combining several models in an ensemble to provide a consensus estimate \citep{Farinotticonsensusestimateice2019}.
+However, these studies tend to have a scope limited to individual glaciers or small ice caps.
+
+Here in this paper, we present a deep learning method that belongs to the inverse modelling category, but one which is trained on direct ice-penetrating radar observations.
+Similar work has been done before using Artificial Feedforward Neural Networks for estimating bed topography \citep[e.g.][]{ClarkeNeuralNetworksApplied2009,MonnierInferencebedtopography2018}, but to our knowledge, none so far in the glaciological community have attempted to use Convolutional Neural Networks that works in a more spatially-aware, 2-dimensional setting.
+Our main contributions are twofold and as follows:
+1) Use a deep convolutional neural network to integrate most if not all of the remote sensing datasets relevant for estimating Antarctica's bed topography;
+2) Present a high resolution (250m) bed elevation map of Antarctica that goes beyond the 1km resolution of BEDMAP2 \citep{FretwellBedmap2improvedice2013}.
+We name our neural network "DeepBedMap", and the resulting digital elevation model (DEM) product as "DeepBedMap\_DEM".
 
 
 \section{HEADING}
@@ -197,21 +222,21 @@ TEXT
 
 %% The reference list is compiled as follows:
 
-\begin{thebibliography}{}
+%% \begin{thebibliography}{}
 
-\bibitem[AUTHOR(YEAR)]{LABEL1}
-REFERENCE 1
+%% \bibitem[AUTHOR(YEAR)]{LABEL1}
+%% REFERENCE 1
 
-\bibitem[AUTHOR(YEAR)]{LABEL2}
-REFERENCE 2
+%% \bibitem[AUTHOR(YEAR)]{LABEL2}
+%% REFERENCE 2
 
-\end{thebibliography}
+%% \end{thebibliography}
 
 %% Since the Copernicus LaTeX package includes the BibTeX style file copernicus.bst,
 %% authors experienced with BibTeX only have to include the following two lines:
 %%
-%% \bibliographystyle{copernicus}
-%% \bibliography{example.bib}
+\bibliographystyle{copernicus}
+\bibliography{example.bib}
 %%
 %% URLs and DOIs can be entered in your BibTeX file as:
 %%
