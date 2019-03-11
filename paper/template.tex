@@ -148,8 +148,17 @@ Our main contributions are twofold and as follows:
 We name our neural network "DeepBedMap", and the resulting digital elevation model (DEM) product as "DeepBedMap\_DEM".
 
 
-\section{HEADING}
-TEXT
+\section{Related Work}
+
+\subsection{Super-Resolution}
+
+Super-Resolution involves the processing of a low resolution raster image into a higher resolution one, a technique introduced in the seminal paper by \citet{TsaiMultiframeimagerestoration1984}.
+The problem is especially ill-posed since a specific low resolution input can correspond to many possible high resolution outputs, resulting in the development of several different algorithms aimed at solving this challenge \citep[see][for a review]{NasrollahiSuperresolutioncomprehensivesurvey2014}.
+One of the most promising approaches is using deep learning to learn an end-to-end mapping between the low and high resolution images, a method proposed by \citet{DongImageSuperResolutionUsing2014} with their super-resolution convolutional neural network (SRCNN).
+
+More efficient neural network architectures and effective optimization objectives have been developed since SRCNN to further improve the quality of results \cite[see][for a review]{YangDeepLearningSingle2018}.
+Some key improvements include adding an adversarial loss to produce finer perceptual details as in the Super-Resolution Generative Adversarial Network (SRGAN) by \citet{LedigPhotoRealisticSingleImage2016}, or by adding residual connections while removing unnecessary model components to enable more efficient training of deeper models as in the Enhanced Deep Super-Resolution network (EDSR) by \citet{LimEnhancedDeepResidual2017}.
+For our DeepBedMap model in this paper, we choose to adapt the Enhanced Super-Resolution Generative Adversarial Network (ESRGAN) by \citet{WangESRGANEnhancedSuperResolution2018} that brings in several of these new ideas and other improvements for state of the art perceptual quality, enough to win the 2018 Perceptual Image Restoration and Manipulation (PIRM) Challenge on Super-Resolution \citep{Blau2018PIRMChallenge2018}.
 
 
 \subsection{HEADING}
