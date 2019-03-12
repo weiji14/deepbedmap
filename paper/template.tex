@@ -160,6 +160,17 @@ More efficient neural network architectures and effective optimization objective
 Some key improvements include adding an adversarial loss to produce finer perceptual details as in the Super-Resolution Generative Adversarial Network (SRGAN) by \citet{LedigPhotoRealisticSingleImage2016}, or by adding residual connections while removing unnecessary model components to enable more efficient training of deeper models as in the Enhanced Deep Super-Resolution network (EDSR) by \citet{LimEnhancedDeepResidual2017}.
 For our DeepBedMap model in this paper, we choose to adapt the Enhanced Super-Resolution Generative Adversarial Network (ESRGAN) by \citet{WangESRGANEnhancedSuperResolution2018} that brings in several of these new ideas and other improvements for state of the art perceptual quality, enough to win the 2018 Perceptual Image Restoration and Manipulation (PIRM) Challenge on Super-Resolution \citep{Blau2018PIRMChallenge2018}.
 
+\subsection{Network Conditioning}
+
+Network conditioning refers to the act in which a neural network processes one source of information in the context of multiple other sources \citep{DumoulinFeaturewisetransformations2018}.
+In a geographical context, conditioning can be thought of as using not just one layer, but several overlapping and semantically meaningful layers so as to better solve the task at hand.
+It should be noted that there are many ways to insert extra conditional information into a network, such as concatenation-based conditioning, conditional biasing, conditional scaling, and conditional affine transformations \citep{DumoulinFeaturewisetransformations2018}.
+Owing to the fact that our contextual remote sensing datasets are all raster images, the concatenation-based conditioning approach was chosen as it seemed to make the most sense and aligns well with other similar work we highlight below.
+
+A nice example similar to our DEM super-resolution problem is the classic problem of pan-sharpening, where a blurry low resolution multispectral image conditioned with a high resolution panchromatic image can be turned into a high resolution multispectral image.
+There is ongoing research into the use of deep convolutional neural networks for pan-sharpening \citep{MasiPansharpeningConvolutionalNeural2016,ScarpaTargetAdaptiveCNNBasedPansharpening2018}, sometimes with the incorporation of specific domain-knowledge \citep{YangPanNetDeepNetwork2017}, all of which show promising improvements over classical image processing methods.
+More recently, generative adversarial networks \citep{GoodfellowGenerativeAdversarialNetworks2014} have been used in the conditional sense for general image-to-image translation tasks \citep{IsolaImagetoImageTranslationConditional2016}, and also for producing more realistic pan-sharpened satellite images \citep{LiuPSGANGenerativeAdversarial2018}.
+Our DeepBedMap model thus builds upon these and other related DEM super-resolution work \citep{XuNonlocalsimilaritybased2015,ChenConvolutionalNeuralNetwork2016}, while incorporating extra conditional information specific to the cryospheric domain for resolving the bed elevation of Antarctica.
 
 \subsection{HEADING}
 TEXT
