@@ -172,6 +172,74 @@ There is ongoing research into the use of deep convolutional neural networks for
 More recently, generative adversarial networks \citep{GoodfellowGenerativeAdversarialNetworks2014} have been used in the conditional sense for general image-to-image translation tasks \citep{IsolaImagetoImageTranslationConditional2016}, and also for producing more realistic pan-sharpened satellite images \citep{LiuPSGANGenerativeAdversarial2018}.
 Our DeepBedMap model thus builds upon these and other related DEM super-resolution work \citep{XuNonlocalsimilaritybased2015,ChenConvolutionalNeuralNetwork2016}, while incorporating extra conditional information specific to the cryospheric domain for resolving the bed elevation of Antarctica.
 
+\section{Methodology}
+
+Given a low resolution input $x$ alongside conditional inputs $w^1, w^2, \dots, w^i$, our super-resolution model learns to estimate a high resolution output $\hat{y}$ which is as similar as possible to the groundtruth image $y$.
+
+\begin{equation}\label{eq:1}
+  \hat{y} = G(x, w^1, w^2, \dots, w^i)
+\end{equation}
+
+where $G$ is the generator function in a Generative Adversarial Network that produces high resolution image candidates.
+For brevity in the following equations, \eqref{eq:1} is simplified to hide conditional inputs $w^1, w^2, \dots, w^i$, i.e. $x$ represents all input images.
+To train our generator, we update $\theta_G$ as follows:
+
+\begin{equation}\label{eq:2}
+  \hat{\theta_G} = \arg\min_{\theta_G} \frac{1}{N}\sum_{n=1}^{N}L_G(G(x_n), y_n)
+\end{equation}
+
+where $L_G$ is the total loss function of generator $G$ that we want to minimize, and $x_n$, $y_n$ are the set of input and groundtruth images over $N$ training samples.
+The generator network's loss $L_G$ is a specially designed perceptual loss which contains two weighted components - content loss and adversarial loss - that will be described later in the next section.
+
+The other component to a Generative Adversarial Network is the critic or discriminator network $D$.
+It is trained to distinguish between fake high resolution images $\hat{y}$ and real groundtruth images $y$, and has an objective opposite to that of Generator $G$.
+Our adversarial min-max problem can thus be formulated as follows:
+
+\begin{equation}\label{eq:4}
+  \min_{G} \max_{D} \mathbb{E}_{y \sim P_{\text{data}}(y)}[\ln D(y)] + \mathbb{E}_{x \sim P_{G(x)}}[\ln(1-D(G(x)))]
+\end{equation}
+
+where $P_{\text{data}}(y)$ and $P_{G(x)}$ are the empirical distributions of groundtruth and training input images respectively.
+In the following sections, we will describe the loss functions and model architecture of our Generative Adversarial Network in more detail.
+
+\subsection{Loss functions}
+
+To bring the pixel values of our generated images closer to that of the groundtruth, we first define our Content Loss function.
+Following ESRGAN \citep{WangESRGANEnhancedSuperResolution2018}, we have:
+
+\begin{equation}\label{eq:5}
+  L_1 = \dfrac{1}{n} \sum\limits_{i=1}^n ||G(x_{i}) - y_i||_{1}
+\end{equation}
+
+where we take the mean absolute error between the Generator Network's predicted value $G(x_{i})$, and the groundtruth value $y_i$, respectively over every pixel $i$.
+
+Next, we define an adversarial loss to encourage the production of high resolution images $\hat{y}$ closer to the manifold of natural looking digital elevation model images.
+To do so, we introduce the standard discriminator in the form of $D(y) = \sigma(C(y))$ where $\sigma$ is the sigmoid activation function and $C(y)$ is the raw, non-transformed output from a discriminator neural network acting on high resolution image $y$.
+The ESRGAN model \citep{WangESRGANEnhancedSuperResolution2018} however, employs an improved Relativistic-average Discriminator \citep{Jolicoeur-Martineaurelativisticdiscriminatorkey2018} denoted by $D_{Ra}$.
+It is defined as $D_{Ra}(y,\hat{y}) = \sigma(C(y) - \mathbb{E}_{\hat{y}}[C(\hat{y})])$, where $\mathbb{E}_{\hat{y}}[\cdot]$ is the arithmetic mean operation carried out over every generated image $\hat{y}$ in a mini-batch.
+We use a binary cross entropy loss as the discriminator's loss function defined as follows:
+
+\begin{equation}\label{eq:6}
+  L_D^{Ra} = - \mathbb{E}_y[\ln(D(y,\hat{y}))] - \mathbb{E}_{\hat{y}}[\ln(1 - D(\hat{y},y))]
+\end{equation}
+
+The generator network's adversarial loss is in a symmetrical form:
+
+\begin{equation}\label{eq:7}
+  L_G^{Ra} = - \mathbb{E}_y[\ln(1 - D(y,\hat{y}))] - \mathbb{E}_{\hat{y}}[\ln(D(\hat{y},y))]
+\end{equation}
+
+Finally, we compile the loss functions for our discriminator and generator networks:
+
+\begin{align}
+  & L_D = L_D^{Ra} \\
+  & L_G = \lambda L_G^{Ra} + \eta L_1
+\end{align}
+
+where $\lambda$ and $\eta$ are the respective weights for the adversarial and content losses.
+The losses $L_G$ and $L_D$ are minimized in an alternate 1:1 manner so as to solve the entire Generative Adversarial Network's objective function defined in \eqref{eq:4}.
+Following this, we now describe the model architecture of our Generator and Discriminator neural networks.
+
 \subsection{HEADING}
 TEXT
 
