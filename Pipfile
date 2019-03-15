@@ -7,7 +7,7 @@ name = "pypi"
 black = "==18.9b0"
 chainer = "==6.0.0b3"
 comet-ml = "==1.0.46"
-cupy-cuda100 = "==6.0.0b2"
+cupy-cuda100 = "==6.0.0b3"
 cython = "==0.29.2"
 descartes = "==1.1.0"
 geopandas = {editable = true, ref = "0.4.0-26-g9e584cc", git = "https://github.com/geopandas/geopandas.git"}
