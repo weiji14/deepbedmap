@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "bd232c15cc92b74cbf2287a161827576e26f2963e39a38310da4b4c3ef14d934"
+            "sha256": "27f1a46f3682711c0c5011d544d49d86428aacc4f9ede5f0df9e2cb6f890808d"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -473,10 +473,11 @@
         },
         "livelossplot": {
             "hashes": [
-                "sha256:2c78855d313922877cd3da9852e9d31dd974c80abf70e68c09fc6044d94ac0f4"
+                "sha256:93e6098498bf0ac68d7adbe5fa13d5f3256f206db8fed8eb413a3606f3c31beb",
+                "sha256:e6fb7e69b8cf98a5aad65885c2d97b8cacd82e51c2ae2e846051db343f5b628e"
             ],
             "index": "pypi",
-            "version": "==0.3.0"
+            "version": "==0.3.2"
         },
         "markupsafe": {
             "hashes": [
