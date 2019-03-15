@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "27f1a46f3682711c0c5011d544d49d86428aacc4f9ede5f0df9e2cb6f890808d"
+            "sha256": "4d544bd712c6a281109ef5a73e1550938469de1dc5082862ab9751041cc2997d"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -697,10 +697,10 @@
         },
         "optuna": {
             "hashes": [
-                "sha256:34a7bdf7b7e5d937bab2133c33d9d4e4831d216c0b866219a2e2e04875859e3e"
+                "sha256:54b069049567b681f2d7c5c464a81c816a5759e2edbbeddc00e04ca4908ac2e6"
             ],
             "index": "pypi",
-            "version": "==0.7.0"
+            "version": "==0.8.0"
         },
         "packaging": {
             "hashes": [
