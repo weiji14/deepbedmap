@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.2'
-#       jupytext_version: 0.8.6
+#       jupytext_version: 1.0.3
 #   kernelspec:
 #     display_name: deepbedmap
 #     language: python
@@ -412,11 +412,9 @@ class GeneratorModel(chainer.Chain):
 
     >>> generator_model = GeneratorModel()
     >>> y_pred = generator_model.forward(
-    ...     inputs={
-    ...         "x": np.random.rand(1, 1, 10, 10).astype("float32"),
-    ...         "w1": np.random.rand(1, 1, 100, 100).astype("float32"),
-    ...         "w2": np.random.rand(1, 1, 20, 20).astype("float32"),
-    ...     }
+    ...     x=np.random.rand(1, 1, 10, 10).astype("float32"),
+    ...     w1=np.random.rand(1, 1, 100, 100).astype("float32"),
+    ...     w2=np.random.rand(1, 1, 20, 20).astype("float32"),
     ... )
     >>> y_pred.shape
     (1, 1, 32, 32)
@@ -497,16 +495,16 @@ class GeneratorModel(chainer.Chain):
                 initialW=init_weights,
             )
 
-    def forward(self, inputs: dict):
+    def forward(self, x: cupy.ndarray, w1: cupy.ndarray, w2: cupy.ndarray):
         """
-        Forward computation, i.e. evaluate based on inputs
+        Forward computation, i.e. evaluate based on input tensors
 
-        Input dictionary needs to have keys "x", "w1", "w2"
+        Each input should be either a numpy or cupy array.
         """
         # 0 part
         # Resize inputs o right scale using convolution (hardcoded kernel_size and strides)
         # Also concatenate all inputs
-        a0 = self.input_block(x=inputs["x"], w1=inputs["w1"], w2=inputs["w2"])
+        a0 = self.input_block(x=x, w1=w1, w2=w2)
 
         # 1st part
         # Pre-residual k3n64s1
@@ -566,9 +564,7 @@ class DiscriminatorModel(chainer.Chain):
 
     >>> discriminator_model = DiscriminatorModel()
     >>> y_pred = discriminator_model.forward(
-    ...     inputs={
-    ...         "x": np.random.rand(2, 1, 32, 32).astype("float32"),
-    ...     }
+    ...     x=np.random.rand(2, 1, 32, 32).astype("float32")
     ... )
     >>> y_pred.shape
     (2, 1)
@@ -612,16 +608,16 @@ class DiscriminatorModel(chainer.Chain):
             self.linear_1 = L.Linear(in_size=None, out_size=1024, initialW=init_weights)
             self.linear_2 = L.Linear(in_size=None, out_size=1, initialW=init_weights)
 
-    def forward(self, inputs: dict):
+    def forward(self, x: cupy.ndarray):
         """
-        Forward computation, i.e. evaluate based on inputs
+        Forward computation, i.e. evaluate based on input tensor
 
-        Input dictionary needs to have keys "x"
+        Each input should be either a numpy or cupy array.
         """
 
         # 1st part
         # Convolutonal Block without Batch Normalization k3n64s1
-        a0 = self.conv_layer0(x=inputs["x"])
+        a0 = self.conv_layer0(x=x)
         a0 = F.leaky_relu(x=a0, slope=0.2)
 
         # 2nd part
@@ -994,12 +990,9 @@ def train_eval_discriminator(
     xp = chainer.backend.get_array_module(input_arrays["Y"])
 
     # @given("fake generated images from a generator")
-    generator_inputs = {
-        "x": input_arrays["X"],
-        "w1": input_arrays["W1"],
-        "w2": input_arrays["W2"],
-    }
-    fake_images = g_model.forward(inputs=generator_inputs).array
+    fake_images = g_model.forward(
+        x=input_arrays["X"], w1=input_arrays["W1"], w2=input_arrays["W2"]
+    ).array
     fake_labels = xp.zeros(shape=(len(fake_images), 1)).astype(xp.int32)
 
     # @given("real groundtruth images")
@@ -1007,8 +1000,8 @@ def train_eval_discriminator(
     real_labels = xp.ones(shape=(len(real_images), 1)).astype(xp.int32)
 
     # @when("the two sets of images are fed into the discriminator for comparison")
-    real_labels_pred = d_model.forward(inputs={"x": real_images})
-    fake_labels_pred = d_model.forward(inputs={"x": fake_images})
+    real_labels_pred = d_model.forward(x=real_images)
+    fake_labels_pred = d_model.forward(x=fake_images)
     real_minus_fake_target = xp.ones(shape=(len(real_images), 1)).astype(xp.int32)
     fake_minus_real_target = xp.zeros(shape=(len(real_images), 1)).astype(xp.int32)
     d_loss = calculate_discriminator_loss(
@@ -1082,13 +1075,10 @@ def train_eval_generator(
     xp = chainer.backend.get_array_module(input_arrays["Y"])
 
     # @given("fake generated images from a generator")
-    generator_inputs = {
-        "x": input_arrays["X"],
-        "w1": input_arrays["W1"],
-        "w2": input_arrays["W2"],
-    }
-    fake_images = g_model.forward(inputs=generator_inputs)
-    fake_labels = d_model.forward(inputs={"x": fake_images}).array.astype(xp.float32)
+    fake_images = g_model.forward(
+        x=input_arrays["X"], w1=input_arrays["W1"], w2=input_arrays["W2"]
+    )
+    fake_labels = d_model.forward(x=fake_images).array.astype(xp.float32)
 
     # @given("what we think the discriminator believes is real")
     real_images = input_arrays["Y"]
@@ -1191,6 +1181,13 @@ def save_model_weights_and_architecture(
     """
     Save the trained neural network's parameter weights and architecture,
     respectively to zipped Numpy (.npz) and ONNX (.onnx, .onnx.txt) format.
+
+    >>> model = GeneratorModel()
+    >>> _, _ = save_model_weights_and_architecture(
+    ...     trained_model=model, save_path="/tmp/weights"
+    ... )
+    >>> os.path.exists(path="/tmp/weights/srgan_generator_model_architecture.onnx.txt")
+    True
     """
 
     os.makedirs(name=save_path, exist_ok=True)
@@ -1200,17 +1197,16 @@ def save_model_weights_and_architecture(
     chainer.serializers.save_npz(file=model_weights_path, obj=trained_model)
 
     # Save generator model's architecture in ONNX format
-    dummy_inputs = {
-        "x": np.random.rand(32, 1, 10, 10).astype("float32"),
-        "w1": np.random.rand(32, 1, 100, 100).astype("float32"),
-        "w2": np.random.rand(32, 1, 20, 20).astype("float32"),
-    }
     model_architecture_path: str = os.path.join(
         save_path, f"{model_basename}_architecture.onnx"
     )
     _ = onnx_chainer.export(
         model=trained_model,
-        args={"inputs": dummy_inputs},
+        args={
+            "x": trained_model.xp.random.rand(32, 1, 10, 10).astype("float32"),
+            "w1": trained_model.xp.random.rand(32, 1, 100, 100).astype("float32"),
+            "w2": trained_model.xp.random.rand(32, 1, 20, 20).astype("float32"),
+        },
         filename=model_architecture_path,
         export_params=False,
         save_text=True,
@@ -1251,12 +1247,16 @@ def get_deepbedmap_test_result(
     model = deepbedmap.load_trained_model(
         model=model, model_weights_path=model_weights_path
     )
-    Y_hat = model.forward(inputs={"x": X_tile, "w1": W1_tile, "w2": W2_tile}).array
+    Y_hat = model.forward(
+        x=model.xp.asarray(a=X_tile),
+        w1=model.xp.asarray(a=W1_tile),
+        w2=model.xp.asarray(a=W2_tile),
+    ).array
 
     # Save infered deepbedmap to grid file(s)
     outfilepath: str = f"model/deepbedmap3_{outfilesuffix}"
     deepbedmap.save_array_to_grid(
-        window_bound=window_bound, array=Y_hat, outfilepath=outfilepath
+        window_bound=window_bound, array=cupy.asnumpy(a=Y_hat), outfilepath=outfilepath
     )
 
     # Load xyz table for test region

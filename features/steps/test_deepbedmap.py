@@ -31,7 +31,7 @@ def get_model_input_raster_images(context):
 def predict_using_trained_neural_network(context):
     model = context.deepbedmap.load_trained_model()
     context.Y_hat = model.forward(
-        inputs={"x": context.X_tile, "w1": context.W1_tile, "w2": context.W2_tile}
+        x=context.X_tile, w1=context.W1_tile, w2=context.W2_tile
     ).array
 
 
