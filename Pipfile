@@ -4,7 +4,7 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-black = "==18.9b0"
+black = "==19.3b0"
 chainer = "==6.0.0b3"
 comet-ml = "==1.0.46"
 cupy-cuda100 = "==6.0.0b3"
