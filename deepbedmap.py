@@ -7,7 +7,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.2'
-#       jupytext_version: 0.8.6
+#       jupytext_version: 1.0.3
 #   kernelspec:
 #     display_name: deepbedmap
 #     language: python
@@ -208,7 +208,7 @@ def load_trained_model(
 
 # %%
 model = load_trained_model()
-Y_hat = model.forward(inputs={"x": X_tile, "w1": W1_tile, "w2": W2_tile}).array
+Y_hat = model.forward(x=X_tile, w1=W1_tile, w2=W2_tile).array
 Y_hat.shape
 
 # %% [markdown]
