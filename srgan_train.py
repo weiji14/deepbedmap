@@ -541,13 +541,11 @@ class GeneratorModel(chainer.Chain):
 # %% [markdown]
 # ## 2.2 Discriminator Network Architecture
 #
-# Discriminator component is based on Deep Convolutional Generative Adversarial Networks by [Radford et al., 2015](https://arxiv.org/abs/1511.06434).
-#
-# Note that figure below shows the 2017 (non-enhanced) SRGAN discriminator neural network architecture.
-# The 2018 ESRGAN version is basically the same architecture, as only the loss function was changed.
-# Note that the BatchNormalization layers **are still preserved** within the Convolutional blocks (see relevant line in original Pytorch implementation [here](https://github.com/xinntao/BasicSR/blob/902b4ae1f4beec7359de6e62ed0aebfc335d8dfd/codes/models/modules/architecture.py#L88)).
-#
-# ![SRGAN architecture - Discriminator Network](https://arxiv-sanity-sanity-production.s3.amazonaws.com/render-output/399644/images/used/jpg/discriminator.jpg)
+# Discriminator implementation following that of [ESRGAN](https://arxiv.org/abs/1809.00219).
+# [VGG-style](https://arxiv.org/abs/1409.1556)
+# Consists of 10 Conv2D-BatchNorm-LeakyReLU blocks, followed by 2 Fully Connected Layers of size 100 and 1, with **no** final sigmoid activation.
+# Note also how the BatchNormalization layers **are still preserved**.
+# Original Pytorch implementation can be found [here](https://github.com/xinntao/BasicSR/blame/902b4ae1f4beec7359de6e62ed0aebfc335d8dfd/codes/models/modules/architecture.py#L86-L129).
 #
 # ![Discriminator Network](https://yuml.me/diagram/scruffy/class/[High-Resolution_DEM|32x32x1]->[Discriminator-Network],[Discriminator-Network]->[False/True|0/1])
 
@@ -569,7 +567,7 @@ class DiscriminatorModel(chainer.Chain):
     >>> y_pred.shape
     (2, 1)
     >>> discriminator_model.count_params()
-    6824193
+    10205129
     """
 
     def __init__(self):
@@ -587,14 +585,15 @@ class DiscriminatorModel(chainer.Chain):
                 nobias=False,  # default, have bias
                 initialW=init_weights,
             )
-            self.conv_layer1 = L.Convolution2D(None, 64, 3, 1, 1, False, init_weights)
+            self.conv_layer1 = L.Convolution2D(None, 64, 4, 1, 1, False, init_weights)
             self.conv_layer2 = L.Convolution2D(None, 64, 3, 2, 1, False, init_weights)
-            self.conv_layer3 = L.Convolution2D(None, 128, 3, 1, 1, False, init_weights)
+            self.conv_layer3 = L.Convolution2D(None, 128, 4, 1, 1, False, init_weights)
             self.conv_layer4 = L.Convolution2D(None, 128, 3, 2, 1, False, init_weights)
-            self.conv_layer5 = L.Convolution2D(None, 256, 3, 1, 1, False, init_weights)
+            self.conv_layer5 = L.Convolution2D(None, 256, 4, 1, 1, False, init_weights)
             self.conv_layer6 = L.Convolution2D(None, 256, 3, 2, 1, False, init_weights)
-            self.conv_layer7 = L.Convolution2D(None, 512, 3, 1, 1, False, init_weights)
+            self.conv_layer7 = L.Convolution2D(None, 512, 4, 1, 1, False, init_weights)
             self.conv_layer8 = L.Convolution2D(None, 512, 3, 2, 1, False, init_weights)
+            self.conv_layer9 = L.Convolution2D(None, 512, 4, 1, 1, False, init_weights)
 
             self.batch_norm1 = L.BatchNormalization(axis=(0, 2, 3), eps=0.001)
             self.batch_norm2 = L.BatchNormalization(axis=(0, 2, 3), eps=0.001)
@@ -604,8 +603,9 @@ class DiscriminatorModel(chainer.Chain):
             self.batch_norm6 = L.BatchNormalization(axis=(0, 2, 3), eps=0.001)
             self.batch_norm7 = L.BatchNormalization(axis=(0, 2, 3), eps=0.001)
             self.batch_norm8 = L.BatchNormalization(axis=(0, 2, 3), eps=0.001)
+            self.batch_norm9 = L.BatchNormalization(axis=(0, 2, 3), eps=0.001)
 
-            self.linear_1 = L.Linear(in_size=None, out_size=1024, initialW=init_weights)
+            self.linear_1 = L.Linear(in_size=None, out_size=100, initialW=init_weights)
             self.linear_2 = L.Linear(in_size=None, out_size=1, initialW=init_weights)
 
     def forward(self, x: cupy.ndarray):
@@ -646,16 +646,19 @@ class DiscriminatorModel(chainer.Chain):
         a8 = self.conv_layer8(x=a7)
         a8 = self.batch_norm8(x=a8)
         a8 = F.leaky_relu(x=a8, slope=0.2)
+        a9 = self.conv_layer9(x=a8)
+        a9 = self.batch_norm9(x=a9)
+        a9 = F.leaky_relu(x=a9, slope=0.2)
 
         # 3rd part
         # Flatten, Dense (Fully Connected) Layers and Output
-        a9 = F.reshape(x=a8, shape=(len(a8), -1))  # flatten while keeping batch_size
-        a9 = self.linear_1(x=a9)
-        a9 = F.leaky_relu(x=a9, slope=0.2)
-        a10 = self.linear_2(x=a9)
-        # a10 = F.sigmoid(x=a10)  # no sigmoid activation, as it is in the loss function
+        a10 = F.reshape(x=a9, shape=(len(a9), -1))  # flatten while keeping batch_size
+        a10 = self.linear_1(x=a10)
+        a10 = F.leaky_relu(x=a10, slope=0.2)
+        a11 = self.linear_2(x=a10)
+        # a11 = F.sigmoid(x=a11)  # no sigmoid activation, as it is in the loss function
 
-        return a10
+        return a11
 
 
 # %% [markdown]
