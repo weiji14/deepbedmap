@@ -195,7 +195,7 @@ The other component to a Generative Adversarial Network is the critic or discrim
 It is trained to distinguish between fake high resolution images $\hat{y}$ and real groundtruth images $y$, and has an objective opposite to that of Generator $G$.
 Our adversarial min-max problem can thus be formulated as follows:
 
-\begin{equation}\label{eq:4}
+\begin{equation}\label{eq:3}
   \min_{G} \max_{D} \mathbb{E}_{y \sim P_{\text{data}}(y)}[\ln D(y)] + \mathbb{E}_{x \sim P_{G(x)}}[\ln(1-D(G(x)))]
 \end{equation}
 
@@ -207,7 +207,7 @@ In the following sections, we will describe the loss functions and model archite
 To bring the pixel values of our generated images closer to that of the groundtruth, we first define our Content Loss function.
 Following ESRGAN \citep{WangESRGANEnhancedSuperResolution2018}, we have:
 
-\begin{equation}\label{eq:5}
+\begin{equation}\label{eq:4}
   L_1 = \dfrac{1}{n} \sum\limits_{i=1}^n ||G(x_{i}) - y_i||_{1}
 \end{equation}
 
@@ -219,13 +219,13 @@ The ESRGAN model \citep{WangESRGANEnhancedSuperResolution2018} however, employs 
 It is defined as $D_{Ra}(y,\hat{y}) = \sigma(C(y) - \mathbb{E}_{\hat{y}}[C(\hat{y})])$, where $\mathbb{E}_{\hat{y}}[\cdot]$ is the arithmetic mean operation carried out over every generated image $\hat{y}$ in a mini-batch.
 We use a binary cross entropy loss as the discriminator's loss function defined as follows:
 
-\begin{equation}\label{eq:6}
+\begin{equation}\label{eq:5}
   L_D^{Ra} = - \mathbb{E}_y[\ln(D(y,\hat{y}))] - \mathbb{E}_{\hat{y}}[\ln(1 - D(\hat{y},y))]
 \end{equation}
 
 The generator network's adversarial loss is in a symmetrical form:
 
-\begin{equation}\label{eq:7}
+\begin{equation}\label{eq:6}
   L_G^{Ra} = - \mathbb{E}_y[\ln(1 - D(y,\hat{y}))] - \mathbb{E}_{\hat{y}}[\ln(D(\hat{y},y))]
 \end{equation}
 
@@ -239,6 +239,30 @@ Finally, we compile the loss functions for our discriminator and generator netwo
 where $\lambda$ and $\eta$ are the respective weights for the adversarial and content losses.
 The losses $L_G$ and $L_D$ are minimized in an alternate 1:1 manner so as to solve the entire Generative Adversarial Network's objective function defined in \eqref{eq:4}.
 Following this, we now describe the model architecture of our Generator and Discriminator neural networks.
+
+\subsection{Model Architecture}
+
+\begin{figure*}[h]
+  \includegraphics[width=16cm]{figures/deepbedmap_architecture.pdf}
+  \caption{DeepBedMap Model Architecture}
+  \label{}
+\end{figure*}
+
+Our Generative Adversarial Network model architecture is adapted from the ESRGAN model by \citet{WangESRGANEnhancedSuperResolution2018}, with a few notable differences.
+Specifically, the Generator neural network model is modified to:
+1) Use a custom conditional input block (see Figure 1a, focusing on input block) consisting of three sub-networks, each one having a different sized convolution size and stride so as to create identical sized outputs which are then concatenated together channel-wise before being fed into the main body of the ESRGAN-based convolutional neural network.
+2) Use a residual scaling factor \citep{SzegedyInceptionv4InceptionResNetImpact2016} of 0.3 instead of 0.2 for the Residual-in-Residual Dense Block (RRDB) connections.
+3) Use the PixelShuffle/Depth-to-Space upsampling function \citep{ShiRealTimeSingleImage2016} following SRGAN \citep{LedigPhotoRealisticSingleImage2016} instead of a Nearest Neighbour Upsample plus Convolutional Layer as in ESRGAN \citep{WangESRGANEnhancedSuperResolution2018}.
+
+The objective of our 4 times upsampling super-resolution model is to produce a high resolution (250m) grid of Antarctica's bed elevation given a low resolution (1000m) BEDMAP2 \citep{FretwellBedmap2improvedice2013} image.
+The information in BEDMAP2 however, is insufficient for this regular super-resolution task, hence why we provide the neural network with more context through network conditioning.
+Specifically, the model is conditioned at the input block stage with surface elevation and ice velocity raster grids, both of which are well resolved by satellite observations.
+The non-linear relationship between the low resolution bed elevation prior (BEDMAP2), surface elevation and ice velocity is then processed through $B$-layers of Residual-in-Residual Dense Blocks and upsampled at the end to produce a high resolution bed elevation prediction.
+
+This Generator model gradually improves by comparing the predicted output with the groundtruth image, specifically using the previously defined Content Loss \eqref{eq:4} and Adversarial Loss \eqref{eq:6}.
+Again, we follow ESRGAN's lead in the implementation of our adversarial Discriminator network.
+A VGG-style convolutional neural network \cite{SimonyanVeryDeepConvolutional2014} is used, consisting of 10 Convolutional-BatchNormalization-LeakyReLU blocks, followed by two fully connected layers with 100 and 1 neurons.
+For numerical stability, the sigmoid activation output is omitted from the Discriminator model's construction, and is instead, integrated into the binary cross entropy loss functions \eqref{eq:5} \eqref{eq:6} via the log-sum-exp trick.
 
 \subsection{HEADING}
 TEXT
