@@ -760,8 +760,8 @@ def calculate_generator_loss(
     real_labels: cupy.ndarray,
     fake_minus_real_target: cupy.ndarray,
     real_minus_fake_target: cupy.ndarray,
-    content_loss_weighting: float = 5e-3,
-    adversarial_loss_weighting: float = 1e-2,
+    content_loss_weighting: float = 1e-2,
+    adversarial_loss_weighting: float = 5e-3,
 ) -> chainer.variable.Variable:
     """
     This function calculates the weighted sum between
@@ -776,7 +776,7 @@ def calculate_generator_loss(
     ...     fake_minus_real_target=np.array([[1], [1]]).astype(np.int32),
     ...     real_minus_fake_target=np.array([[0], [0]]).astype(np.int32),
     ... )
-    variable(0.06234614)
+    variable(0.09867307)
     """
     # Content Loss (L1, Mean Absolute Error) between 2D images
     content_loss = F.mean_absolute_error(x0=y_pred, x1=y_true)
