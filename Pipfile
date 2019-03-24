@@ -12,7 +12,7 @@ cython = "==0.29.2"
 descartes = "==1.1.0"
 geopandas = {editable = true, ref = "0.4.0-26-g9e584cc", git = "https://github.com/geopandas/geopandas.git"}
 gmt = {editable = true, ref = "0.0.1a0-16-g7004aa0", git = "https://github.com/GenericMappingTools/pygmt.git"}
-ipython = "==7.3.0"
+ipython = "==7.4.0"
 jupyterlab = "==0.35.4"
 jupytext = "==1.0.3"
 livelossplot = "==0.3.2"
