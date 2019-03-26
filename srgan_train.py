@@ -1343,7 +1343,7 @@ def objective(
     experiment.log_parameter(name="dataset_hash", value=quilt_hash)
     experiment.log_parameter(name="use_gpu", value=cupy.is_available())
     batch_size: int = int(
-        2 ** trial.suggest_int(name="batch_size_exponent", low=6, high=7)
+        2 ** trial.suggest_int(name="batch_size_exponent", low=7, high=7)
     )
     experiment.log_parameter(name="batch_size", value=batch_size)
     train_iter, train_len, dev_iter, dev_len = get_train_dev_iterators(
@@ -1355,13 +1355,13 @@ def objective(
 
     ## Compile Model
     num_residual_blocks: int = trial.suggest_int(
-        name="num_residual_blocks", low=8, high=12
+        name="num_residual_blocks", low=10, high=14
     )
     residual_scaling: float = trial.suggest_discrete_uniform(
-        name="residual_scaling", low=0.1, high=0.3, q=0.05
+        name="residual_scaling", low=0.1, high=0.5, q=0.05
     )
     learning_rate: float = trial.suggest_discrete_uniform(
-        name="learning_rate", high=8e-4, low=4e-4, q=5e-5
+        name="learning_rate", high=1e-3, low=5e-4, q=5e-5
     )
     g_model, g_optimizer, d_model, d_optimizer = compile_srgan_model(
         num_residual_blocks=num_residual_blocks,
@@ -1382,7 +1382,7 @@ def objective(
     )
 
     ## Run Trainer and save trained model
-    epochs: int = trial.suggest_int(name="num_epochs", low=30, high=60)
+    epochs: int = trial.suggest_int(name="num_epochs", low=80, high=120)
     experiment.log_parameter(name="num_epochs", value=epochs)
 
     metric_names = [
@@ -1462,7 +1462,7 @@ def objective(
 
 
 # %%
-n_trials = 1
+n_trials = 50
 if n_trials == 1:  # run training once only, i.e. just test the objective function
     objective(enable_livelossplot=True, enable_comet_logging=True)
 elif n_trials > 1:  # perform hyperparameter tuning with multiple experimental trials
@@ -1486,4 +1486,4 @@ if n_trials > 1:
     study = optuna.Study(
         study_name="DeepBedMap_tuning", storage="sqlite:///model/logs/train.db"
     )
-    study.trials_dataframe().nsmallest(n=10, columns="value")
+    IPython.display.display(study.trials_dataframe().nsmallest(n=10, columns="value"))
