@@ -419,14 +419,14 @@ class GeneratorModel(chainer.Chain):
     >>> y_pred.shape
     (1, 1, 32, 32)
     >>> generator_model.count_params()
-    7649793
+    9088641
     """
 
     def __init__(
         self,
         inblock_class=DeepbedmapInputBlock,
         resblock_class=ResInResDenseBlock,
-        num_residual_blocks: int = 10,
+        num_residual_blocks: int = 12,
         residual_scaling: float = 0.3,
         out_channels: int = 1,
     ):
@@ -879,9 +879,9 @@ def calculate_discriminator_loss(
 # %%
 # Build the models
 def compile_srgan_model(
-    num_residual_blocks: int = 10,
+    num_residual_blocks: int = 12,
     residual_scaling: float = 0.3,
-    learning_rate: float = 6.5e-4,
+    learning_rate: float = 6e-4,
 ):
     """
     Instantiate our Super Resolution Generative Adversarial Network (SRGAN) model here.
@@ -1303,10 +1303,10 @@ def objective(
     trial: optuna.trial.Trial = optuna.trial.FixedTrial(
         params={
             "batch_size_exponent": 7,
-            "num_residual_blocks": 10,
+            "num_residual_blocks": 12,
             "residual_scaling": 0.3,
-            "learning_rate": 5e-4,
-            "num_epochs": 100,
+            "learning_rate": 6e-4,
+            "num_epochs": 110,
         }
     ),
     enable_livelossplot: bool = False,  # Default: False, no plots makes it go faster!
@@ -1462,7 +1462,7 @@ def objective(
 
 
 # %%
-n_trials = 50
+n_trials = 1
 if n_trials == 1:  # run training once only, i.e. just test the objective function
     objective(enable_livelossplot=True, enable_comet_logging=True)
 elif n_trials > 1:  # perform hyperparameter tuning with multiple experimental trials
@@ -1478,7 +1478,7 @@ elif n_trials > 1:  # perform hyperparameter tuning with multiple experimental t
         load_if_exists=True,
         sampler=sampler,
     )
-    study.optimize(func=objective, n_trials=100, n_jobs=1)
+    study.optimize(func=objective, n_trials=n_trials, n_jobs=1)
 
 
 # %%
