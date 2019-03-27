@@ -419,14 +419,14 @@ class GeneratorModel(chainer.Chain):
     >>> y_pred.shape
     (1, 1, 32, 32)
     >>> generator_model.count_params()
-    7649793
+    9088641
     """
 
     def __init__(
         self,
         inblock_class=DeepbedmapInputBlock,
         resblock_class=ResInResDenseBlock,
-        num_residual_blocks: int = 10,
+        num_residual_blocks: int = 12,
         residual_scaling: float = 0.3,
         out_channels: int = 1,
     ):
@@ -541,13 +541,11 @@ class GeneratorModel(chainer.Chain):
 # %% [markdown]
 # ## 2.2 Discriminator Network Architecture
 #
-# Discriminator component is based on Deep Convolutional Generative Adversarial Networks by [Radford et al., 2015](https://arxiv.org/abs/1511.06434).
-#
-# Note that figure below shows the 2017 (non-enhanced) SRGAN discriminator neural network architecture.
-# The 2018 ESRGAN version is basically the same architecture, as only the loss function was changed.
-# Note that the BatchNormalization layers **are still preserved** within the Convolutional blocks (see relevant line in original Pytorch implementation [here](https://github.com/xinntao/BasicSR/blob/902b4ae1f4beec7359de6e62ed0aebfc335d8dfd/codes/models/modules/architecture.py#L88)).
-#
-# ![SRGAN architecture - Discriminator Network](https://arxiv-sanity-sanity-production.s3.amazonaws.com/render-output/399644/images/used/jpg/discriminator.jpg)
+# Discriminator implementation following that of [ESRGAN](https://arxiv.org/abs/1809.00219).
+# [VGG-style](https://arxiv.org/abs/1409.1556)
+# Consists of 10 Conv2D-BatchNorm-LeakyReLU blocks, followed by 2 Fully Connected Layers of size 100 and 1, with **no** final sigmoid activation.
+# Note also how the BatchNormalization layers **are still preserved**.
+# Original Pytorch implementation can be found [here](https://github.com/xinntao/BasicSR/blame/902b4ae1f4beec7359de6e62ed0aebfc335d8dfd/codes/models/modules/architecture.py#L86-L129).
 #
 # ![Discriminator Network](https://yuml.me/diagram/scruffy/class/[High-Resolution_DEM|32x32x1]->[Discriminator-Network],[Discriminator-Network]->[False/True|0/1])
 
@@ -569,7 +567,7 @@ class DiscriminatorModel(chainer.Chain):
     >>> y_pred.shape
     (2, 1)
     >>> discriminator_model.count_params()
-    6824193
+    10205129
     """
 
     def __init__(self):
@@ -587,14 +585,15 @@ class DiscriminatorModel(chainer.Chain):
                 nobias=False,  # default, have bias
                 initialW=init_weights,
             )
-            self.conv_layer1 = L.Convolution2D(None, 64, 3, 1, 1, False, init_weights)
+            self.conv_layer1 = L.Convolution2D(None, 64, 4, 1, 1, False, init_weights)
             self.conv_layer2 = L.Convolution2D(None, 64, 3, 2, 1, False, init_weights)
-            self.conv_layer3 = L.Convolution2D(None, 128, 3, 1, 1, False, init_weights)
+            self.conv_layer3 = L.Convolution2D(None, 128, 4, 1, 1, False, init_weights)
             self.conv_layer4 = L.Convolution2D(None, 128, 3, 2, 1, False, init_weights)
-            self.conv_layer5 = L.Convolution2D(None, 256, 3, 1, 1, False, init_weights)
+            self.conv_layer5 = L.Convolution2D(None, 256, 4, 1, 1, False, init_weights)
             self.conv_layer6 = L.Convolution2D(None, 256, 3, 2, 1, False, init_weights)
-            self.conv_layer7 = L.Convolution2D(None, 512, 3, 1, 1, False, init_weights)
+            self.conv_layer7 = L.Convolution2D(None, 512, 4, 1, 1, False, init_weights)
             self.conv_layer8 = L.Convolution2D(None, 512, 3, 2, 1, False, init_weights)
+            self.conv_layer9 = L.Convolution2D(None, 512, 4, 1, 1, False, init_weights)
 
             self.batch_norm1 = L.BatchNormalization(axis=(0, 2, 3), eps=0.001)
             self.batch_norm2 = L.BatchNormalization(axis=(0, 2, 3), eps=0.001)
@@ -604,8 +603,9 @@ class DiscriminatorModel(chainer.Chain):
             self.batch_norm6 = L.BatchNormalization(axis=(0, 2, 3), eps=0.001)
             self.batch_norm7 = L.BatchNormalization(axis=(0, 2, 3), eps=0.001)
             self.batch_norm8 = L.BatchNormalization(axis=(0, 2, 3), eps=0.001)
+            self.batch_norm9 = L.BatchNormalization(axis=(0, 2, 3), eps=0.001)
 
-            self.linear_1 = L.Linear(in_size=None, out_size=1024, initialW=init_weights)
+            self.linear_1 = L.Linear(in_size=None, out_size=100, initialW=init_weights)
             self.linear_2 = L.Linear(in_size=None, out_size=1, initialW=init_weights)
 
     def forward(self, x: cupy.ndarray):
@@ -646,16 +646,19 @@ class DiscriminatorModel(chainer.Chain):
         a8 = self.conv_layer8(x=a7)
         a8 = self.batch_norm8(x=a8)
         a8 = F.leaky_relu(x=a8, slope=0.2)
+        a9 = self.conv_layer9(x=a8)
+        a9 = self.batch_norm9(x=a9)
+        a9 = F.leaky_relu(x=a9, slope=0.2)
 
         # 3rd part
         # Flatten, Dense (Fully Connected) Layers and Output
-        a9 = F.reshape(x=a8, shape=(len(a8), -1))  # flatten while keeping batch_size
-        a9 = self.linear_1(x=a9)
-        a9 = F.leaky_relu(x=a9, slope=0.2)
-        a10 = self.linear_2(x=a9)
-        # a10 = F.sigmoid(x=a10)  # no sigmoid activation, as it is in the loss function
+        a10 = F.reshape(x=a9, shape=(len(a9), -1))  # flatten while keeping batch_size
+        a10 = self.linear_1(x=a10)
+        a10 = F.leaky_relu(x=a10, slope=0.2)
+        a11 = self.linear_2(x=a10)
+        # a11 = F.sigmoid(x=a11)  # no sigmoid activation, as it is in the loss function
 
-        return a10
+        return a11
 
 
 # %% [markdown]
@@ -757,8 +760,8 @@ def calculate_generator_loss(
     real_labels: cupy.ndarray,
     fake_minus_real_target: cupy.ndarray,
     real_minus_fake_target: cupy.ndarray,
-    content_loss_weighting: float = 5e-3,
-    adversarial_loss_weighting: float = 1e-2,
+    content_loss_weighting: float = 1e-2,
+    adversarial_loss_weighting: float = 5e-3,
 ) -> chainer.variable.Variable:
     """
     This function calculates the weighted sum between
@@ -773,7 +776,7 @@ def calculate_generator_loss(
     ...     fake_minus_real_target=np.array([[1], [1]]).astype(np.int32),
     ...     real_minus_fake_target=np.array([[0], [0]]).astype(np.int32),
     ... )
-    variable(0.06234614)
+    variable(0.09867307)
     """
     # Content Loss (L1, Mean Absolute Error) between 2D images
     content_loss = F.mean_absolute_error(x0=y_pred, x1=y_true)
@@ -876,9 +879,9 @@ def calculate_discriminator_loss(
 # %%
 # Build the models
 def compile_srgan_model(
-    num_residual_blocks: int = 10,
+    num_residual_blocks: int = 12,
     residual_scaling: float = 0.3,
-    learning_rate: float = 6.5e-4,
+    learning_rate: float = 6e-4,
 ):
     """
     Instantiate our Super Resolution Generative Adversarial Network (SRGAN) model here.
@@ -1300,10 +1303,10 @@ def objective(
     trial: optuna.trial.Trial = optuna.trial.FixedTrial(
         params={
             "batch_size_exponent": 7,
-            "num_residual_blocks": 10,
+            "num_residual_blocks": 12,
             "residual_scaling": 0.3,
-            "learning_rate": 5e-4,
-            "num_epochs": 100,
+            "learning_rate": 6e-4,
+            "num_epochs": 110,
         }
     ),
     enable_livelossplot: bool = False,  # Default: False, no plots makes it go faster!
@@ -1340,7 +1343,7 @@ def objective(
     experiment.log_parameter(name="dataset_hash", value=quilt_hash)
     experiment.log_parameter(name="use_gpu", value=cupy.is_available())
     batch_size: int = int(
-        2 ** trial.suggest_int(name="batch_size_exponent", low=6, high=7)
+        2 ** trial.suggest_int(name="batch_size_exponent", low=7, high=7)
     )
     experiment.log_parameter(name="batch_size", value=batch_size)
     train_iter, train_len, dev_iter, dev_len = get_train_dev_iterators(
@@ -1352,13 +1355,13 @@ def objective(
 
     ## Compile Model
     num_residual_blocks: int = trial.suggest_int(
-        name="num_residual_blocks", low=8, high=12
+        name="num_residual_blocks", low=10, high=14
     )
     residual_scaling: float = trial.suggest_discrete_uniform(
-        name="residual_scaling", low=0.1, high=0.3, q=0.05
+        name="residual_scaling", low=0.1, high=0.5, q=0.05
     )
     learning_rate: float = trial.suggest_discrete_uniform(
-        name="learning_rate", high=8e-4, low=4e-4, q=5e-5
+        name="learning_rate", high=1e-3, low=5e-4, q=5e-5
     )
     g_model, g_optimizer, d_model, d_optimizer = compile_srgan_model(
         num_residual_blocks=num_residual_blocks,
@@ -1379,7 +1382,7 @@ def objective(
     )
 
     ## Run Trainer and save trained model
-    epochs: int = trial.suggest_int(name="num_epochs", low=30, high=60)
+    epochs: int = trial.suggest_int(name="num_epochs", low=80, high=120)
     experiment.log_parameter(name="num_epochs", value=epochs)
 
     metric_names = [
@@ -1475,7 +1478,7 @@ elif n_trials > 1:  # perform hyperparameter tuning with multiple experimental t
         load_if_exists=True,
         sampler=sampler,
     )
-    study.optimize(func=objective, n_trials=100, n_jobs=1)
+    study.optimize(func=objective, n_trials=n_trials, n_jobs=1)
 
 
 # %%
@@ -1483,4 +1486,4 @@ if n_trials > 1:
     study = optuna.Study(
         study_name="DeepBedMap_tuning", storage="sqlite:///model/logs/train.db"
     )
-    study.trials_dataframe().nsmallest(n=10, columns="value")
+    IPython.display.display(study.trials_dataframe().nsmallest(n=10, columns="value"))
