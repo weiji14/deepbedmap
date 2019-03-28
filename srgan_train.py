@@ -572,7 +572,7 @@ class DiscriminatorModel(chainer.Chain):
 
     def __init__(self):
         super().__init__()
-        init_weights = chainer.initializers.GlorotUniform(scale=1.0)
+        init_weights = chainer.initializers.HeNormal(scale=0.1, fan_option="fan_in")
 
         with self.init_scope():
 
@@ -988,6 +988,7 @@ def train_eval_discriminator(
     True
     """
     # @pytest.fixture
+    chainer.global_config.train = train # Explicitly set Chainer's train/eval flag
     if train == True:
         assert d_optimizer is not None  # Optimizer required for neural network training
     xp = chainer.backend.get_array_module(input_arrays["Y"])
@@ -1073,6 +1074,7 @@ def train_eval_generator(
     """
 
     # @pytest.fixture
+    chainer.global_config.train = train # Explicitly set Chainer's train/eval flag
     if train == True:
         assert g_optimizer is not None  # Optimizer required for neural network training
     xp = chainer.backend.get_array_module(input_arrays["Y"])
@@ -1081,7 +1083,8 @@ def train_eval_generator(
     fake_images = g_model.forward(
         x=input_arrays["X"], w1=input_arrays["W1"], w2=input_arrays["W2"]
     )
-    fake_labels = d_model.forward(x=fake_images).array.astype(xp.float32)
+    with chainer.using_config(name="train", value=False): # Using non-train BatchNorm
+        fake_labels = d_model.forward(x=fake_images).array.astype(xp.float32)
 
     # @given("what we think the discriminator believes is real")
     real_images = input_arrays["Y"]
