@@ -256,7 +256,7 @@ class ResidualDenseBlock(chainer.Chain):
         self,
         in_out_channels: int = 64,
         inter_channels: int = 32,
-        residual_scaling: float = 0.3,
+        residual_scaling: float = 0.4,
     ):
         super().__init__()
         self.residual_scaling = residual_scaling
@@ -352,7 +352,7 @@ class ResInResDenseBlock(chainer.Chain):
         self,
         denseblock_class=ResidualDenseBlock,
         out_channels: int = 64,
-        residual_scaling: float = 0.3,
+        residual_scaling: float = 0.4,
     ):
         super().__init__()
         self.residual_scaling = residual_scaling
@@ -427,7 +427,7 @@ class GeneratorModel(chainer.Chain):
         inblock_class=DeepbedmapInputBlock,
         resblock_class=ResInResDenseBlock,
         num_residual_blocks: int = 12,
-        residual_scaling: float = 0.3,
+        residual_scaling: float = 0.4,
         out_channels: int = 1,
     ):
         super().__init__()
@@ -880,8 +880,8 @@ def calculate_discriminator_loss(
 # Build the models
 def compile_srgan_model(
     num_residual_blocks: int = 12,
-    residual_scaling: float = 0.3,
-    learning_rate: float = 6e-4,
+    residual_scaling: float = 0.4,
+    learning_rate: float = 1e-3,
 ):
     """
     Instantiate our Super Resolution Generative Adversarial Network (SRGAN) model here.
@@ -988,7 +988,7 @@ def train_eval_discriminator(
     True
     """
     # @pytest.fixture
-    chainer.global_config.train = train # Explicitly set Chainer's train/eval flag
+    chainer.global_config.train = train  # Explicitly set Chainer's train/eval flag
     if train == True:
         assert d_optimizer is not None  # Optimizer required for neural network training
     xp = chainer.backend.get_array_module(input_arrays["Y"])
@@ -1074,7 +1074,7 @@ def train_eval_generator(
     """
 
     # @pytest.fixture
-    chainer.global_config.train = train # Explicitly set Chainer's train/eval flag
+    chainer.global_config.train = train  # Explicitly set Chainer's train/eval flag
     if train == True:
         assert g_optimizer is not None  # Optimizer required for neural network training
     xp = chainer.backend.get_array_module(input_arrays["Y"])
@@ -1083,7 +1083,7 @@ def train_eval_generator(
     fake_images = g_model.forward(
         x=input_arrays["X"], w1=input_arrays["W1"], w2=input_arrays["W2"]
     )
-    with chainer.using_config(name="train", value=False): # Using non-train BatchNorm
+    with chainer.using_config(name="train", value=False):  # Using non-train BatchNorm
         fake_labels = d_model.forward(x=fake_images).array.astype(xp.float32)
 
     # @given("what we think the discriminator believes is real")
@@ -1307,9 +1307,9 @@ def objective(
         params={
             "batch_size_exponent": 7,
             "num_residual_blocks": 12,
-            "residual_scaling": 0.3,
-            "learning_rate": 6e-4,
-            "num_epochs": 110,
+            "residual_scaling": 0.4,
+            "learning_rate": 1e-3,
+            "num_epochs": 120,
         }
     ),
     enable_livelossplot: bool = False,  # Default: False, no plots makes it go faster!
@@ -1358,13 +1358,13 @@ def objective(
 
     ## Compile Model
     num_residual_blocks: int = trial.suggest_int(
-        name="num_residual_blocks", low=10, high=14
+        name="num_residual_blocks", low=12, high=12
     )
     residual_scaling: float = trial.suggest_discrete_uniform(
         name="residual_scaling", low=0.1, high=0.5, q=0.05
     )
     learning_rate: float = trial.suggest_discrete_uniform(
-        name="learning_rate", high=1e-3, low=5e-4, q=5e-5
+        name="learning_rate", high=1e-3, low=1e-4, q=5e-5
     )
     g_model, g_optimizer, d_model, d_optimizer = compile_srgan_model(
         num_residual_blocks=num_residual_blocks,
