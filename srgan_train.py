@@ -256,7 +256,7 @@ class ResidualDenseBlock(chainer.Chain):
         self,
         in_out_channels: int = 64,
         inter_channels: int = 32,
-        residual_scaling: float = 0.4,
+        residual_scaling: float = 0.2,
     ):
         super().__init__()
         self.residual_scaling = residual_scaling
@@ -352,7 +352,7 @@ class ResInResDenseBlock(chainer.Chain):
         self,
         denseblock_class=ResidualDenseBlock,
         out_channels: int = 64,
-        residual_scaling: float = 0.4,
+        residual_scaling: float = 0.2,
     ):
         super().__init__()
         self.residual_scaling = residual_scaling
@@ -427,7 +427,7 @@ class GeneratorModel(chainer.Chain):
         inblock_class=DeepbedmapInputBlock,
         resblock_class=ResInResDenseBlock,
         num_residual_blocks: int = 12,
-        residual_scaling: float = 0.4,
+        residual_scaling: float = 0.2,
         out_channels: int = 1,
     ):
         super().__init__()
@@ -880,8 +880,8 @@ def calculate_discriminator_loss(
 # Build the models
 def compile_srgan_model(
     num_residual_blocks: int = 12,
-    residual_scaling: float = 0.4,
-    learning_rate: float = 1e-3,
+    residual_scaling: float = 0.2,
+    learning_rate: float = 6e-4,
 ):
     """
     Instantiate our Super Resolution Generative Adversarial Network (SRGAN) model here.
@@ -1307,9 +1307,9 @@ def objective(
         params={
             "batch_size_exponent": 7,
             "num_residual_blocks": 12,
-            "residual_scaling": 0.4,
-            "learning_rate": 1e-3,
-            "num_epochs": 120,
+            "residual_scaling": 0.2,
+            "learning_rate": 6e-4,
+            "num_epochs": 150,
         }
     ),
     enable_livelossplot: bool = False,  # Default: False, no plots makes it go faster!
@@ -1361,10 +1361,10 @@ def objective(
         name="num_residual_blocks", low=12, high=12
     )
     residual_scaling: float = trial.suggest_discrete_uniform(
-        name="residual_scaling", low=0.1, high=0.5, q=0.05
+        name="residual_scaling", low=0.2, high=0.2, q=0.05
     )
     learning_rate: float = trial.suggest_discrete_uniform(
-        name="learning_rate", high=1e-3, low=1e-4, q=5e-5
+        name="learning_rate", high=8e-4, low=2e-4, q=5e-5
     )
     g_model, g_optimizer, d_model, d_optimizer = compile_srgan_model(
         num_residual_blocks=num_residual_blocks,
@@ -1385,7 +1385,7 @@ def objective(
     )
 
     ## Run Trainer and save trained model
-    epochs: int = trial.suggest_int(name="num_epochs", low=80, high=120)
+    epochs: int = trial.suggest_int(name="num_epochs", low=120, high=150)
     experiment.log_parameter(name="num_epochs", value=epochs)
 
     metric_names = [
@@ -1465,7 +1465,7 @@ def objective(
 
 
 # %%
-n_trials = 1
+n_trials = 12
 if n_trials == 1:  # run training once only, i.e. just test the objective function
     objective(enable_livelossplot=True, enable_comet_logging=True)
 elif n_trials > 1:  # perform hyperparameter tuning with multiple experimental trials

@@ -9,6 +9,8 @@ Also a convenient [flat file](https://en.wikipedia.org/wiki/Flat-file_database) 
 [![Codefresh build status](https://g.codefresh.io/api/badges/pipeline/weiji14_marketplace/weiji14%2Fdeepbedmap%2Fdeepbedmap?type=cf-1)](https://g.codefresh.io/public/accounts/weiji14_marketplace/pipelines/weiji14/deepbedmap/deepbedmap)
 [![Dependabot Status](https://api.dependabot.com/badges/status?host=github&repo=weiji14/deepbedmap)](https://dependabot.com)
 
+![DeepBedMap DEM over entire Antarctic continent, EPSG:3031 projection](https://user-images.githubusercontent.com/23487320/55309232-739ef600-545d-11e9-9d09-688dfa1209fb.png)
+
 ![DeepBedMap Pipeline](https://yuml.me/diagram/scruffy;dir:LR/class/[Data|Highres/Lowres/Misc]->[Preprocessing|data_prep.ipynb],[Preprocessing]->[Model-Training|srgan_train.ipynb],[Model-Training]->[Inference|deepbedmap.ipynb])
 
 <details>
