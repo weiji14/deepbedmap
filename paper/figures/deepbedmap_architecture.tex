@@ -20,57 +20,61 @@
 \tikzstyle{connection}=[ultra thick,every node/.style={sloped,allow upside down},draw=\edgecolor,opacity=0.7]
 \tikzstyle{copyconnection}=[ultra thick,every node/.style={sloped,allow upside down},draw={rgb:blue,4;red,1;green,1;black,3},opacity=0.7]
 
-\node[canvas is zy plane at x=0] (temp) at (-1.5,0,0) {\includegraphics[width=3cm,height=3cm]{/home/weiji/Documents/github/deepbedmap/paper/figures/bedmap2_preview.png}};
+\node[canvas is zy plane at x=0] (temp) at (-1.5,3,0) {\includegraphics[width=3cm,height=3cm]{/home/weiji/Documents/github/deepbedmap/paper/figures/ter_bedmap.png}};
 
-\pic[shift={(0,0,0)}] at (0,0,0)
+\node[canvas is zy plane at x=0] (temp) at (-1.5,0,0) {\includegraphics[width=3cm,height=3cm]{/home/weiji/Documents/github/deepbedmap/paper/figures/REMA-hillshade-rendering-800px-768x768.jpg}};
+
+\node[canvas is zy plane at x=0] (temp) at (-1.5,-3,0) {\includegraphics[width=3cm,height=3cm]{/home/weiji/Documents/github/deepbedmap/paper/figures/glac_flowspeed.png}};
+
+\pic[shift={(0,3.5,0)}] at (0,0,0)
     {Box={
         name=x,
         caption= ,
         xlabel={{32, }},
         zlabel=10,
         fill=\ConvColor,
-        height=10,
+        height=4,
         width=1.6,
-        depth=10
+        depth=4
         }
     };
 
-\pic[shift={(0,3,0)}] at (0,0,0)
+\pic[shift={(0,0,0)}] at (0,0,0)
     {Box={
         name=w1,
         caption= ,
         xlabel={{32, }},
-        zlabel=10,
+        zlabel=100,
         fill=\ConvColor,
-        height=10,
+        height=16,
         width=1.6,
-        depth=10
+        depth=16
         }
     };
 
-\pic[shift={(0,-3,0)}] at (0,0,0)
+\pic[shift={(0,-3.5,0)}] at (0,0,0)
     {Box={
         name=w2,
         caption= ,
         xlabel={{32, }},
-        zlabel=10,
+        zlabel=20,
         fill=\ConvColor,
-        height=10,
+        height=8,
         width=1.6,
-        depth=10
+        depth=8
         }
     };
 
-\pic[shift={(1.2,0,0)}] at (x-east)
+\pic[shift={(1.2,0,0)}] at (w1-east)
     {Box={
         name=concat,
         caption=Concat-enated Inputs,
         xlabel={{96, }},
         zlabel=8,
         fill=\ConvColor,
-        height=8,
+        height=4,
         width=4.8,
-        depth=8
+        depth=4
         }
     };
 
@@ -87,9 +91,9 @@
         xlabel={{64, }},
         zlabel=8,
         fill=\ConvColor,
-        height=8,
+        height=4,
         width=3.2,
-        depth=8
+        depth=4
         }
     };
 
@@ -114,43 +118,42 @@
         xlabel={{64, }},
         zlabel=8,
         fill=\ConvColor,
-        height=8,
+        height=4,
         width=8,
-        depth=8
+        depth=4
         }
     };
 
 \draw [connection]  (pre-residual-east)    -- node {\midarrow} (block1-west);
 
-\pic[shift={(0.8,0,0)}] at (block1-east)
+\pic[shift={ (0.8,0,0) }] at (block1-east)
     {Box={
-        name=block2,
-        caption=Block 2,
-        xlabel={{64, }},
-        zlabel=8,
-        fill=\ConvColor,
-        height=8,
-        width=8,
-        depth=8
+        name=ghost-block,
+        caption=\dots,
+        fill=\PoolColor,
+        opacity=0.0,
+        height=0.1,
+        width=0,
+        depth=0.1
         }
     };
 
-\draw [connection]  (block1-east)    -- node {\midarrow} (block2-west);
+\draw [connection]  (block1-east)    -- node {\midarrow} (ghost-block-west);
 
-\pic[shift={(0.8,0,0)}] at (block2-east)
+\pic[shift={(0.8,0,0)}] at (ghost-block-east)
     {Box={
         name=blockB,
         caption=Block B,
         xlabel={{64, }},
         zlabel=8,
         fill=\ConvColor,
-        height=8,
+        height=4,
         width=8,
-        depth=8
+        depth=4
         }
     };
 
-\draw [connection]  (block2-east)    -- node {\midarrow} (blockB-west);
+\draw [connection]  (ghost-block-east)    -- node {\midarrow} (blockB-west);
 
 \pic[shift={(0.8,0,0)}] at (blockB-east)
     {Box={
@@ -159,9 +162,9 @@
         xlabel={{64, }},
         zlabel=8,
         fill=\ConvColor,
-        height=8,
+        height=4,
         width=3.2,
-        depth=8
+        depth=4
         }
     };
 
@@ -192,9 +195,9 @@
         caption= ,
         fill=\UnpoolColor,
         opacity=0.5,
-        height=16,
+        height=10,
         width=1.6,
-        depth=16
+        depth=10
         }
     };
 
@@ -206,9 +209,9 @@
         caption=Pixel-Shuffle Blocks 1\&2,
         fill=\UnpoolColor,
         opacity=0.5,
-        height=24,
+        height=16,
         width=1.6,
-        depth=24
+        depth=16
         }
     };
 
@@ -221,9 +224,9 @@
         xlabel={{32, }},
         zlabel=32,
         fill=\ConvColor,
-        height=24,
+        height=16,
         width=1.6,
-        depth=24
+        depth=16
         }
     };
 
@@ -236,9 +239,9 @@
         xlabel={{1, }},
         zlabel=32,
         fill=\ConvColor,
-        height=24,
+        height=16,
         width=0.5,
-        depth=24
+        depth=16
         }
     };
 
