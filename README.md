@@ -1,4 +1,4 @@
-# DeepBedMap
+# DeepBedMap [[poster]](https://github.com/weiji14/deepbedmap/issues/133)
 
 Going beyond BEDMAP2 using a super resolution deep neural network.
 Also a convenient [flat file](https://en.wikipedia.org/wiki/Flat-file_database) data repository for high resolution bed elevation datasets around Antarctica.
