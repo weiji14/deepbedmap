@@ -41,16 +41,26 @@ import chainer
 
 from features.environment import _load_ipynb_modules
 
+data_prep = _load_ipynb_modules("data_prep.ipynb")
+
 # %% [markdown]
 # ## Get bounding box of area we want to predict on
 
 # %%
-def get_image_and_bounds(filepath: str) -> (np.ndarray, rasterio.coords.BoundingBox):
+def get_image_and_bounds(filepaths: list) -> (np.ndarray, rasterio.coords.BoundingBox):
     """
     Retrieve raster image in numpy array format and
     geographic bounds as (xmin, ymin, xmax, ymax)
+
+    Note that if more than one filepath is passed in,
+    the output groundtruth image array will not be valid
+    (see https://github.com/pydata/xarray/issues/2159),
+    but the window_bound extents will be correct
     """
-    with xr.open_dataset(filepath) as data:
+    if len(filepaths) > 1:
+        print("WARN: using multiple inputs, output groundtruth image will look funny")
+
+    with xr.open_mfdataset(paths=filepaths, concat_dim=None) as data:
         groundtruth = data.z.to_masked_array()
         groundtruth = np.flipud(groundtruth)  # flip on y-axis...
         groundtruth = np.expand_dims(
@@ -68,9 +78,10 @@ def get_image_and_bounds(filepath: str) -> (np.ndarray, rasterio.coords.Bounding
 
 
 # %%
-test_file = "2007tx"  # "istarxx"
-test_filepath = f"highres/{test_file}"
-groundtruth, window_bound = get_image_and_bounds(filepath=f"{test_filepath}.nc")
+test_filepaths = ["highres/2007tx", "highres/2010tr", "highres/istarxx"]
+groundtruth, window_bound = get_image_and_bounds(
+    filepaths=[f"{t}.nc" for t in test_filepaths]
+)
 
 # %% [markdown]
 # ## Get neural network input datasets for our area of interest
@@ -208,8 +219,35 @@ def load_trained_model(
 
 # %%
 model = load_trained_model()
+
+# %%
 Y_hat = model.forward(x=X_tile, w1=W1_tile, w2=W2_tile).array
 Y_hat.shape
+
+# %% [markdown]
+# ## Load other interpolated grids for comparison
+#
+# - Bicubic interpolated BEDMAP2
+# - Synthetic High Resolution Grid from [Graham et al.](https://doi.org/10.5194/essd-9-267-2017)
+
+# %%
+cubicbedmap2 = skimage.transform.rescale(
+    image=X_tile[0, 0, 1:-1, 1:-1].astype(np.int32),
+    scale=4,  # 4x upscaling
+    order=3,  # cubic interpolation
+    mode="reflect",
+    anti_aliasing=True,
+    multichannel=False,
+    preserve_range=True,
+)
+cubicbedmap2 = np.expand_dims(np.expand_dims(cubicbedmap2, axis=0), axis=0)
+print(cubicbedmap2.shape, Y_hat.shape)
+assert cubicbedmap2.shape == Y_hat.shape
+
+# %%
+S_tile = data_prep.selective_tile(
+    filepath="model/hres.tif", window_bounds=[[*window_bound]]
+)
 
 # %% [markdown]
 # ## Plot results
@@ -225,32 +263,48 @@ axarr[0, 2].set_title("Groundtruth grids")
 plt.show()
 
 # %%
-fig = plt.figure(figsize=plt.figaspect(1 / 2) * 2.5)
+fig = plt.figure(figsize=plt.figaspect(12 / 9) * 4.5)  # (height/width)*scaling
 
-zmin, zmax = (X_tile.min(), X_tile.max())
+zmin, zmax = (Y_hat.min(), Y_hat.max())
 norm_Z = matplotlib.cm.colors.Normalize(vmin=zmin, vmax=zmax)
 
-ax = fig.add_subplot(1, 2, 1, projection="3d")
+# DeepBedMap
+ax = fig.add_subplot(2, 2, 1, projection="3d")
 ax = plot_3d_view(
-    img=X_tile, ax=ax, cm_norm=norm_Z, title="BEDMAP2\n(1000m resolution)"
+    img=Y_hat, ax=ax, cm_norm=norm_Z, title="DeepBedMap (ours)\n 250m resolution"
 )
 ax.set_zlim(bottom=zmin, top=zmax)
 ax.set_zlabel("\n\nElevation (metres)", fontsize=16)
 
-ax = fig.add_subplot(1, 2, 2, projection="3d")
+# BEDMAP2
+ax = fig.add_subplot(2, 2, 2, projection="3d")
+ax = plot_3d_view(img=X_tile, ax=ax, cm_norm=norm_Z, title="BEDMAP2\n1000m resolution")
+ax.set_zlim(bottom=zmin, top=zmax)
+ax.set_zlabel("\n\nElevation (metres)", fontsize=16)
+
+# DeepBedMap - BEDMAP2
+ax = fig.add_subplot(2, 2, 3, projection="3d")
 ax = plot_3d_view(
-    img=Y_hat,
+    img=Y_hat - cubicbedmap2,
     ax=ax,
     cm_norm=norm_Z,
-    title="Super Resolution Generative Adversarial Network prediction\n(250m resolution)",
+    title="DeepBedMap minus\nBEDMAP2 (cubic interpolated)",
 )
+ax.set_zlim(bottom=-500, top=500)
+ax.set_zlabel("\n\nDifference (metres)", fontsize=16)
+
+# Synthetic
+ax = fig.add_subplot(2, 2, 4, projection="3d")
+ax = plot_3d_view(img=S_tile, ax=ax, cm_norm=norm_Z, title="Synthetic HRES ")
 ax.set_zlim(bottom=zmin, top=zmax)
 ax.set_zlabel("\n\nElevation (metres)", fontsize=16)
 
+plt.subplots_adjust(wspace=0.0001, hspace=0.0001, left=0.0, right=0.9, top=1.2)
+plt.savefig(fname="esrgan_prediction.pdf", format="pdf", bbox_inches="tight")
 plt.show()
 
 # %% [markdown]
-# # Save Bicubic BEDMAP2 and SRGAN DEEPBEDMAP to a grid file
+# # Save Bicubic BEDMAP2 and ESRGAN DeepBedMap to a grid file
 
 # %%
 def save_array_to_grid(window_bound: tuple, array: np.ndarray, outfilepath: str):
@@ -293,19 +347,8 @@ save_array_to_grid(
 
 # %%
 # Save Bicubic Resampled BEDMAP2 to GeoTiff and NetCDF format
-cubicbedmap2 = skimage.transform.rescale(
-    image=X_tile[0, 0, :, :].astype(np.int32),
-    scale=4,  # 4x upscaling
-    order=3,  # cubic interpolation
-    mode="reflect",
-    anti_aliasing=True,
-    multichannel=False,
-    preserve_range=True,
-)
 save_array_to_grid(
-    window_bound=window_bound,
-    array=np.expand_dims(np.expand_dims(cubicbedmap2, axis=0), axis=0),
-    outfilepath="model/cubicbedmap",
+    window_bound=window_bound, array=cubicbedmap2, outfilepath="model/cubicbedmap"
 )
 
 # %% [markdown]
@@ -325,9 +368,19 @@ save_array_to_grid(
 # Wessel, P. (2010). Tools for analyzing intersecting tracks: The x2sys package. Computers & Geosciences, 36(3), 348–354. https://doi.org/10.1016/j.cageo.2009.05.009
 
 # %%
-data_prep = _load_ipynb_modules("data_prep.ipynb")
+test_filepath = "highres/2007tx"  # only one NetCDF grid can be tested
 track_test = data_prep.ascii_to_xyz(pipeline_file=f"{test_filepath}.json")
 track_test.to_csv("track_test.xyz", sep="\t", index=False)
+
+# %%
+## TODO make this multi-grid method work...
+# track_test = pd.concat(
+#     objs=[data_prep.ascii_to_xyz(pipeline_file=f"{pf}.json") for pf in test_filepaths]
+# )
+# grids = r"\n".join(f"{grid}.nc" for grid in test_filepaths)
+# print(grids)
+# # !echo "{grids}" > tmp.txt
+# # !gmt grdtrack track_test.xyz -G+ltmp.txt -h1 -i0,1,2 > track_groundtruth.xyzi
 
 # %%
 !gmt grdtrack track_test.xyz -G{test_filepath}.nc -h1 -i0,1,2 > track_groundtruth.xyzi
@@ -366,32 +419,33 @@ print(f"Difference      : {rmse_deepbedmap3 - rmse_cubicbedmap:.2f}")
 fig, ax = plt.subplots(figsize=(16, 9))
 df_groundtruth.hist(
     column="error",
-    bins=50,
+    bins=25,
     ax=ax,
     histtype="step",
     label=f"Groundtruth RMSE: {rmse_groundtruth:.2f}",
 )
 df_deepbedmap3.hist(
     column="error",
-    bins=50,
+    bins=25,
     ax=ax,
     histtype="step",
     label=f"DeepBedMap3 RMSE: {rmse_deepbedmap3:.2f}",
 )
 df_cubicbedmap.hist(
     column="error",
-    bins=50,
+    bins=25,
     ax=ax,
     histtype="step",
     label=f"CubicBedMap RMSE: {rmse_cubicbedmap:.2f}",
 )
-ax.set_title(
-    "Elevation error between interpolated bed (Z_interpolated) and groundtruth bed (Z)",
-    fontsize=22,
-)
-ax.set_xlabel("Error in metres", fontsize=16)
-ax.set_ylabel("Number of data points", fontsize=16)
-ax.legend(loc="upper left", fontsize=16)
+ax.set_title("Elevation error between interpolated bed and groundtruth", fontsize=32)
+ax.set_xlabel("Error in metres", fontsize=32)
+ax.set_ylabel("Number of data points", fontsize=32)
+ax.legend(loc="upper left", fontsize=32)
+plt.tick_params(axis="both", labelsize=20)
+plt.axvline(x=0)
+
+plt.savefig(fname="elevation_error_histogram.pdf", format="pdf", bbox_inches="tight")
 plt.show()
 
 # %%
