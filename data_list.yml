@@ -173,3 +173,16 @@
        filename: WISE_ISODYN_RadarByFlight_ASCII.zip
        url: https://ramadda.data.bas.ac.uk/repository/entry/get/WISE_ISODYN_RadarByFlight_ASCII.zip?entryid=synth%3A59e5a6f5-e67d-4a05-99af-30f656569401%3AL1dJU0VfSVNPRFlOX1JhZGFyQnlGbGlnaHRfQVNDSUkuemlw
        sha256: dfb20a4ff133f361f64b5730e7593a46cb3d599ae62b0dc874685794990c8d91
+-
+  citekey: Fahnestock2019LISA
+  folder: misc
+  location: Antarctica
+  resolution: 750m
+  doi:
+    dataset: "https://doi.org/10.7265/nxpc-e997"
+    literature: "https://doi.org/10.1016/j.rse.2015.11.023"
+  files:
+    -
+      filename: lisa750_2013182_2017120_0000_0400_v1.tgz
+      url: ftp://ftp.nsidc.org/pub/DATASETS/nsidc0733_landsat_ice_speed_v01/LISA750/lisa750_2013182_2017120_0000_0400_v1.tgz
+      sha256: 94d2f246e7f979923a18bf2d54fa8e181ed9eab1d8fe26caa3fd5a2e28e95956

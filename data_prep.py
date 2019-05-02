@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.2'
-#       jupytext_version: 1.0.1
+#       jupytext_version: 1.0.3
 #   kernelspec:
 #     display_name: deepbedmap
 #     language: python
@@ -29,8 +29,8 @@ import json
 import os
 import shutil
 import sys
+import urllib
 
-import requests
 import tqdm
 import yaml
 
@@ -63,20 +63,19 @@ print("Xarray       :", xr.__version__)
 # %%
 def download_to_path(path: str, url: str):
     r"""
-    Download from a url to a path
+    Download from a HTTP or FTP url to a filepath.
 
-    >>> download_to_path(path="highres/Data_20171204_02.csv",
-    ...                  url="https://data.cresis.ku.edu/data/rds/2017_Antarctica_Basler/csv_good/Data_20171204_02.csv")
-    <Response [200]>
+    >>> d = download_to_path(
+    ...    path="highres/Data_20171204_02.csv",
+    ...    url="ftp://data.cresis.ku.edu/data/rds/2017_Antarctica_Basler/csv_good/Data_20171204_02.csv",
+    ... )
     >>> open("highres/Data_20171204_02.csv").readlines()
     ['LAT,LON,UTCTIMESOD,THICK,ELEVATION,FRAME,SURFACE,BOTTOM,QUALITY\n']
     >>> os.remove(path="highres/Data_20171204_02.csv")
     """
-    # if not os.path.exists(path=path):
-    r = requests.get(url=url, stream=True)
-    with open(file=path, mode="wb") as fd:
-        for chunk in r.iter_content(chunk_size=1024):
-            fd.write(chunk)
+
+    r = urllib.request.urlretrieve(url=url, filename=path)
+
     return r
 
 
@@ -85,9 +84,10 @@ def check_sha256(path: str):
     """
     Returns SHA256 checksum of a file
 
-    >>> download_to_path(path="highres/Data_20171204_02.csv",
-    ...                  url="https://data.cresis.ku.edu/data/rds/2017_Antarctica_Basler/csv_good/Data_20171204_02.csv")
-    <Response [200]>
+    >>> d = download_to_path(
+    ...    path="highres/Data_20171204_02.csv",
+    ...    url="https://data.cresis.ku.edu/data/rds/2017_Antarctica_Basler/csv_good/Data_20171204_02.csv",
+    ... )
     >>> check_sha256("highres/Data_20171204_02.csv")
     '53cef7a0d28ff92b30367514f27e888efbc32b1bda929981b371d2e00d4c671b'
     >>> os.remove(path="highres/Data_20171204_02.csv")
@@ -118,7 +118,7 @@ def parse_datalist(
     assert yaml_file.endswith((".yml", ".yaml"))
 
     with open(file=yaml_file, mode="r") as yml:
-        y = yaml.load(stream=yml)
+        y = yaml.safe_load(stream=yml)
 
     datalist = pd.io.json.json_normalize(
         data=y, record_path=record_path, meta=schema, sep="_"
@@ -192,7 +192,7 @@ with rasterio.open("lowres/bedmap2_bed.tif") as raster_source:
     rasterio.plot.show(source=raster_source, cmap="BrBG_r")
 
 # %% [markdown]
-# ### Download miscellaneous data (e.g. [REMA](https://doi.org/10.7910/DVN/SAIK8B), [MEaSUREs Ice Flow](https://doi.org/10.5067/OC7B04ZM9G6Q))
+# ### Download miscellaneous data (e.g. [REMA](https://doi.org/10.7910/DVN/SAIK8B), [MEaSUREs Ice Flow](https://doi.org/10.5067/OC7B04ZM9G6Q), [LISA](https://doi.org/10.7265/nxpc-e997))
 
 # %%
 for dataset in dataframe.query(expr="folder == 'misc'").itertuples():
@@ -234,9 +234,10 @@ def ascii_to_xyz(pipeline_file: str) -> pd.DataFrame:
     a JSON Pipeline file similar to the one used by PDAL.
 
     >>> os.makedirs(name="/tmp/highres", exist_ok=True)
-    >>> download_to_path(path="/tmp/highres/2011_Antarctica_TO.csv",
-    ...                  url="https://data.cresis.ku.edu/data/rds/2011_Antarctica_TO/csv_good/2011_Antarctica_TO.csv")
-    <Response [200]>
+    >>> d = download_to_path(
+    ...    path="/tmp/highres/2011_Antarctica_TO.csv",
+    ...    url="https://data.cresis.ku.edu/data/rds/2011_Antarctica_TO/csv_good/2011_Antarctica_TO.csv",
+    ... )
     >>> _ = shutil.copy(src="highres/20xx_Antarctica_TO.json", dst="/tmp/highres")
     >>> df = ascii_to_xyz(pipeline_file="/tmp/highres/20xx_Antarctica_TO.json")
     >>> df.head(2)
