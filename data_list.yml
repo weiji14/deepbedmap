@@ -183,6 +183,6 @@
     literature: "https://doi.org/10.1016/j.rse.2015.11.023"
   files:
     -
-      filename: lisa750_2013182_2017120_0000_0400_v1.tgz
+      filename: lisa750_2013182_2017120_0000_0400_vv_v1.tif
       url: ftp://ftp.nsidc.org/pub/DATASETS/nsidc0733_landsat_ice_speed_v01/LISA750/lisa750_2013182_2017120_0000_0400_v1.tgz
-      sha256: 94d2f246e7f979923a18bf2d54fa8e181ed9eab1d8fe26caa3fd5a2e28e95956
+      sha256: 99eb934702305e2d27afa20dfc211c1d45ed762727bda29e0f251976a1877a92

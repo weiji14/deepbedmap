@@ -29,6 +29,7 @@ import json
 import os
 import shutil
 import sys
+import tarfile
 import urllib
 
 import tqdm
@@ -74,9 +75,31 @@ def download_to_path(path: str, url: str):
     >>> os.remove(path="highres/Data_20171204_02.csv")
     """
 
-    r = urllib.request.urlretrieve(url=url, filename=path)
+    folder, filename = os.path.split(p=path)
+    downloaded_filename = os.path.basename(urllib.parse.urlparse(url=url).path)
 
-    return r
+    # Download file using URL first
+    if not os.path.exists(os.path.join(folder, downloaded_filename)):
+        r = urllib.request.urlretrieve(
+            url=url, filename=os.path.join(folder, downloaded_filename)
+        )
+
+    # If downloaded file is not the final file (e.g. file is in an archive),
+    # then extract the file from the archive!
+    if filename != downloaded_filename:
+        # Extract tar.gz archive file
+        if downloaded_filename.endswith(("tgz", "tar.gz")):
+            try:
+                archive = tarfile.open(name=f"{folder}/{downloaded_filename}")
+                archive.extract(member=filename, path=folder)
+            except:
+                raise
+        else:
+            raise ValueError(
+                f"Unsupported archive format for downloaded file: {downloaded_filename}"
+            )
+
+    return os.path.exists(path=path)
 
 
 # %%
