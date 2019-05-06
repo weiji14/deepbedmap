@@ -1,12 +1,12 @@
 # ---
 # jupyter:
 #   jupytext:
-#     formats: ipynb,py:percent
+#     formats: ipynb,py:hydrogen
 #     text_representation:
 #       extension: .py
-#       format_name: percent
+#       format_name: hydrogen
 #       format_version: '1.2'
-#       jupytext_version: 1.0.1
+#       jupytext_version: 1.0.3
 #   kernelspec:
 #     display_name: deepbedmap
 #     language: python
@@ -29,8 +29,9 @@ import json
 import os
 import shutil
 import sys
+import tarfile
+import urllib
 
-import requests
 import tqdm
 import yaml
 
@@ -63,21 +64,42 @@ print("Xarray       :", xr.__version__)
 # %%
 def download_to_path(path: str, url: str):
     r"""
-    Download from a url to a path
+    Download from a HTTP or FTP url to a filepath.
 
-    >>> download_to_path(path="highres/Data_20171204_02.csv",
-    ...                  url="https://data.cresis.ku.edu/data/rds/2017_Antarctica_Basler/csv_good/Data_20171204_02.csv")
-    <Response [200]>
+    >>> d = download_to_path(
+    ...    path="highres/Data_20171204_02.csv",
+    ...    url="ftp://data.cresis.ku.edu/data/rds/2017_Antarctica_Basler/csv_good/Data_20171204_02.csv",
+    ... )
     >>> open("highres/Data_20171204_02.csv").readlines()
     ['LAT,LON,UTCTIMESOD,THICK,ELEVATION,FRAME,SURFACE,BOTTOM,QUALITY\n']
     >>> os.remove(path="highres/Data_20171204_02.csv")
     """
-    # if not os.path.exists(path=path):
-    r = requests.get(url=url, stream=True)
-    with open(file=path, mode="wb") as fd:
-        for chunk in r.iter_content(chunk_size=1024):
-            fd.write(chunk)
-    return r
+
+    folder, filename = os.path.split(p=path)
+    downloaded_filename = os.path.basename(urllib.parse.urlparse(url=url).path)
+
+    # Download file using URL first
+    if not os.path.exists(os.path.join(folder, downloaded_filename)):
+        r = urllib.request.urlretrieve(
+            url=url, filename=os.path.join(folder, downloaded_filename)
+        )
+
+    # If downloaded file is not the final file (e.g. file is in an archive),
+    # then extract the file from the archive!
+    if filename != downloaded_filename:
+        # Extract tar.gz archive file
+        if downloaded_filename.endswith(("tgz", "tar.gz")):
+            try:
+                archive = tarfile.open(name=f"{folder}/{downloaded_filename}")
+                archive.extract(member=filename, path=folder)
+            except:
+                raise
+        else:
+            raise ValueError(
+                f"Unsupported archive format for downloaded file: {downloaded_filename}"
+            )
+
+    return os.path.exists(path=path)
 
 
 # %%
@@ -85,9 +107,10 @@ def check_sha256(path: str):
     """
     Returns SHA256 checksum of a file
 
-    >>> download_to_path(path="highres/Data_20171204_02.csv",
-    ...                  url="https://data.cresis.ku.edu/data/rds/2017_Antarctica_Basler/csv_good/Data_20171204_02.csv")
-    <Response [200]>
+    >>> d = download_to_path(
+    ...    path="highres/Data_20171204_02.csv",
+    ...    url="https://data.cresis.ku.edu/data/rds/2017_Antarctica_Basler/csv_good/Data_20171204_02.csv",
+    ... )
     >>> check_sha256("highres/Data_20171204_02.csv")
     '53cef7a0d28ff92b30367514f27e888efbc32b1bda929981b371d2e00d4c671b'
     >>> os.remove(path="highres/Data_20171204_02.csv")
@@ -118,7 +141,7 @@ def parse_datalist(
     assert yaml_file.endswith((".yml", ".yaml"))
 
     with open(file=yaml_file, mode="r") as yml:
-        y = yaml.load(stream=yml)
+        y = yaml.safe_load(stream=yml)
 
     datalist = pd.io.json.json_normalize(
         data=y, record_path=record_path, meta=schema, sep="_"
@@ -192,7 +215,7 @@ with rasterio.open("lowres/bedmap2_bed.tif") as raster_source:
     rasterio.plot.show(source=raster_source, cmap="BrBG_r")
 
 # %% [markdown]
-# ### Download miscellaneous data (e.g. [REMA](https://doi.org/10.7910/DVN/SAIK8B), [MEaSUREs Ice Flow](https://doi.org/10.5067/OC7B04ZM9G6Q))
+# ### Download miscellaneous data (e.g. [REMA](https://doi.org/10.7910/DVN/SAIK8B), [MEaSUREs Ice Flow](https://doi.org/10.5067/D7GK8F5J8M8R), [LISA](https://doi.org/10.7265/nxpc-e997))
 
 # %%
 for dataset in dataframe.query(expr="folder == 'misc'").itertuples():
@@ -234,9 +257,10 @@ def ascii_to_xyz(pipeline_file: str) -> pd.DataFrame:
     a JSON Pipeline file similar to the one used by PDAL.
 
     >>> os.makedirs(name="/tmp/highres", exist_ok=True)
-    >>> download_to_path(path="/tmp/highres/2011_Antarctica_TO.csv",
-    ...                  url="https://data.cresis.ku.edu/data/rds/2011_Antarctica_TO/csv_good/2011_Antarctica_TO.csv")
-    <Response [200]>
+    >>> d = download_to_path(
+    ...    path="/tmp/highres/2011_Antarctica_TO.csv",
+    ...    url="https://data.cresis.ku.edu/data/rds/2011_Antarctica_TO/csv_good/2011_Antarctica_TO.csv",
+    ... )
     >>> _ = shutil.copy(src="highres/20xx_Antarctica_TO.json", dst="/tmp/highres")
     >>> df = ascii_to_xyz(pipeline_file="/tmp/highres/20xx_Antarctica_TO.json")
     >>> df.head(2)
@@ -538,7 +562,7 @@ def selective_tile(
     ...    filepath="/tmp/tmp_st.nc",
     ...    window_bounds=[(1.0, 4.0, 3.0, 6.0), (2.0, 5.0, 4.0, 7.0)],
     ... )
-    Tiling: /tmp/tmp_st.nc
+    Tiling: /tmp/tmp_st.nc ... done!
     array([[[[0.18485446, 0.96958464],
              [0.4951769 , 0.03438852]]],
     <BLANKLINE>
@@ -550,7 +574,7 @@ def selective_tile(
     array_list = []
 
     with rasterio.open(filepath) as dataset:
-        print(f"Tiling: {filepath}")
+        print(f"Tiling: {filepath} ... ", end="")
         for window_bound in window_bounds:
 
             if padding > 0:
@@ -595,6 +619,10 @@ def selective_tile(
                     np.copyto(
                         dst=array, src=array2, where=array.mask
                     )  # fill in gaps where mask is True
+
+                    assert (
+                        not array.mask.any()
+                    )  # check that there are no NAN values after gapfill
                 else:
                     plt.imshow(array.data[0, :, :])
                     plt.show()
@@ -604,6 +632,7 @@ def selective_tile(
 
             # assert array.shape[0] == array.shape[1]  # check that height==width
             array_list.append(array.data.astype(dtype=np.float32))
+        print("done!")
 
     return np.stack(arrays=array_list)
 
@@ -650,11 +679,20 @@ rema = selective_tile(
 print(rema.shape, rema.dtype)
 
 # %%
+## Custom processing for LISA to standardize units with MEASURES Ice Velocity
+# Convert units from metres/day to metres/year by multiplying 1st band by 365.25
+!rio calc "(* 365.25 (read 1))" misc/lisa750_2013182_2017120_0000_0400_vv_v1.tif misc/lisa750_2013182_2017120_0000_0400_vv_v1_myr.tif
+# Set NODATA mask where pixels are 36159.75 = 99 * 365.25
+!rio edit-info misc/lisa750_2013182_2017120_0000_0400_vv_v1_myr.tif --nodata 36159.75
+!rio info misc/lisa750_2013182_2017120_0000_0400_vv_v1_myr.tif
+
+# %%
 measuresiceflow = selective_tile(
     filepath="misc/MEaSUREs_IceFlowSpeed_450m.tif",
     window_bounds=window_bounds_concat,
     padding=1000,
     out_shape=(20, 20),
+    # gapfill_raster_filepath="misc/lisa750_2013182_2017120_0000_0400_vv_v1_myr.tif",
 )
 print(measuresiceflow.shape, measuresiceflow.dtype)
 
