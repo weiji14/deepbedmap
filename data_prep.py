@@ -620,14 +620,12 @@ def selective_tile(
                         dst=array, src=array2, where=array.mask
                     )  # fill in gaps where mask is True
 
-                    assert (
-                        not array.mask.any()
-                    )  # check that there are no NAN values after gapfill
+                    # assert not array.mask.any()  # ensure no NAN values after gapfill
                 else:
                     plt.imshow(array.data[0, :, :])
                     plt.show()
-                    raise ValueError(
-                        f"Tile has missing data, try passing in gapfill_raster_filepath"
+                    print(
+                        f"WARN: Tile has missing data, try passing in gapfill_raster_filepath"
                     )
 
             # assert array.shape[0] == array.shape[1]  # check that height==width
