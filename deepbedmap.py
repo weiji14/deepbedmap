@@ -109,7 +109,7 @@ def get_deepbedmap_model_inputs(
         window_bounds=[[*window_bound]],
         out_shape=(2 * X_tile.shape[2], 2 * X_tile.shape[3]),
         padding=padding,
-        gapfill_raster_filepath="misc/lisa750_2013182_2017120_0000_0400_vv_v1.tif",
+        gapfill_raster_filepath="misc/lisa750_2013182_2017120_0000_0400_vv_v1_myr.tif",
     )
     W1_tile = data_prep.selective_tile(
         filepath="misc/REMA_100m_dem.tif",
