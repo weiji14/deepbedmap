@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.2'
-#       jupytext_version: 0.8.6
+#       jupytext_version: 1.0.3
 #   kernelspec:
 #     display_name: deepbedmap
 #     language: python
@@ -256,7 +256,7 @@ class ResidualDenseBlock(chainer.Chain):
         self,
         in_out_channels: int = 64,
         inter_channels: int = 32,
-        residual_scaling: float = 0.3,
+        residual_scaling: float = 0.2,
     ):
         super().__init__()
         self.residual_scaling = residual_scaling
@@ -352,7 +352,7 @@ class ResInResDenseBlock(chainer.Chain):
         self,
         denseblock_class=ResidualDenseBlock,
         out_channels: int = 64,
-        residual_scaling: float = 0.3,
+        residual_scaling: float = 0.2,
     ):
         super().__init__()
         self.residual_scaling = residual_scaling
@@ -412,24 +412,22 @@ class GeneratorModel(chainer.Chain):
 
     >>> generator_model = GeneratorModel()
     >>> y_pred = generator_model.forward(
-    ...     inputs={
-    ...         "x": np.random.rand(1, 1, 10, 10).astype("float32"),
-    ...         "w1": np.random.rand(1, 1, 100, 100).astype("float32"),
-    ...         "w2": np.random.rand(1, 1, 20, 20).astype("float32"),
-    ...     }
+    ...     x=np.random.rand(1, 1, 10, 10).astype("float32"),
+    ...     w1=np.random.rand(1, 1, 100, 100).astype("float32"),
+    ...     w2=np.random.rand(1, 1, 20, 20).astype("float32"),
     ... )
     >>> y_pred.shape
     (1, 1, 32, 32)
     >>> generator_model.count_params()
-    7649793
+    9088641
     """
 
     def __init__(
         self,
         inblock_class=DeepbedmapInputBlock,
         resblock_class=ResInResDenseBlock,
-        num_residual_blocks: int = 10,
-        residual_scaling: float = 0.3,
+        num_residual_blocks: int = 12,
+        residual_scaling: float = 0.2,
         out_channels: int = 1,
     ):
         super().__init__()
@@ -497,16 +495,16 @@ class GeneratorModel(chainer.Chain):
                 initialW=init_weights,
             )
 
-    def forward(self, inputs: dict):
+    def forward(self, x: cupy.ndarray, w1: cupy.ndarray, w2: cupy.ndarray):
         """
-        Forward computation, i.e. evaluate based on inputs
+        Forward computation, i.e. evaluate based on input tensors
 
-        Input dictionary needs to have keys "x", "w1", "w2"
+        Each input should be either a numpy or cupy array.
         """
         # 0 part
         # Resize inputs o right scale using convolution (hardcoded kernel_size and strides)
         # Also concatenate all inputs
-        a0 = self.input_block(x=inputs["x"], w1=inputs["w1"], w2=inputs["w2"])
+        a0 = self.input_block(x=x, w1=w1, w2=w2)
 
         # 1st part
         # Pre-residual k3n64s1
@@ -543,13 +541,11 @@ class GeneratorModel(chainer.Chain):
 # %% [markdown]
 # ## 2.2 Discriminator Network Architecture
 #
-# Discriminator component is based on Deep Convolutional Generative Adversarial Networks by [Radford et al., 2015](https://arxiv.org/abs/1511.06434).
-#
-# Note that figure below shows the 2017 (non-enhanced) SRGAN discriminator neural network architecture.
-# The 2018 ESRGAN version is basically the same architecture, as only the loss function was changed.
-# Note that the BatchNormalization layers **are still preserved** within the Convolutional blocks (see relevant line in original Pytorch implementation [here](https://github.com/xinntao/BasicSR/blob/902b4ae1f4beec7359de6e62ed0aebfc335d8dfd/codes/models/modules/architecture.py#L88)).
-#
-# ![SRGAN architecture - Discriminator Network](https://arxiv-sanity-sanity-production.s3.amazonaws.com/render-output/399644/images/used/jpg/discriminator.jpg)
+# Discriminator implementation following that of [ESRGAN](https://arxiv.org/abs/1809.00219).
+# [VGG-style](https://arxiv.org/abs/1409.1556)
+# Consists of 10 Conv2D-BatchNorm-LeakyReLU blocks, followed by 2 Fully Connected Layers of size 100 and 1, with **no** final sigmoid activation.
+# Note also how the BatchNormalization layers **are still preserved**.
+# Original Pytorch implementation can be found [here](https://github.com/xinntao/BasicSR/blame/902b4ae1f4beec7359de6e62ed0aebfc335d8dfd/codes/models/modules/architecture.py#L86-L129).
 #
 # ![Discriminator Network](https://yuml.me/diagram/scruffy/class/[High-Resolution_DEM|32x32x1]->[Discriminator-Network],[Discriminator-Network]->[False/True|0/1])
 
@@ -566,19 +562,17 @@ class DiscriminatorModel(chainer.Chain):
 
     >>> discriminator_model = DiscriminatorModel()
     >>> y_pred = discriminator_model.forward(
-    ...     inputs={
-    ...         "x": np.random.rand(2, 1, 32, 32).astype("float32"),
-    ...     }
+    ...     x=np.random.rand(2, 1, 32, 32).astype("float32")
     ... )
     >>> y_pred.shape
     (2, 1)
     >>> discriminator_model.count_params()
-    6824193
+    10205129
     """
 
     def __init__(self):
         super().__init__()
-        init_weights = chainer.initializers.GlorotUniform(scale=1.0)
+        init_weights = chainer.initializers.HeNormal(scale=0.1, fan_option="fan_in")
 
         with self.init_scope():
 
@@ -591,14 +585,15 @@ class DiscriminatorModel(chainer.Chain):
                 nobias=False,  # default, have bias
                 initialW=init_weights,
             )
-            self.conv_layer1 = L.Convolution2D(None, 64, 3, 1, 1, False, init_weights)
+            self.conv_layer1 = L.Convolution2D(None, 64, 4, 1, 1, False, init_weights)
             self.conv_layer2 = L.Convolution2D(None, 64, 3, 2, 1, False, init_weights)
-            self.conv_layer3 = L.Convolution2D(None, 128, 3, 1, 1, False, init_weights)
+            self.conv_layer3 = L.Convolution2D(None, 128, 4, 1, 1, False, init_weights)
             self.conv_layer4 = L.Convolution2D(None, 128, 3, 2, 1, False, init_weights)
-            self.conv_layer5 = L.Convolution2D(None, 256, 3, 1, 1, False, init_weights)
+            self.conv_layer5 = L.Convolution2D(None, 256, 4, 1, 1, False, init_weights)
             self.conv_layer6 = L.Convolution2D(None, 256, 3, 2, 1, False, init_weights)
-            self.conv_layer7 = L.Convolution2D(None, 512, 3, 1, 1, False, init_weights)
+            self.conv_layer7 = L.Convolution2D(None, 512, 4, 1, 1, False, init_weights)
             self.conv_layer8 = L.Convolution2D(None, 512, 3, 2, 1, False, init_weights)
+            self.conv_layer9 = L.Convolution2D(None, 512, 4, 1, 1, False, init_weights)
 
             self.batch_norm1 = L.BatchNormalization(axis=(0, 2, 3), eps=0.001)
             self.batch_norm2 = L.BatchNormalization(axis=(0, 2, 3), eps=0.001)
@@ -608,20 +603,21 @@ class DiscriminatorModel(chainer.Chain):
             self.batch_norm6 = L.BatchNormalization(axis=(0, 2, 3), eps=0.001)
             self.batch_norm7 = L.BatchNormalization(axis=(0, 2, 3), eps=0.001)
             self.batch_norm8 = L.BatchNormalization(axis=(0, 2, 3), eps=0.001)
+            self.batch_norm9 = L.BatchNormalization(axis=(0, 2, 3), eps=0.001)
 
-            self.linear_1 = L.Linear(in_size=None, out_size=1024, initialW=init_weights)
+            self.linear_1 = L.Linear(in_size=None, out_size=100, initialW=init_weights)
             self.linear_2 = L.Linear(in_size=None, out_size=1, initialW=init_weights)
 
-    def forward(self, inputs: dict):
+    def forward(self, x: cupy.ndarray):
         """
-        Forward computation, i.e. evaluate based on inputs
+        Forward computation, i.e. evaluate based on input tensor
 
-        Input dictionary needs to have keys "x"
+        Each input should be either a numpy or cupy array.
         """
 
         # 1st part
         # Convolutonal Block without Batch Normalization k3n64s1
-        a0 = self.conv_layer0(x=inputs["x"])
+        a0 = self.conv_layer0(x=x)
         a0 = F.leaky_relu(x=a0, slope=0.2)
 
         # 2nd part
@@ -650,16 +646,19 @@ class DiscriminatorModel(chainer.Chain):
         a8 = self.conv_layer8(x=a7)
         a8 = self.batch_norm8(x=a8)
         a8 = F.leaky_relu(x=a8, slope=0.2)
+        a9 = self.conv_layer9(x=a8)
+        a9 = self.batch_norm9(x=a9)
+        a9 = F.leaky_relu(x=a9, slope=0.2)
 
         # 3rd part
         # Flatten, Dense (Fully Connected) Layers and Output
-        a9 = F.reshape(x=a8, shape=(len(a8), -1))  # flatten while keeping batch_size
-        a9 = self.linear_1(x=a9)
-        a9 = F.leaky_relu(x=a9, slope=0.2)
-        a10 = self.linear_2(x=a9)
-        # a10 = F.sigmoid(x=a10)  # no sigmoid activation, as it is in the loss function
+        a10 = F.reshape(x=a9, shape=(len(a9), -1))  # flatten while keeping batch_size
+        a10 = self.linear_1(x=a10)
+        a10 = F.leaky_relu(x=a10, slope=0.2)
+        a11 = self.linear_2(x=a10)
+        # a11 = F.sigmoid(x=a11)  # no sigmoid activation, as it is in the loss function
 
-        return a10
+        return a11
 
 
 # %% [markdown]
@@ -761,8 +760,8 @@ def calculate_generator_loss(
     real_labels: cupy.ndarray,
     fake_minus_real_target: cupy.ndarray,
     real_minus_fake_target: cupy.ndarray,
-    content_loss_weighting: float = 5e-3,
-    adversarial_loss_weighting: float = 1e-2,
+    content_loss_weighting: float = 1e-2,
+    adversarial_loss_weighting: float = 5e-3,
 ) -> chainer.variable.Variable:
     """
     This function calculates the weighted sum between
@@ -777,7 +776,7 @@ def calculate_generator_loss(
     ...     fake_minus_real_target=np.array([[1], [1]]).astype(np.int32),
     ...     real_minus_fake_target=np.array([[0], [0]]).astype(np.int32),
     ... )
-    variable(0.06234614)
+    variable(0.09867307)
     """
     # Content Loss (L1, Mean Absolute Error) between 2D images
     content_loss = F.mean_absolute_error(x0=y_pred, x1=y_true)
@@ -880,9 +879,9 @@ def calculate_discriminator_loss(
 # %%
 # Build the models
 def compile_srgan_model(
-    num_residual_blocks: int = 10,
-    residual_scaling: float = 0.3,
-    learning_rate: float = 6.5e-4,
+    num_residual_blocks: int = 12,
+    residual_scaling: float = 0.2,
+    learning_rate: float = 6e-4,
 ):
     """
     Instantiate our Super Resolution Generative Adversarial Network (SRGAN) model here.
@@ -989,17 +988,15 @@ def train_eval_discriminator(
     True
     """
     # @pytest.fixture
+    chainer.global_config.train = train  # Explicitly set Chainer's train/eval flag
     if train == True:
         assert d_optimizer is not None  # Optimizer required for neural network training
     xp = chainer.backend.get_array_module(input_arrays["Y"])
 
     # @given("fake generated images from a generator")
-    generator_inputs = {
-        "x": input_arrays["X"],
-        "w1": input_arrays["W1"],
-        "w2": input_arrays["W2"],
-    }
-    fake_images = g_model.forward(inputs=generator_inputs).array
+    fake_images = g_model.forward(
+        x=input_arrays["X"], w1=input_arrays["W1"], w2=input_arrays["W2"]
+    ).array
     fake_labels = xp.zeros(shape=(len(fake_images), 1)).astype(xp.int32)
 
     # @given("real groundtruth images")
@@ -1007,8 +1004,8 @@ def train_eval_discriminator(
     real_labels = xp.ones(shape=(len(real_images), 1)).astype(xp.int32)
 
     # @when("the two sets of images are fed into the discriminator for comparison")
-    real_labels_pred = d_model.forward(inputs={"x": real_images})
-    fake_labels_pred = d_model.forward(inputs={"x": fake_images})
+    real_labels_pred = d_model.forward(x=real_images)
+    fake_labels_pred = d_model.forward(x=fake_images)
     real_minus_fake_target = xp.ones(shape=(len(real_images), 1)).astype(xp.int32)
     fake_minus_real_target = xp.zeros(shape=(len(real_images), 1)).astype(xp.int32)
     d_loss = calculate_discriminator_loss(
@@ -1077,18 +1074,17 @@ def train_eval_generator(
     """
 
     # @pytest.fixture
+    chainer.global_config.train = train  # Explicitly set Chainer's train/eval flag
     if train == True:
         assert g_optimizer is not None  # Optimizer required for neural network training
     xp = chainer.backend.get_array_module(input_arrays["Y"])
 
     # @given("fake generated images from a generator")
-    generator_inputs = {
-        "x": input_arrays["X"],
-        "w1": input_arrays["W1"],
-        "w2": input_arrays["W2"],
-    }
-    fake_images = g_model.forward(inputs=generator_inputs)
-    fake_labels = d_model.forward(inputs={"x": fake_images}).array.astype(xp.float32)
+    fake_images = g_model.forward(
+        x=input_arrays["X"], w1=input_arrays["W1"], w2=input_arrays["W2"]
+    )
+    with chainer.using_config(name="train", value=False):  # Using non-train BatchNorm
+        fake_labels = d_model.forward(x=fake_images).array.astype(xp.float32)
 
     # @given("what we think the discriminator believes is real")
     real_images = input_arrays["Y"]
@@ -1191,6 +1187,13 @@ def save_model_weights_and_architecture(
     """
     Save the trained neural network's parameter weights and architecture,
     respectively to zipped Numpy (.npz) and ONNX (.onnx, .onnx.txt) format.
+
+    >>> model = GeneratorModel()
+    >>> _, _ = save_model_weights_and_architecture(
+    ...     trained_model=model, save_path="/tmp/weights"
+    ... )
+    >>> os.path.exists(path="/tmp/weights/srgan_generator_model_architecture.onnx.txt")
+    True
     """
 
     os.makedirs(name=save_path, exist_ok=True)
@@ -1200,17 +1203,16 @@ def save_model_weights_and_architecture(
     chainer.serializers.save_npz(file=model_weights_path, obj=trained_model)
 
     # Save generator model's architecture in ONNX format
-    dummy_inputs = {
-        "x": np.random.rand(32, 1, 10, 10).astype("float32"),
-        "w1": np.random.rand(32, 1, 100, 100).astype("float32"),
-        "w2": np.random.rand(32, 1, 20, 20).astype("float32"),
-    }
     model_architecture_path: str = os.path.join(
         save_path, f"{model_basename}_architecture.onnx"
     )
     _ = onnx_chainer.export(
         model=trained_model,
-        args={"inputs": dummy_inputs},
+        args={
+            "x": trained_model.xp.random.rand(32, 1, 10, 10).astype("float32"),
+            "w1": trained_model.xp.random.rand(32, 1, 100, 100).astype("float32"),
+            "w2": trained_model.xp.random.rand(32, 1, 20, 20).astype("float32"),
+        },
         filename=model_architecture_path,
         export_params=False,
         save_text=True,
@@ -1251,12 +1253,16 @@ def get_deepbedmap_test_result(
     model = deepbedmap.load_trained_model(
         model=model, model_weights_path=model_weights_path
     )
-    Y_hat = model.forward(inputs={"x": X_tile, "w1": W1_tile, "w2": W2_tile}).array
+    Y_hat = model.forward(
+        x=model.xp.asarray(a=X_tile),
+        w1=model.xp.asarray(a=W1_tile),
+        w2=model.xp.asarray(a=W2_tile),
+    ).array
 
     # Save infered deepbedmap to grid file(s)
     outfilepath: str = f"model/deepbedmap3_{outfilesuffix}"
     deepbedmap.save_array_to_grid(
-        window_bound=window_bound, array=Y_hat, outfilepath=outfilepath
+        window_bound=window_bound, array=cupy.asnumpy(a=Y_hat), outfilepath=outfilepath
     )
 
     # Load xyz table for test region
@@ -1300,10 +1306,10 @@ def objective(
     trial: optuna.trial.Trial = optuna.trial.FixedTrial(
         params={
             "batch_size_exponent": 7,
-            "num_residual_blocks": 10,
-            "residual_scaling": 0.3,
-            "learning_rate": 5e-4,
-            "num_epochs": 100,
+            "num_residual_blocks": 12,
+            "residual_scaling": 0.2,
+            "learning_rate": 6e-4,
+            "num_epochs": 150,
         }
     ),
     enable_livelossplot: bool = False,  # Default: False, no plots makes it go faster!
@@ -1340,7 +1346,7 @@ def objective(
     experiment.log_parameter(name="dataset_hash", value=quilt_hash)
     experiment.log_parameter(name="use_gpu", value=cupy.is_available())
     batch_size: int = int(
-        2 ** trial.suggest_int(name="batch_size_exponent", low=6, high=7)
+        2 ** trial.suggest_int(name="batch_size_exponent", low=7, high=7)
     )
     experiment.log_parameter(name="batch_size", value=batch_size)
     train_iter, train_len, dev_iter, dev_len = get_train_dev_iterators(
@@ -1352,13 +1358,13 @@ def objective(
 
     ## Compile Model
     num_residual_blocks: int = trial.suggest_int(
-        name="num_residual_blocks", low=8, high=12
+        name="num_residual_blocks", low=12, high=12
     )
     residual_scaling: float = trial.suggest_discrete_uniform(
-        name="residual_scaling", low=0.1, high=0.3, q=0.05
+        name="residual_scaling", low=0.2, high=0.2, q=0.05
     )
     learning_rate: float = trial.suggest_discrete_uniform(
-        name="learning_rate", high=8e-4, low=4e-4, q=5e-5
+        name="learning_rate", high=8e-4, low=2e-4, q=5e-5
     )
     g_model, g_optimizer, d_model, d_optimizer = compile_srgan_model(
         num_residual_blocks=num_residual_blocks,
@@ -1379,7 +1385,7 @@ def objective(
     )
 
     ## Run Trainer and save trained model
-    epochs: int = trial.suggest_int(name="num_epochs", low=30, high=60)
+    epochs: int = trial.suggest_int(name="num_epochs", low=120, high=150)
     experiment.log_parameter(name="num_epochs", value=epochs)
 
     metric_names = [
@@ -1459,7 +1465,7 @@ def objective(
 
 
 # %%
-n_trials = 1
+n_trials = 12
 if n_trials == 1:  # run training once only, i.e. just test the objective function
     objective(enable_livelossplot=True, enable_comet_logging=True)
 elif n_trials > 1:  # perform hyperparameter tuning with multiple experimental trials
@@ -1475,7 +1481,7 @@ elif n_trials > 1:  # perform hyperparameter tuning with multiple experimental t
         load_if_exists=True,
         sampler=sampler,
     )
-    study.optimize(func=objective, n_trials=100, n_jobs=1)
+    study.optimize(func=objective, n_trials=n_trials, n_jobs=1)
 
 
 # %%
@@ -1483,4 +1489,4 @@ if n_trials > 1:
     study = optuna.Study(
         study_name="DeepBedMap_tuning", storage="sqlite:///model/logs/train.db"
     )
-    study.trials_dataframe().nsmallest(n=10, columns="value")
+    IPython.display.display(study.trials_dataframe().nsmallest(n=10, columns="value"))
