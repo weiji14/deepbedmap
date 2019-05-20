@@ -263,12 +263,57 @@ Again, we follow ESRGAN's lead in the implementation of our adversarial Discrimi
 A VGG-style convolutional neural network \citep{SimonyanVeryDeepConvolutional2014} is used, consisting of 10 Convolutional-BatchNormalization-LeakyReLU blocks, followed by two fully connected layers with 100 and 1 neurons.
 For numerical stability, the sigmoid activation output is omitted from the Discriminator model's construction and is integrated instead into the binary cross entropy loss functions \eqref{eq:5} and \eqref{eq:6} via the log-sum-exp trick.
 
+\section{Experiments}
+
 \subsection{HEADING}
 TEXT
 
+\subsection{Training Details}
 
-\subsubsection{HEADING}
-TEXT
+The neural networks were developed using the Chainer library (version 6.0.0), and trained using full precision (floating point 32) arithmetic.
+Initial experiments were carried out on a Tesla P100 Graphical Processing Unit (GPU), moving on to a Tesla V100 GPU when it became available.
+On our Tesla V100 GPU setup, one training run with about 100 epochs takes about 15 minutes.
+This is using a batch size of 128 on a total of 2374 training image tiles, with 125 tiles reserved for validation, i.e. a 95/5 training/validation split.
+We next describe the method used to evaluate each DeepBedMap candidate model, as well as the high-level way in which we semi-automatically arrived at a good model via semi-automatic hyperparameter tuning.
+
+\begin{table*}[h]
+\caption{Optimized Hyperparameter Settings.}
+\label{table:1}
+\begin{tabular}{lrr}
+\tophline
+Hyperparameter & Setting & Tuning Range \\
+\middlehline
+Learning rate (for both Generator and Discriminator) & 6e-5 & 2e-5 to 8e-4 \\
+Number of Residual-in-Residual Blocks & 12 & 8 to 14 \\
+Mini-batch size & 128 & 64 or 128 \\
+Number of epochs & 120 & 80 to 150 \\
+Residual scaling & 0.3 & 0.1 to 0.5 \\
+Content Loss Weighting $\eta$ & 1e-2 & Fixed \\
+Adversarial Loss Weighting $\lambda$ & 5e-3 & Fixed \\
+He Normal Initialization Scaling & 0.1 & Fixed \\
+Adam optimizer epsilon & 0.1 & Fixed \\
+Adam optimizer beta1 & 0.9 & Fixed \\
+Adam optimizer beta2 & 0.99 & Fixed \\
+\bottomhline
+\end{tabular}
+\belowtable{} % Table Footnotes
+\end{table*}
+
+To check for overfitting, we evaluate the Generative Adversarial Network model on our validation dataset after each epoch using two performance metrics - a peak signal-to-noise ratio (PSNR) metric for the Generator, and an accuracy metric for the Discriminator.
+Training stops when these validation performance metrics show little improvement, roughly at 120 epochs.
+
+Next, we conduct a full evaluation on an independent test dataset, comparing the model's predicted grid output against actual groundtruth xyz points.
+Using gmt grdtrack \citep{WesselGenericMappingTools2013}, we obtain the grid elevation at each of our groundtruth point and use it to calculate the elevation error on a point-to-point basis.
+All of these elevation errors are then used to compute a Root Mean Squared Error (RMSE) statistic over this independent test site.
+This RMSE value is used to judge our model's performance in relation to baseline bicubic interpolation, and also the metric minimized by our hyperparameter optimization algorithm which we will describe next.
+
+Neural networks contain a lot of hyperparameter settings that need to be decided upon, and Generative Adversarial Networks are particularly sensitive to different hyperparameter settings.
+To stabilize model training and obtain better performance, we tune our hyperparameters (see Table \ref{table:1}) using a bayesian approach.
+Specifically, we employ the Tree-structured Parzen Estimator \citep{BergstraAlgorithmsHyperparameterOptimization2011} from the Optuna library (version 0.8.0).
+Given that we have 2 GPUs, we choose to parallelize the hyperparameter tuning experiments asynchronously between the two devices.
+The estimator first conducts 10 random experimental trials per GPU to scan the hyperparameter space, gradually narrowing down to a few candidate hyperparameters in subsequent experiments.
+We set each GPU to run a target of 100 experimental trials, though unpromising trials that have exploding/vanishing gradients are pruned prematurely to save time and computational resources.
+Finally, we present our results in the next section, comparing our DeepBedMap DEM grid with surfaces produced by other methods.
 
 
 \conclusions  %% \conclusions[modified heading if necessary]
