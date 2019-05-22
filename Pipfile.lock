@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "37d7d27147ccb747dc480bba884323764c5873e83ddc65a9e8dcf8c22a50365e"
+            "sha256": "1db23da524b8adb78f9e32899046c8811bd59320e24c0cae8277ca02b61ba4e0"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -877,8 +877,8 @@
         },
         "pygmt": {
             "editable": true,
-            "git": "https://github.com/GenericMappingTools/pygmt.git",
-            "ref": "997b88c855c12ffacd2c4b911f3fa83244ce8d7b"
+            "git": "https://github.com/weiji14/pygmt.git",
+            "ref": "97c2b4ac57068525956e16e7f2cf9f01c8e29fc5"
         },
         "pyparsing": {
             "hashes": [
