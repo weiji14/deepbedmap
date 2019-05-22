@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "1db23da524b8adb78f9e32899046c8811bd59320e24c0cae8277ca02b61ba4e0"
+            "sha256": "f007ff14b3bf717ca85d398bf788651d1b122ab1dad82029062e355773facad8"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -343,9 +343,12 @@
             "version": "==0.17.1"
         },
         "geopandas": {
-            "editable": true,
-            "git": "https://github.com/geopandas/geopandas.git",
-            "ref": "9e584ccdd65e0348d55f71da7149a2608a46fb68"
+            "hashes": [
+                "sha256:679d6390daa81778158e4c04b8bfe754ce8f2e211ab937ad918775fd40958821",
+                "sha256:a59345c7ee9c4532101342bf31f5c576c32f901f16a5aaf0637c7e1f5ac8939c"
+            ],
+            "index": "pypi",
+            "version": "==0.4.1"
         },
         "idna": {
             "hashes": [
