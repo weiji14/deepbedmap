@@ -1,4 +1,4 @@
-FROM buildpack-deps:bionic@sha256:b8ba77ee12f1e3943050b8a9eb4d671ddc78a2ade6bf481029de0dd4f29f2a7b
+FROM buildpack-deps:bionic@sha256:59661846ab0c581272f4b4688702617e6cc83ef1a9ae1cf918978126babbc858
 LABEL maintainer "https://github.com/weiji14"
 ENV LANG C.UTF-8
 ENV LC_ALL C.UTF-8
@@ -49,7 +49,7 @@ RUN conda env create -n deepbedmap -f environment.yml && \
     conda list -n deepbedmap
 
 # Install Generic Mapping Tools binary from source
-ENV GMT_COMMIT_HASH 2f1f82999ff9ee9b892c83c22324d2ea7a12c76e
+ENV GMT_COMMIT_HASH 20c95aff295964a99f1e738ff371bc7323ce4421
 ENV INSTALLDIR ${HOME}/gmt
 ENV COASTLINEDIR ${INSTALLDIR}/coast
 
