@@ -29,9 +29,7 @@ RUN cd /tmp && \
     $CONDA_DIR/bin/conda config --system --set show_channel_urls true && \
     conda clean --all --yes && \
     rm -rf /home/${NB_USER}/.cache/yarn && \
-    ln -s $CONDA_DIR/etc/profile.d/conda.sh /etc/profile.d/conda.sh && \
-    echo ". $CONDA_DIR/etc/profile.d/conda.sh" >> ~/.bashrc && \
-    echo "conda activate" >> ~/.bashrc
+    $CONDA_DIR/bin/conda init --verbose
 
 # Setup $HOME directory with correct permissions
 USER root
