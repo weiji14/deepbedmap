@@ -1,5 +1,10 @@
 version: '1.0'
 steps:
+  main_clone:
+    title: Cloning main repository...
+    type: git-clone
+    repo: '${{CF_REPO_OWNER}}/${{CF_REPO_NAME}}'
+    revision: '${{CF_REVISION}}'
   BuildingDockerImage:
     title: Building Docker Image
     type: build
@@ -12,14 +17,12 @@ steps:
     image: '${{BuildingDockerImage}}'
     working_directory: IMAGE_WORK_DIR
     entry_point:
-      - /bin/sh
+      - /bin/bash
       - /codefresh/volume/cf-generated/unit_test_script
     create_file:
       path: /codefresh/volume/cf-generated
       name: unit_test_script
       content: >-
-        /bin/bash -c "
-
         source activate deepbedmap
 
         pipenv run python -m ipykernel install --user --name deepbedmap
@@ -29,7 +32,6 @@ steps:
         pipenv run python -m pytest --verbose --disable-warnings --nbval
         test_ipynb.ipynb
 
-        "
     on_success:
       metadata:
         set:

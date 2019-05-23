@@ -1,4 +1,4 @@
-FROM buildpack-deps:bionic@sha256:b8ba77ee12f1e3943050b8a9eb4d671ddc78a2ade6bf481029de0dd4f29f2a7b
+FROM buildpack-deps:bionic@sha256:59661846ab0c581272f4b4688702617e6cc83ef1a9ae1cf918978126babbc858
 LABEL maintainer "https://github.com/weiji14"
 ENV LANG C.UTF-8
 ENV LC_ALL C.UTF-8
@@ -16,22 +16,20 @@ RUN adduser --disabled-password \
 # Setup conda
 ENV CONDA_DIR /opt/conda
 ENV NB_PYTHON_PREFIX ${CONDA_DIR}
-ENV MINICONDA_VERSION 4.5.12
+ENV MINICONDA_VERSION 4.6.14
 ENV PATH ${CONDA_DIR}/bin:$HOME/.local/bin:${PATH}
 
 RUN cd /tmp && \
     wget --quiet https://repo.continuum.io/miniconda/Miniconda3-${MINICONDA_VERSION}-Linux-x86_64.sh && \
-    echo "866ae9dff53ad0874e1d1a60b1ad1ef8 *Miniconda3-${MINICONDA_VERSION}-Linux-x86_64.sh" | md5sum -c - && \
+    echo "718259965f234088d785cad1fbd7de03 *Miniconda3-${MINICONDA_VERSION}-Linux-x86_64.sh" | md5sum -c - && \
     /bin/bash Miniconda3-${MINICONDA_VERSION}-Linux-x86_64.sh -f -b -p $CONDA_DIR && \
     rm Miniconda3-${MINICONDA_VERSION}-Linux-x86_64.sh && \
     $CONDA_DIR/bin/conda config --system --prepend channels conda-forge && \
     $CONDA_DIR/bin/conda config --system --set auto_update_conda false && \
     $CONDA_DIR/bin/conda config --system --set show_channel_urls true && \
-    conda clean -tipsy && \
+    conda clean --all --yes && \
     rm -rf /home/${NB_USER}/.cache/yarn && \
-    ln -s $CONDA_DIR/etc/profile.d/conda.sh /etc/profile.d/conda.sh && \
-    echo ". $CONDA_DIR/etc/profile.d/conda.sh" >> ~/.bashrc && \
-    echo "conda activate" >> ~/.bashrc
+    $CONDA_DIR/bin/conda init --verbose
 
 # Setup $HOME directory with correct permissions
 USER root
@@ -45,11 +43,11 @@ SHELL ["/bin/bash", "-c"]
 # Install dependencies in environment.yml file using conda
 COPY environment.yml ${HOME}
 RUN conda env create -n deepbedmap -f environment.yml && \
-    conda clean -tipsy && \
+    conda clean --all --yes && \
     conda list -n deepbedmap
 
 # Install Generic Mapping Tools binary from source
-ENV GMT_COMMIT_HASH 2f1f82999ff9ee9b892c83c22324d2ea7a12c76e
+ENV GMT_COMMIT_HASH 20c95aff295964a99f1e738ff371bc7323ce4421
 ENV INSTALLDIR ${HOME}/gmt
 ENV COASTLINEDIR ${INSTALLDIR}/coast
 
