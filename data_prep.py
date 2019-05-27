@@ -31,6 +31,7 @@ import shutil
 import sys
 import tarfile
 import urllib
+import zipfile
 
 import tqdm
 import yaml
@@ -91,6 +92,13 @@ def download_to_path(path: str, url: str):
         if downloaded_filename.endswith(("tgz", "tar.gz")):
             try:
                 archive = tarfile.open(name=f"{folder}/{downloaded_filename}")
+                archive.extract(member=filename, path=folder)
+            except:
+                raise
+        # Extract from .zip archive file
+        elif downloaded_filename.endswith((".zip")):
+            try:
+                archive = zipfile.ZipFile(file=f"{folder}/{downloaded_filename}")
                 archive.extract(member=filename, path=folder)
             except:
                 raise
@@ -215,7 +223,7 @@ with rasterio.open("lowres/bedmap2_bed.tif") as raster_source:
     rasterio.plot.show(source=raster_source, cmap="BrBG_r")
 
 # %% [markdown]
-# ### Download miscellaneous data (e.g. [REMA](https://doi.org/10.7910/DVN/SAIK8B), [MEaSUREs Ice Flow](https://doi.org/10.5067/D7GK8F5J8M8R), [LISA](https://doi.org/10.7265/nxpc-e997))
+# ### Download miscellaneous data (e.g. [REMA](https://doi.org/10.7910/DVN/SAIK8B), [MEaSUREs Ice Flow](https://doi.org/10.5067/D7GK8F5J8M8R), [LISA](https://doi.org/10.7265/nxpc-e997), [Arthern Accumulation](https://doi.org/10.1029/2004JD005667))
 
 # %%
 for dataset in dataframe.query(expr="folder == 'misc'").itertuples():

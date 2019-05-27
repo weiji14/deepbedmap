@@ -186,3 +186,16 @@
       filename: lisa750_2013182_2017120_0000_0400_vv_v1.tif
       url: ftp://ftp.nsidc.org/pub/DATASETS/nsidc0733_landsat_ice_speed_v01/LISA750/lisa750_2013182_2017120_0000_0400_v1.tgz
       sha256: 99eb934702305e2d27afa20dfc211c1d45ed762727bda29e0f251976a1877a92
+-
+  citekey: Arthern2006Accumulation
+  folder: misc
+  location: Antarctica
+  resolution: 1000m
+  doi:
+    dataset: nan
+    literature: "https://doi.org/10.1029/2004JD005667"
+  files:
+    -
+      filename: Arthern_accumulation_bedmap2_grid1.tif
+      url: https://secure.antarctica.ac.uk/data/bedmap2/resources/Arthern_accumulation/Arthern_accumulation_tif.zip
+      sha256: e6b139801bf4541f1e4989a8aa8b26ab37eca81bb5eaffa8028b744782455db0
