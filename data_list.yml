@@ -186,3 +186,37 @@
       filename: lisa750_2013182_2017120_0000_0400_vv_v1.tif
       url: ftp://ftp.nsidc.org/pub/DATASETS/nsidc0733_landsat_ice_speed_v01/LISA750/lisa750_2013182_2017120_0000_0400_v1.tgz
       sha256: 99eb934702305e2d27afa20dfc211c1d45ed762727bda29e0f251976a1877a92
+-
+  citekey: Arthern2006Accumulation
+  folder: misc
+  location: Antarctica
+  resolution: 1000m
+  doi:
+    dataset: nan
+    literature: "https://doi.org/10.1029/2004JD005667"
+  files:
+    -
+      filename: Arthern_accumulation_bedmap2_grid1.tif
+      url: https://secure.antarctica.ac.uk/data/bedmap2/resources/Arthern_accumulation/Arthern_accumulation_tif.zip
+      sha256: e6b139801bf4541f1e4989a8aa8b26ab37eca81bb5eaffa8028b744782455db0
+-
+  citekey: Mouginot2017MEASURES
+  folder: misc
+  location: Antarctica
+  resolution: nan
+  doi:
+    dataset: "https://doi.org/10.5067/AXE4121732AD"
+    literature: "https://doi.org/10.1126/science.1235798"
+  files:
+    -
+      filename: GroundingLine_Antarctica_v2.shp
+      url: http://data.pgc.umn.edu/gis/packages/quantarctica/Quantarctica3/Glaciology/MEaSUREs%20Antarctic%20Boundaries/GroundingLine_Antarctica_v2.shp
+      sha256: 2d8f84e301c4e33ad1cb480aa260b8208b3fcaa00df0b68593ffe7d5aa6c9d7e
+    -
+      filename: GroundingLine_Antarctica_v2.shx
+      url: http://data.pgc.umn.edu/gis/packages/quantarctica/Quantarctica3/Glaciology/MEaSUREs%20Antarctic%20Boundaries/GroundingLine_Antarctica_v2.shx
+      sha256: 01eaff4a35b4cd840a3fb1bdb63f7e51b2792c2ccd92d4621cb5d97cb3e365bc
+    -
+      filename: GroundingLine_Antarctica_v2.dbf
+      url: http://data.pgc.umn.edu/gis/packages/quantarctica/Quantarctica3/Glaciology/MEaSUREs%20Antarctic%20Boundaries/GroundingLine_Antarctica_v2.dbf
+      sha256: 1cfbe90b262a7fb81cbe61af4f75b23e03213a078ed866e66c6467ab422e017e

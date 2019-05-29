@@ -31,9 +31,8 @@ import shutil
 import sys
 import tarfile
 import urllib
-
-import tqdm
 import yaml
+import zipfile
 
 import geopandas as gpd
 import pygmt as gmt
@@ -48,6 +47,7 @@ import rasterio.mask
 import rasterio.plot
 import shapely.geometry
 import skimage.util.shape
+import tqdm
 import xarray as xr
 
 print("Python       :", sys.version.split("\n")[0])
@@ -91,6 +91,13 @@ def download_to_path(path: str, url: str):
         if downloaded_filename.endswith(("tgz", "tar.gz")):
             try:
                 archive = tarfile.open(name=f"{folder}/{downloaded_filename}")
+                archive.extract(member=filename, path=folder)
+            except:
+                raise
+        # Extract from .zip archive file
+        elif downloaded_filename.endswith((".zip")):
+            try:
+                archive = zipfile.ZipFile(file=f"{folder}/{downloaded_filename}")
                 archive.extract(member=filename, path=folder)
             except:
                 raise
@@ -215,7 +222,7 @@ with rasterio.open("lowres/bedmap2_bed.tif") as raster_source:
     rasterio.plot.show(source=raster_source, cmap="BrBG_r")
 
 # %% [markdown]
-# ### Download miscellaneous data (e.g. [REMA](https://doi.org/10.7910/DVN/SAIK8B), [MEaSUREs Ice Flow](https://doi.org/10.5067/D7GK8F5J8M8R), [LISA](https://doi.org/10.7265/nxpc-e997))
+# ### Download miscellaneous data (e.g. [REMA](https://doi.org/10.7910/DVN/SAIK8B), [MEaSUREs Ice Flow](https://doi.org/10.5067/D7GK8F5J8M8R), [LISA](https://doi.org/10.7265/nxpc-e997), [Arthern Accumulation](https://doi.org/10.1029/2004JD005667))
 
 # %%
 for dataset in dataframe.query(expr="folder == 'misc'").itertuples():
@@ -513,10 +520,10 @@ window_bounds_concat = np.concatenate([w for w in window_bounds]).tolist()
 print(f"Total number of tiles: {len(window_bounds_concat)}")
 
 # %% [markdown]
-# ### Show and save tiles
+# ### Subset tiles to those within grounding line, plot to show, and save
 
 # %%
-gdf = pd.concat(
+tile_gdf = pd.concat(
     objs=[
         gpd.GeoDataFrame(
             pd.Series(
@@ -528,9 +535,22 @@ gdf = pd.concat(
         for filepath, window_bound in zip(filepaths, window_bounds)
     ]
 ).reset_index(drop=True)
+
+# %%
+# Load grounding line polygon and buffer by 10km
+gline = gpd.read_file("misc/GroundingLine_Antarctica_v2.shp")
+gline.crs = {"init": "epsg:3031"}
+gline.geometry = gline.geometry.buffer(distance=10000)
+
+# %%
+# Select tiles within the buffered grounding line
+gdf = gpd.sjoin(left_df=tile_gdf, op="within", right_df=gline, how="inner")
+gdf = gdf.reset_index()[["grid_name", "geometry"]]
 gdf.plot()
 
 # %%
+# Save subsetted tiles to file in both EPSG 3031 and 4326
+print(f"Saving only {len(gdf)} tiles out of {len(tile_gdf)}")
 gdf.to_file(filename="model/train/tiles_3031.geojson", driver="GeoJSON")
 gdf.to_crs(crs={"init": "epsg:4326"}).to_file(
     filename="model/train/tiles_4326.geojson", driver="GeoJSON"
@@ -694,6 +714,14 @@ measuresiceflow = selective_tile(
 )
 print(measuresiceflow.shape, measuresiceflow.dtype)
 
+# %%
+accumulation = selective_tile(
+    filepath="misc/Arthern_accumulation_bedmap2_grid1.tif",
+    window_bounds=window_bounds_concat,
+    padding=1000,
+)
+print(accumulation.shape, accumulation.dtype)
+
 # %% [markdown]
 # ## 4. Save the arrays
 #
@@ -709,6 +737,7 @@ print(measuresiceflow.shape, measuresiceflow.dtype)
 os.makedirs(name="model/train", exist_ok=True)
 np.save(file="model/train/W1_data.npy", arr=rema)
 np.save(file="model/train/W2_data.npy", arr=measuresiceflow)
+np.save(file="model/train/W3_data.npy", arr=accumulation)
 np.save(file="model/train/X_data.npy", arr=lores)
 np.save(file="model/train/Y_data.npy", arr=hires)
 
@@ -724,6 +753,7 @@ quilt.login()
 # Tiled datasets for training neural network
 quilt.build(package="weiji14/deepbedmap/model/train/W1_data", path=rema)
 quilt.build(package="weiji14/deepbedmap/model/train/W2_data", path=measuresiceflow)
+quilt.build(package="weiji14/deepbedmap/model/train/W3_data", path=accumulation)
 quilt.build(package="weiji14/deepbedmap/model/train/X_data", path=lores)
 quilt.build(package="weiji14/deepbedmap/model/train/Y_data", path=hires)
 
@@ -741,6 +771,10 @@ quilt.build(
 quilt.build(
     package="weiji14/deepbedmap/misc/MEaSUREs_IceFlowSpeed_450m",
     path="misc/MEaSUREs_IceFlowSpeed_450m.tif",
+)
+quilt.build(
+    package="weiji14/deepbedmap/misc/Arthern_accumulation_bedmap2_grid1",
+    path="misc/Arthern_accumulation_bedmap2_grid1.tif",
 )
 
 # %%
