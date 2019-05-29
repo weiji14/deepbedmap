@@ -31,10 +31,8 @@ import shutil
 import sys
 import tarfile
 import urllib
-import zipfile
-
-import tqdm
 import yaml
+import zipfile
 
 import geopandas as gpd
 import pygmt as gmt
@@ -49,6 +47,7 @@ import rasterio.mask
 import rasterio.plot
 import shapely.geometry
 import skimage.util.shape
+import tqdm
 import xarray as xr
 
 print("Python       :", sys.version.split("\n")[0])

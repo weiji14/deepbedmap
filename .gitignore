@@ -2,9 +2,12 @@
 gmt/
 **/.ipynb_checkpoints
 **/*.csv
-**/*.txt
-**/*.tif
+**/*.dbf
 **/*.grd
 **/*.npy
 **/*.nc
+**/*.shp
+**/*.shx
+**/*.txt
+**/*.tif
 **/*.zip
