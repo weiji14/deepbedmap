@@ -714,6 +714,14 @@ measuresiceflow = selective_tile(
 )
 print(measuresiceflow.shape, measuresiceflow.dtype)
 
+# %%
+accumulation = selective_tile(
+    filepath="misc/Arthern_accumulation_bedmap2_grid1.tif",
+    window_bounds=window_bounds_concat,
+    padding=1000,
+)
+print(accumulation.shape, accumulation.dtype)
+
 # %% [markdown]
 # ## 4. Save the arrays
 #
@@ -729,6 +737,7 @@ print(measuresiceflow.shape, measuresiceflow.dtype)
 os.makedirs(name="model/train", exist_ok=True)
 np.save(file="model/train/W1_data.npy", arr=rema)
 np.save(file="model/train/W2_data.npy", arr=measuresiceflow)
+np.save(file="model/train/W3_data.npy", arr=accumulation)
 np.save(file="model/train/X_data.npy", arr=lores)
 np.save(file="model/train/Y_data.npy", arr=hires)
 
@@ -744,6 +753,7 @@ quilt.login()
 # Tiled datasets for training neural network
 quilt.build(package="weiji14/deepbedmap/model/train/W1_data", path=rema)
 quilt.build(package="weiji14/deepbedmap/model/train/W2_data", path=measuresiceflow)
+quilt.build(package="weiji14/deepbedmap/model/train/W3_data", path=accumulation)
 quilt.build(package="weiji14/deepbedmap/model/train/X_data", path=lores)
 quilt.build(package="weiji14/deepbedmap/model/train/Y_data", path=hires)
 
@@ -761,6 +771,10 @@ quilt.build(
 quilt.build(
     package="weiji14/deepbedmap/misc/MEaSUREs_IceFlowSpeed_450m",
     path="misc/MEaSUREs_IceFlowSpeed_450m.tif",
+)
+quilt.build(
+    package="weiji14/deepbedmap/misc/Arthern_accumulation_bedmap2_grid1",
+    path="misc/Arthern_accumulation_bedmap2_grid1.tif",
 )
 
 # %%
