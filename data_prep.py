@@ -31,10 +31,8 @@ import shutil
 import sys
 import tarfile
 import urllib
-import zipfile
-
-import tqdm
 import yaml
+import zipfile
 
 import geopandas as gpd
 import pygmt as gmt
@@ -49,6 +47,7 @@ import rasterio.mask
 import rasterio.plot
 import shapely.geometry
 import skimage.util.shape
+import tqdm
 import xarray as xr
 
 print("Python       :", sys.version.split("\n")[0])
@@ -521,10 +520,10 @@ window_bounds_concat = np.concatenate([w for w in window_bounds]).tolist()
 print(f"Total number of tiles: {len(window_bounds_concat)}")
 
 # %% [markdown]
-# ### Show and save tiles
+# ### Subset tiles to those within grounding line, plot to show, and save
 
 # %%
-gdf = pd.concat(
+tile_gdf = pd.concat(
     objs=[
         gpd.GeoDataFrame(
             pd.Series(
@@ -536,9 +535,22 @@ gdf = pd.concat(
         for filepath, window_bound in zip(filepaths, window_bounds)
     ]
 ).reset_index(drop=True)
+
+# %%
+# Load grounding line polygon and buffer by 10km
+gline = gpd.read_file("misc/GroundingLine_Antarctica_v2.shp")
+gline.crs = {"init": "epsg:3031"}
+gline.geometry = gline.geometry.buffer(distance=10000)
+
+# %%
+# Select tiles within the buffered grounding line
+gdf = gpd.sjoin(left_df=tile_gdf, op="within", right_df=gline, how="inner")
+gdf = gdf.reset_index()[["grid_name", "geometry"]]
 gdf.plot()
 
 # %%
+# Save subsetted tiles to file in both EPSG 3031 and 4326
+print(f"Saving only {len(gdf)} tiles out of {len(tile_gdf)}")
 gdf.to_file(filename="model/train/tiles_3031.geojson", driver="GeoJSON")
 gdf.to_crs(crs={"init": "epsg:4326"}).to_file(
     filename="model/train/tiles_4326.geojson", driver="GeoJSON"
