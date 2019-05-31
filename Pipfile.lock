@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "cf3686e2a767d54689c311f0e6bf8badfedd5932a10313fe590173907dccdaf7"
+            "sha256": "68d4328d3bc4b5815e0806d7516e5091879ea647bbbeda97d126c77c43fa24d6"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -713,10 +713,10 @@
         },
         "pbr": {
             "hashes": [
-                "sha256:6901995b9b686cb90cceba67a0f6d4d14ae003cd59bc12beb61549bdfbe3bc89",
-                "sha256:d950c64aeea5456bbd147468382a5bb77fe692c13c9f00f0219814ce5b642755"
+                "sha256:0ce920b865091450bbcd452b35cf6d6eb8a6d9ce13ad2210d6e77557f85cf32b",
+                "sha256:93d2dc6ee0c9af4dbc70bc1251d0e545a9910ca8863774761f92716dece400b6"
             ],
-            "version": "==5.2.0"
+            "version": "==5.2.1"
         },
         "pexpect": {
             "hashes": [
@@ -841,11 +841,6 @@
                 "sha256:881c4c157e45f30af185c1ffe8d549d48ac9127433f2c380c24b84572ad66297"
             ],
             "version": "==2.4.2"
-        },
-        "pygmt": {
-            "editable": true,
-            "git": "https://github.com/weiji14/pygmt.git",
-            "ref": "97c2b4ac57068525956e16e7f2cf9f01c8e29fc5"
         },
         "pyparsing": {
             "hashes": [
@@ -1239,6 +1234,7 @@
                 "sha256:9fe63e4d8488883bb357e7b668556e0a81e7b8d4a84bf0e81533bc964b9872e4",
                 "sha256:ac09a819e791be208ae33fa7ecee19d0fe7b5479906f927d358a61957ce27e10"
             ],
+            "index": "pypi",
             "version": "==0.12.1"
         },
         "xlrd": {
@@ -1320,10 +1316,10 @@
         },
         "importlib-metadata": {
             "hashes": [
-                "sha256:027cfc6524613de726789072f95d2e4cc64dd1dee8096d42d13f2ead5bd302f5",
-                "sha256:0d05199e1f0b1a8707a1b9c46476d4a49807fb56cb1b0737db1d37feb42fe31d"
+                "sha256:a9f185022cfa69e9ca5f7eabfd5a58b689894cb78a11e3c8c89398a8ccbb8e7f",
+                "sha256:df1403cd3aebeb2b1dcd3515ca062eecb5bd3ea7611f18cba81130c68707e879"
             ],
-            "version": "==0.15"
+            "version": "==0.17"
         },
         "ipykernel": {
             "hashes": [
