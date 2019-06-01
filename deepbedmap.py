@@ -7,7 +7,7 @@
 #       extension: .py
 #       format_name: hydrogen
 #       format_version: '1.2'
-#       jupytext_version: 1.0.3
+#       jupytext_version: 1.1.4-rc1
 #   kernelspec:
 #     display_name: deepbedmap
 #     language: python
@@ -421,10 +421,10 @@ track_test.to_csv("track_test.xyz", sep="\t", index=False)
 
 # %%
 names = ["x", "y", "z", "z_interpolated"]
-df_groundtruth = pd.read_csv("track_groundtruth.xyzi", sep="\t", header=1, names=names)
-df_deepbedmap3 = pd.read_csv("track_deepbedmap3.xyzi", sep="\t", header=1, names=names)
-df_cubicbedmap = pd.read_csv("track_cubicbedmap.xyzi", sep="\t", header=1, names=names)
-df_synthetichr = pd.read_csv("track_synthetichr.xyzi", sep="\t", header=1, names=names)
+df_groundtruth = pd.read_csv("track_groundtruth.xyzi", sep="\t", header=0, names=names)
+df_deepbedmap3 = pd.read_csv("track_deepbedmap3.xyzi", sep="\t", header=0, names=names)
+df_cubicbedmap = pd.read_csv("track_cubicbedmap.xyzi", sep="\t", header=0, names=names)
+df_synthetichr = pd.read_csv("track_synthetichr.xyzi", sep="\t", header=0, names=names)
 
 # %%
 df_groundtruth["error"] = df_groundtruth.z_interpolated - df_groundtruth.z
