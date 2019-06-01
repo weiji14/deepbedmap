@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "28204d36e3b4ca79d3141e33fa6b9447638a6868bf64dda4759571da1c43d7f5"
+            "sha256": "72f9d21185a588ba9db44c3391b338601822cbd9702f8ad2008c0f50a4a2f99c"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -208,6 +208,17 @@
                 "sha256:cd7b2d1018258d7247a71425e9f26463dfb444d411c39569972f4ce586b0c9d8"
             ],
             "version": "==0.10.0"
+        },
+        "dask": {
+            "extras": [
+                "array"
+            ],
+            "hashes": [
+                "sha256:5e7876bae2a01b355d1969b73aeafa23310febd8c353163910b73e93dc7e492c",
+                "sha256:942edbbaceb914be3427fc6f1d5da98a31c3e9eceddcf3158a74e1d4d6fcc67c"
+            ],
+            "index": "pypi",
+            "version": "==1.2.2"
         },
         "decorator": {
             "hashes": [
@@ -1150,6 +1161,12 @@
                 "sha256:235682dd292d5899d361a811df37e04a8828a5b1da3115886b73cf81ebc9100e"
             ],
             "version": "==0.10.0"
+        },
+        "toolz": {
+            "hashes": [
+                "sha256:929f0a7ea7f61c178bd951bdae93920515d3fbdbafc8e6caf82d752b9b3b31c9"
+            ],
+            "version": "==0.9.0"
         },
         "tornado": {
             "hashes": [

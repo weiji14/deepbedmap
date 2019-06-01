@@ -8,6 +8,7 @@ black = "==19.3b0"
 chainer = "==6.0.0"
 comet-ml = "==1.0.55"
 cupy-cuda100 = "==6.0.0"
+dask = {extras = ["array"],version = "==1.2.2"}
 descartes = "==1.1.0"
 geopandas = "==0.5.0"
 jupyterlab = "==1.0.0a5"

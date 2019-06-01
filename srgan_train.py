@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.2'
-#       jupytext_version: 1.0.3
+#       jupytext_version: 1.1.4-rc1
 #   kernelspec:
 #     display_name: deepbedmap
 #     language: python
@@ -1244,7 +1244,9 @@ def get_deepbedmap_test_result(
     deepbedmap = _load_ipynb_modules("deepbedmap.ipynb")
 
     # Get groundtruth images, window_bounds and neural network input datasets
-    groundtruth, window_bound = deepbedmap.get_image_and_bounds(f"{test_filepath}.nc")
+    groundtruth, window_bound = deepbedmap.get_image_and_bounds(
+        filepaths=f"{test_filepath}.nc"
+    )
     X_tile, W1_tile, W2_tile = deepbedmap.get_deepbedmap_model_inputs(
         window_bound=window_bound
     )
