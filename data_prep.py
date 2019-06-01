@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: hydrogen
 #       format_version: '1.2'
-#       jupytext_version: 1.0.3
+#       jupytext_version: 1.1.4-rc1
 #   kernelspec:
 #     display_name: deepbedmap
 #     language: python
@@ -35,7 +35,7 @@ import yaml
 import zipfile
 
 import geopandas as gpd
-# import pygmt as gmt
+import pygmt as gmt
 import IPython.display
 import matplotlib.pyplot as plt
 import numpy as np
@@ -379,10 +379,10 @@ def xyz_to_grid(
 
     >>> xyz_data = 1000*pd.DataFrame(np.random.RandomState(seed=42).rand(60).reshape(20, 3))
     >>> region = get_region(xyz_data=xyz_data)
-    >>> grid = xyz_to_grid(xyz_data=xyz_data, region=region, spacing=250)  # doctest: +SKIP
-    >>> grid.to_array().shape  # doctest: +SKIP
+    >>> grid = xyz_to_grid(xyz_data=xyz_data, region=region, spacing=250)
+    >>> grid.to_array().shape
     (1, 5, 5)
-    >>> grid.to_array().values  # doctest: +SKIP
+    >>> grid.to_array().values
     array([[[403.17618 , 544.92535 , 670.7824  , 980.75055 , 961.47723 ],
             [379.0757  , 459.26407 , 314.38297 , 377.78555 , 546.0469  ],
             [450.67664 , 343.26    ,  88.391594, 260.10492 , 452.3337  ],
