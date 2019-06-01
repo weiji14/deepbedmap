@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: hydrogen
 #       format_version: '1.2'
-#       jupytext_version: 1.0.3
+#       jupytext_version: 1.1.4-rc1
 #   kernelspec:
 #     display_name: deepbedmap
 #     language: python
