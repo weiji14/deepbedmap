@@ -33,6 +33,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import axes3d
 import numpy as np
 import pandas as pd
+import pygmt as gmt
 import quilt
 import rasterio
 import skimage
@@ -308,7 +309,7 @@ ax.set_zlim(bottom=zmin, top=zmax)
 ax.set_zlabel("\n\nElevation (metres)", fontsize=16)
 
 plt.subplots_adjust(wspace=0.0001, hspace=0.0001, left=0.0, right=0.9, top=1.2)
-plt.savefig(fname="esrgan_prediction.pdf", format="pdf", bbox_inches="tight")
+# plt.savefig(fname="esrgan_prediction.pdf", format="pdf", bbox_inches="tight")
 plt.show()
 
 # %% [markdown]
@@ -389,6 +390,7 @@ save_array_to_grid(
 # - Groundtruth grid (interpolated from our groundtruth points using [surface](https://gmt.soest.hawaii.edu/doc/latest/surface.html))
 # - DeepBedMap3 grid (predicted from our [Super Resolution Generative Adversarial Network model](/srgan_train.ipynb))
 # - CubicBedMap grid (interpolated from BEDMAP2 using a [bicubic spline algorithm](http://scikit-image.org/docs/dev/api/skimage.transform.html#skimage.transform.rescale))
+# - Synthetic High Res grid (created by [Graham et al.](https://doi.org/10.5194/essd-9-267-2017))
 #
 # Reference:
 #
@@ -396,8 +398,7 @@ save_array_to_grid(
 
 # %%
 test_filepath = "highres/2007tx"  # only one NetCDF grid can be tested
-track_test = data_prep.ascii_to_xyz(pipeline_file=f"{test_filepath}.json")
-track_test.to_csv("track_test.xyz", sep="\t", index=False)
+xyz_track = data_prep.ascii_to_xyz(pipeline_file=f"{test_filepath}.json")
 
 # %%
 ## TODO make this multi-grid method work...
@@ -410,21 +411,21 @@ track_test.to_csv("track_test.xyz", sep="\t", index=False)
 # !gmt grdtrack track_test.xyz -G+ltmp.txt -h1 -i0,1,2 > track_groundtruth.xyzi
 
 # %%
-!gmt grdtrack track_test.xyz -G{test_filepath}.nc -h1 -i0,1,2 > track_groundtruth.xyzi
-!gmt grdtrack track_test.xyz -Gmodel/deepbedmap3.nc -h1 -i0,1,2 > track_deepbedmap3.xyzi
-!gmt grdtrack track_test.xyz -Gmodel/cubicbedmap.nc -h1 -i0,1,2 > track_cubicbedmap.xyzi
-!gmt grdtrack track_test.xyz -Gmodel/synthetichr.nc -h1 -i0,1,2 > track_synthetichr.xyzi
-!head track_*.xyzi -n5
+df_groundtruth = gmt.grdtrack(
+    points=xyz_track, grid=f"{test_filepath}.nc", newcolname="z_interpolated"
+)
+df_deepbedmap3 = gmt.grdtrack(
+    points=xyz_track, grid="model/deepbedmap3.nc", newcolname="z_interpolated"
+)
+df_cubicbedmap = gmt.grdtrack(
+    points=xyz_track, grid="model/cubicbedmap.nc", newcolname="z_interpolated"
+)
+df_synthetichr = gmt.grdtrack(
+    points=xyz_track, grid="model/synthetichr.nc", newcolname="z_interpolated"
+)
 
 # %% [markdown]
 # ### Get table statistics
-
-# %%
-names = ["x", "y", "z", "z_interpolated"]
-df_groundtruth = pd.read_csv("track_groundtruth.xyzi", sep="\t", header=0, names=names)
-df_deepbedmap3 = pd.read_csv("track_deepbedmap3.xyzi", sep="\t", header=0, names=names)
-df_cubicbedmap = pd.read_csv("track_cubicbedmap.xyzi", sep="\t", header=0, names=names)
-df_synthetichr = pd.read_csv("track_synthetichr.xyzi", sep="\t", header=0, names=names)
 
 # %%
 df_groundtruth["error"] = df_groundtruth.z_interpolated - df_groundtruth.z
@@ -493,7 +494,7 @@ ax.legend(loc="upper left", fontsize=32)
 plt.tick_params(axis="both", labelsize=20)
 plt.axvline(x=0)
 
-plt.savefig(fname="elevation_error_histogram.pdf", format="pdf", bbox_inches="tight")
+# plt.savefig(fname="elevation_error_histogram.pdf", format="pdf", bbox_inches="tight")
 plt.show()
 
 # %%

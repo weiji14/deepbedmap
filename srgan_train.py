@@ -40,6 +40,7 @@ import IPython.display
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import pygmt as gmt
 import quilt
 import skimage.transform
 import tqdm
@@ -1234,7 +1235,6 @@ def get_deepbedmap_test_result(
     model=None,
     model_weights_path: str = "model/weights/srgan_generator_model_weights.npz",
     outfilesuffix: str = "",  # unique suffix (e.g. ID) for temporary files
-    redo_testtrack: bool = True,
 ) -> float:
     """
     Gets Root Mean Squared Error of elevation difference between
@@ -1245,7 +1245,7 @@ def get_deepbedmap_test_result(
 
     # Get groundtruth images, window_bounds and neural network input datasets
     groundtruth, window_bound = deepbedmap.get_image_and_bounds(
-        filepaths=f"{test_filepath}.nc"
+        filepaths=[f"{test_filepath}.nc"]
     )
     X_tile, W1_tile, W2_tile = deepbedmap.get_deepbedmap_model_inputs(
         window_bound=window_bound
@@ -1268,19 +1268,12 @@ def get_deepbedmap_test_result(
     )
 
     # Load xyz table for test region
-    if redo_testtrack:
-        data_prep = _load_ipynb_modules("data_prep.ipynb")
-        track_test = data_prep.ascii_to_xyz(pipeline_file=f"{test_filepath}.json")
-        track_test.to_csv("track_test.xyz", sep="\t", index=False)
+    data_prep = _load_ipynb_modules("data_prep.ipynb")
+    xyz_track = data_prep.ascii_to_xyz(pipeline_file=f"{test_filepath}.json")
 
     # Get the elevation (z) value at specified x, y points along the groundtruth track
-    outtrackpath: str = f"model/track_deepbedmap3_{outfilesuffix}"
-    !gmt grdtrack track_test.xyz -G{outfilepath}.nc -h1 -i0,1,2 > {outtrackpath}.xyzi
-    df_deepbedmap3 = pd.read_csv(
-        f"{outtrackpath}.xyzi",
-        sep="\t",
-        header=1,
-        names=["x", "y", "z", "z_interpolated"],
+    df_deepbedmap3 = gmt.grdtrack(
+        points=xyz_track, grid=f"{outfilepath}.nc", newcolname="z_interpolated"
     )
 
     # Calculate elevation error between groundtruth xyz tracks and deepbedmap
@@ -1289,7 +1282,6 @@ def get_deepbedmap_test_result(
 
     os.remove(path=f"{outfilepath}.nc")
     # os.remove(path=f"{outfilepath}.tif")
-    os.remove(path=f"{outtrackpath}.xyzi")
 
     return float(rmse_deepbedmap3)
 
@@ -1457,7 +1449,6 @@ def objective(
         model=g_model,
         model_weights_path=model_weights_path,
         outfilesuffix=f"{trial.trial_id if hasattr(trial, 'trial_id') else ''}",
-        redo_testtrack=True if refresh_cache else False,
     )
     print(f"Experiment yielded Root Mean Square Error of {rmse_test:.2f} on test set")
     experiment.log_metric(name="rmse_test", value=rmse_test)
