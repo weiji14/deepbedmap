@@ -322,11 +322,11 @@ def ascii_to_xyz(pipeline_file: str) -> pd.DataFrame:
     ## Reproject x and y coordinates if necessary
     try:
         reproject = jdf.loc["filters.reprojection"]
-        p1 = pyproj.Proj(init=reproject.in_srs)
-        p2 = pyproj.Proj(init=reproject.out_srs)
-        reproj_func = lambda x, y: pyproj.transform(p1=p1, p2=p2, x=x, y=y)
+        p1 = pyproj.CRS.from_string(in_crs_string=reproject.in_srs)
+        p2 = pyproj.CRS.from_string(in_crs_string=reproject.out_srs)
+        reprj_func = pyproj.Transformer.from_crs(crs_from=p1, crs_to=p2, always_xy=True)
 
-        x2, y2 = reproj_func(np.array(df["x"]), np.array(df["y"]))
+        x2, y2 = reprj_func.transform(xx=np.array(df["x"]), yy=np.array(df["y"]))
         df["x"] = pd.Series(x2)
         df["y"] = pd.Series(y2)
 
