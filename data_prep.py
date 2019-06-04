@@ -50,6 +50,8 @@ import skimage.util.shape
 import tqdm
 import xarray as xr
 
+import salem
+
 print("Python       :", sys.version.split("\n")[0])
 print("Geopandas    :", gpd.__version__)
 print("GMT          :", gmt.__version__)
@@ -416,7 +418,8 @@ def xyz_to_grid(
 
     ## Save grid to NetCDF with projection information
     if outfile is not None:
-        grid.to_netcdf(path=outfile)  ##TODO add CRS!!
+        # TODO add CRS!! See https://github.com/pydata/xarray/issues/2288
+        grid.to_netcdf(path=outfile)
 
     return grid
 
@@ -455,7 +458,11 @@ for i, grid in enumerate(grids):
 
 # %%
 def get_window_bounds(
-    filepath: str, height: int = 32, width: int = 32, step: int = 4
+    filepath: str,
+    pyproj_srs: str = "epsg:3031",
+    height: int = 32,
+    width: int = 32,
+    step: int = 4,
 ) -> list:
     """
     Reads in a raster and finds tiles for them according to a stepped moving window.
@@ -464,24 +471,31 @@ def get_window_bounds(
 
     >>> xr.DataArray(
     ...     data=np.zeros(shape=(36, 32)),
-    ...     coords={"x": np.arange(1, 37), "y": np.arange(1, 33)},
-    ...     dims=["x", "y"],
+    ...     coords={"y": np.arange(0.5, 36.5), "x": np.arange(0.5, 32.5)},
+    ...     dims=["y", "x"],
     ... ).to_netcdf(path="/tmp/tmp_wb.nc")
     >>> get_window_bounds(filepath="/tmp/tmp_wb.nc")
     Tiling: /tmp/tmp_wb.nc ... 2
-    [(0.5, 4.5, 32.5, 36.5), (0.5, 0.5, 32.5, 32.5)]
+    [(0.0, 4.0, 32.0, 36.0), (0.0, 0.0, 32.0, 32.0)]
     >>> os.remove("/tmp/tmp_wb.nc")
     """
     assert height == width  # make sure it's a square!
     assert height % 2 == 0  # make sure we are passing in an even number
 
-    with xr.open_rasterio(filepath) as dataset:
+    with xr.open_dataarray(filepath) as dataset:
         print(f"Tiling: {filepath} ... ", end="")
-        # Vectorized 'loop' along the raster image from top to bottom, and left to right
+
+        # Use salem to patch projection information into xarray.DataArray
+        # See also https://salem.readthedocs.io/en/latest/xarray_acc.html
+        dataset.attrs["pyproj_srs"] = pyproj_srs
+        sgrid = dataset.salem.grid.corner_grid
+        assert sgrid.origin == "lower-left"  # should be "lower-left", not "upper-left"
+
+        ## Vectorized 'loop' along raster image from top to bottom, and left to right
 
         # Get boolean true/false mask of where the data/nodata pixels lie
         mask = dataset.to_masked_array(copy=False).mask
-        mask = mask[0, :, :]  # change to shape (height, width)
+        mask = np.ascontiguousarray(a=np.flipud(m=mask))  # flip on y-axis
 
         # Sliding window view of the input geographical raster image
         window_views = skimage.util.shape.view_as_windows(
@@ -490,9 +504,11 @@ def get_window_bounds(
         filled_tiles = ~window_views.any(
             axis=(-2, -1)
         )  # find tiles which are fully filled, i.e. no blank/NODATA pixels
-        tile_indexes = np.argwhere(filled_tiles)  # get x and y index of filled tiles
+        tile_indexes = np.argwhere(a=filled_tiles)  # get x and y index of filled tiles
 
         # Convert x,y tile indexes to bounding box coordinates
+        # Complicated as xarray uses centre-based coordinates,
+        # while rasterio uses corner-based coordinates
         windows = [
             rasterio.windows.Window(
                 col_off=ulx * step, row_off=uly * step, width=width, height=height
@@ -502,7 +518,9 @@ def get_window_bounds(
         window_bounds = [
             rasterio.windows.bounds(
                 window=window,
-                transform=rasterio.Affine(*dataset.transform),
+                transform=rasterio.Affine(
+                    sgrid.dx, 0, sgrid.x0, 0, -sgrid.dy, sgrid.y_coord[-1] + sgrid.dy
+                ),
                 width=width,
                 height=height,
             )
