@@ -34,6 +34,10 @@ import urllib
 import yaml
 import zipfile
 
+# need to import before rasterio
+import xarray as xr
+import salem
+
 import geopandas as gpd
 import pygmt as gmt
 import IPython.display
@@ -48,9 +52,6 @@ import rasterio.plot
 import shapely.geometry
 import skimage.util.shape
 import tqdm
-import xarray as xr
-
-import salem
 
 print("Python       :", sys.version.split("\n")[0])
 print("Geopandas    :", gpd.__version__)
@@ -581,7 +582,7 @@ gdf.to_crs(crs={"init": "epsg:4326"}).to_file(
 def selective_tile(
     filepath: str,
     window_bounds: list,
-    padding: int = 0,
+    padding: int = 0,  # in projected coordinate system units
     out_shape: tuple = None,
     gapfill_raster_filepath: str = None,
 ) -> np.ndarray:
@@ -592,21 +593,21 @@ def selective_tile(
     some desired shape/resolution.
 
     >>> xr.DataArray(
-    ...     data=np.random.RandomState(seed=42).rand(64).reshape(8, 8),
-    ...     coords={"x": np.arange(8), "y": np.arange(8)},
-    ...     dims=["x", "y"],
+    ...     data=np.flipud(m=np.diag(v=np.arange(8))).astype(dtype=np.float32),
+    ...     coords={"y": np.linspace(7, 0, 8), "x": np.linspace(0, 7, 8)},
+    ...     dims=["y", "x"],
     ... ).to_netcdf(path="/tmp/tmp_st.nc", mode="w")
     >>> selective_tile(
     ...    filepath="/tmp/tmp_st.nc",
-    ...    window_bounds=[(1.0, 4.0, 3.0, 6.0), (2.0, 5.0, 4.0, 7.0)],
+    ...    window_bounds=[(0.5, 0.5, 2.5, 2.5), (2.5, 1.5, 4.5, 3.5)],
     ... )
     Tiling: /tmp/tmp_st.nc ... done!
-    array([[[[0.18485446, 0.96958464],
-             [0.4951769 , 0.03438852]]],
+    array([[[[0., 2.],
+             [1., 0.]]],
     <BLANKLINE>
     <BLANKLINE>
-           [[[0.04522729, 0.32533032],
-             [0.96958464, 0.77513283]]]], dtype=float32)
+           [[[3., 0.],
+             [0., 0.]]]], dtype=float32)
     >>> os.remove("/tmp/tmp_st.nc")
     """
     array_list = []
@@ -636,6 +637,7 @@ def selective_tile(
             )
             assert array.ndim == 3  # check that we have shape like (1, height, width)
             assert array.shape[0] == 1  # channel-first (assuming only 1 channel)
+            assert not 0 in array.shape  # ensure no empty dimensions (invalid window)
 
             try:
                 assert not array.mask.any()  # check that there are no NAN values
@@ -666,7 +668,7 @@ def selective_tile(
                         f"WARN: Tile has missing data, try passing in gapfill_raster_filepath"
                     )
 
-            # assert array.shape[0] == array.shape[1]  # check that height==width
+            # assert array.shape[1] == array.shape[2]  # check that height==width
             array_list.append(array.data.astype(dtype=np.float32))
         print("done!")
 

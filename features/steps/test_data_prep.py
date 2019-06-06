@@ -62,7 +62,7 @@ def get_a_raster_grid(context, dataset_type, raster_grid):
     context.raster_grid = raster_grid
     context.filepath = os.path.join(dataset_type, raster_grid)
     url = (
-        f"https://github.com/weiji14/deepbedmap/releases/download/v0.4.0/{raster_grid}"
+        f"https://github.com/weiji14/deepbedmap/releases/download/v0.7.0/{raster_grid}"
     )
     context.data_prep.download_to_path(path=context.filepath, url=url)
 
