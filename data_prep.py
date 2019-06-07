@@ -34,6 +34,10 @@ import urllib
 import yaml
 import zipfile
 
+# need to import before rasterio
+import xarray as xr
+import salem
+
 import geopandas as gpd
 import pygmt as gmt
 import IPython.display
@@ -48,7 +52,6 @@ import rasterio.plot
 import shapely.geometry
 import skimage.util.shape
 import tqdm
-import xarray as xr
 
 print("Python       :", sys.version.split("\n")[0])
 print("Geopandas    :", gpd.__version__)
@@ -322,11 +325,11 @@ def ascii_to_xyz(pipeline_file: str) -> pd.DataFrame:
     ## Reproject x and y coordinates if necessary
     try:
         reproject = jdf.loc["filters.reprojection"]
-        p1 = pyproj.Proj(init=reproject.in_srs)
-        p2 = pyproj.Proj(init=reproject.out_srs)
-        reproj_func = lambda x, y: pyproj.transform(p1=p1, p2=p2, x=x, y=y)
+        p1 = pyproj.CRS.from_string(in_crs_string=reproject.in_srs)
+        p2 = pyproj.CRS.from_string(in_crs_string=reproject.out_srs)
+        reprj_func = pyproj.Transformer.from_crs(crs_from=p1, crs_to=p2, always_xy=True)
 
-        x2, y2 = reproj_func(np.array(df["x"]), np.array(df["y"]))
+        x2, y2 = reprj_func.transform(xx=np.array(df["x"]), yy=np.array(df["y"]))
         df["x"] = pd.Series(x2)
         df["y"] = pd.Series(y2)
 
@@ -416,7 +419,8 @@ def xyz_to_grid(
 
     ## Save grid to NetCDF with projection information
     if outfile is not None:
-        grid.to_netcdf(path=outfile)  ##TODO add CRS!!
+        # TODO add CRS!! See https://github.com/pydata/xarray/issues/2288
+        grid.to_netcdf(path=outfile)
 
     return grid
 
@@ -455,7 +459,11 @@ for i, grid in enumerate(grids):
 
 # %%
 def get_window_bounds(
-    filepath: str, height: int = 32, width: int = 32, step: int = 4
+    filepath: str,
+    pyproj_srs: str = "epsg:3031",
+    height: int = 32,
+    width: int = 32,
+    step: int = 4,
 ) -> list:
     """
     Reads in a raster and finds tiles for them according to a stepped moving window.
@@ -464,24 +472,31 @@ def get_window_bounds(
 
     >>> xr.DataArray(
     ...     data=np.zeros(shape=(36, 32)),
-    ...     coords={"x": np.arange(1, 37), "y": np.arange(1, 33)},
-    ...     dims=["x", "y"],
+    ...     coords={"y": np.arange(0.5, 36.5), "x": np.arange(0.5, 32.5)},
+    ...     dims=["y", "x"],
     ... ).to_netcdf(path="/tmp/tmp_wb.nc")
     >>> get_window_bounds(filepath="/tmp/tmp_wb.nc")
     Tiling: /tmp/tmp_wb.nc ... 2
-    [(0.5, 4.5, 32.5, 36.5), (0.5, 0.5, 32.5, 32.5)]
+    [(0.0, 4.0, 32.0, 36.0), (0.0, 0.0, 32.0, 32.0)]
     >>> os.remove("/tmp/tmp_wb.nc")
     """
     assert height == width  # make sure it's a square!
     assert height % 2 == 0  # make sure we are passing in an even number
 
-    with xr.open_rasterio(filepath) as dataset:
+    with xr.open_dataarray(filepath) as dataset:
         print(f"Tiling: {filepath} ... ", end="")
-        # Vectorized 'loop' along the raster image from top to bottom, and left to right
+
+        # Use salem to patch projection information into xarray.DataArray
+        # See also https://salem.readthedocs.io/en/latest/xarray_acc.html
+        dataset.attrs["pyproj_srs"] = pyproj_srs
+        sgrid = dataset.salem.grid.corner_grid
+        assert sgrid.origin == "lower-left"  # should be "lower-left", not "upper-left"
+
+        ## Vectorized 'loop' along raster image from top to bottom, and left to right
 
         # Get boolean true/false mask of where the data/nodata pixels lie
         mask = dataset.to_masked_array(copy=False).mask
-        mask = mask[0, :, :]  # change to shape (height, width)
+        mask = np.ascontiguousarray(a=np.flipud(m=mask))  # flip on y-axis
 
         # Sliding window view of the input geographical raster image
         window_views = skimage.util.shape.view_as_windows(
@@ -490,9 +505,11 @@ def get_window_bounds(
         filled_tiles = ~window_views.any(
             axis=(-2, -1)
         )  # find tiles which are fully filled, i.e. no blank/NODATA pixels
-        tile_indexes = np.argwhere(filled_tiles)  # get x and y index of filled tiles
+        tile_indexes = np.argwhere(a=filled_tiles)  # get x and y index of filled tiles
 
         # Convert x,y tile indexes to bounding box coordinates
+        # Complicated as xarray uses centre-based coordinates,
+        # while rasterio uses corner-based coordinates
         windows = [
             rasterio.windows.Window(
                 col_off=ulx * step, row_off=uly * step, width=width, height=height
@@ -502,7 +519,9 @@ def get_window_bounds(
         window_bounds = [
             rasterio.windows.bounds(
                 window=window,
-                transform=rasterio.Affine(*dataset.transform),
+                transform=rasterio.Affine(
+                    sgrid.dx, 0, sgrid.x0, 0, -sgrid.dy, sgrid.y_coord[-1] + sgrid.dy
+                ),
                 width=width,
                 height=height,
             )
@@ -563,7 +582,7 @@ gdf.to_crs(crs={"init": "epsg:4326"}).to_file(
 def selective_tile(
     filepath: str,
     window_bounds: list,
-    padding: int = 0,
+    padding: int = 0,  # in projected coordinate system units
     out_shape: tuple = None,
     gapfill_raster_filepath: str = None,
 ) -> np.ndarray:
@@ -574,21 +593,21 @@ def selective_tile(
     some desired shape/resolution.
 
     >>> xr.DataArray(
-    ...     data=np.random.RandomState(seed=42).rand(64).reshape(8, 8),
-    ...     coords={"x": np.arange(8), "y": np.arange(8)},
-    ...     dims=["x", "y"],
+    ...     data=np.flipud(m=np.diag(v=np.arange(8))).astype(dtype=np.float32),
+    ...     coords={"y": np.linspace(7, 0, 8), "x": np.linspace(0, 7, 8)},
+    ...     dims=["y", "x"],
     ... ).to_netcdf(path="/tmp/tmp_st.nc", mode="w")
     >>> selective_tile(
     ...    filepath="/tmp/tmp_st.nc",
-    ...    window_bounds=[(1.0, 4.0, 3.0, 6.0), (2.0, 5.0, 4.0, 7.0)],
+    ...    window_bounds=[(0.5, 0.5, 2.5, 2.5), (2.5, 1.5, 4.5, 3.5)],
     ... )
     Tiling: /tmp/tmp_st.nc ... done!
-    array([[[[0.18485446, 0.96958464],
-             [0.4951769 , 0.03438852]]],
+    array([[[[0., 2.],
+             [1., 0.]]],
     <BLANKLINE>
     <BLANKLINE>
-           [[[0.04522729, 0.32533032],
-             [0.96958464, 0.77513283]]]], dtype=float32)
+           [[[3., 0.],
+             [0., 0.]]]], dtype=float32)
     >>> os.remove("/tmp/tmp_st.nc")
     """
     array_list = []
@@ -618,6 +637,7 @@ def selective_tile(
             )
             assert array.ndim == 3  # check that we have shape like (1, height, width)
             assert array.shape[0] == 1  # channel-first (assuming only 1 channel)
+            assert not 0 in array.shape  # ensure no empty dimensions (invalid window)
 
             try:
                 assert not array.mask.any()  # check that there are no NAN values
@@ -648,7 +668,7 @@ def selective_tile(
                         f"WARN: Tile has missing data, try passing in gapfill_raster_filepath"
                     )
 
-            # assert array.shape[0] == array.shape[1]  # check that height==width
+            # assert array.shape[1] == array.shape[2]  # check that height==width
             array_list.append(array.data.astype(dtype=np.float32))
         print("done!")
 
