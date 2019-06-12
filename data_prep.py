@@ -38,6 +38,8 @@ import zipfile
 import xarray as xr
 import salem
 
+import dask
+import dask.diagnostics
 import geopandas as gpd
 import pygmt as gmt
 import IPython.display
@@ -610,69 +612,50 @@ def selective_tile(
              [0., 0.]]]], dtype=float32)
     >>> os.remove("/tmp/tmp_st.nc")
     """
-    array_list = []
 
-    with rasterio.open(filepath) as dataset:
+    # Convert list of bounding box tuples to nice rasterio.coords.BoundingBox class
+    window_bounds = [
+        rasterio.coords.BoundingBox(
+            left=x0 - padding, bottom=y0 - padding, right=x1 + padding, top=y1 + padding
+        )
+        for x0, y0, x1, y1 in window_bounds  # xmin, ymin, xmax, ymax
+    ]
+
+    with xr.open_rasterio(
+        filepath, chunks=None if out_shape is None else {}, cache=False
+    ) as dataset:
         print(f"Tiling: {filepath} ... ", end="")
-        for window_bound in window_bounds:
 
-            if padding > 0:
-                window_bound = (
-                    window_bound[0] - padding,  # minx
-                    window_bound[1] - padding,  # miny
-                    window_bound[2] + padding,  # maxx
-                    window_bound[3] + padding,  # maxy
+        # Subset dataset according to window bound (wb)
+        daarray_list = [
+            dataset.sel(y=slice(wb.top, wb.bottom), x=slice(wb.left, wb.right))
+            for wb in window_bounds
+        ]
+        # Bilinear interpolate to new shape if out_shape is set
+        if out_shape is not None:
+            daarray_list = [
+                dataset.interp(
+                    y=np.linspace(da.y[0], da.y[-1], num=out_shape[0]),
+                    x=np.linspace(da.x[0], da.x[-1], num=out_shape[1]),
+                    method="linear",
                 )
+                for da in daarray_list
+            ]
+        daarray_stack = dask.array.stack(seq=daarray_list)
 
-            window = rasterio.windows.from_bounds(
-                *window_bound, transform=dataset.transform, precision=None
-            ).round_offsets()
-
-            # Read the raster according to the crop window
-            array = dataset.read(
-                indexes=list(range(1, dataset.count + 1)),
-                masked=True,
-                window=window,
-                out_shape=out_shape,
-            )
-            assert array.ndim == 3  # check that we have shape like (1, height, width)
-            assert array.shape[0] == 1  # channel-first (assuming only 1 channel)
-            assert not 0 in array.shape  # ensure no empty dimensions (invalid window)
-
-            try:
-                assert not array.mask.any()  # check that there are no NAN values
-            except AssertionError:
-                # Replace pixels from another raster if available, else raise error
-                if gapfill_raster_filepath is not None:
-                    with rasterio.open(gapfill_raster_filepath) as dataset2:
-                        window2 = rasterio.windows.from_bounds(
-                            *window_bound, transform=dataset2.transform, precision=None
-                        ).round_offsets()
-
-                        array2 = dataset2.read(
-                            indexes=list(range(1, dataset2.count + 1)),
-                            masked=True,
-                            window=window2,
-                            out_shape=array.shape[1:],
-                        )
-
-                    np.copyto(
-                        dst=array, src=array2, where=array.mask
-                    )  # fill in gaps where mask is True
-
-                    # assert not array.mask.any()  # ensure no NAN values after gapfill
-                else:
-                    plt.imshow(array.data[0, :, :])
-                    plt.show()
-                    print(
-                        f"WARN: Tile has missing data, try passing in gapfill_raster_filepath"
-                    )
-
-            # assert array.shape[1] == array.shape[2]  # check that height==width
-            array_list.append(array.data.astype(dtype=np.float32))
+        assert daarray_stack.ndim == 4  # check that shape is like (m, 1, height, width)
+        assert daarray_stack.shape[1] == 1  # channel-first (assuming only 1 channel)
+        assert not 0 in daarray_stack.shape  # ensure no empty dimensions (bad window)
         print("done!")
 
-    return np.stack(arrays=array_list)
+    with dask.diagnostics.ProgressBar(minimum=5.0):
+        try:
+            out_tiles = daarray_stack.compute().astype(dtype=np.float32)
+            assert not np.isnan(out_tiles).any()  # check that there are no NAN values
+        except AssertionError:
+            raise NotImplementedError("gapfilling on dask xarray not yet implemented")
+        finally:
+            return out_tiles
 
 
 # %%
@@ -712,7 +695,7 @@ rema = selective_tile(
     filepath="misc/REMA_100m_dem.tif",
     window_bounds=window_bounds_concat,
     padding=1000,
-    gapfill_raster_filepath="misc/REMA_200m_dem_filled.tif",
+    # gapfill_raster_filepath="misc/REMA_200m_dem_filled.tif",
 )
 print(rema.shape, rema.dtype)
 
