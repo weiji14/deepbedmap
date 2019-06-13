@@ -15,7 +15,7 @@ def window_view_of_Antarctica(context, bounding_box):
 def get_model_input_raster_images(context):
     # TODO refactor code below that is hardcoded for a particular test region
     if context.window_bound == rasterio.coords.BoundingBox(
-        left=-1_593_714.328, bottom=-164_173.7848, right=-1_575_464.328, top=-97923.7848
+        left=-1_593_589.328, bottom=-164_048.7848, right=-1_575_589.328, top=-98048.7848
     ):
         quilt.install(package="weiji14/deepbedmap/model/test", force=True)
         pkg = quilt.load(pkginfo="weiji14/deepbedmap/model/test")

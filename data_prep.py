@@ -642,13 +642,15 @@ def selective_tile(
                 for da in daarray_list
             ]
         daarray_stack = dask.array.ma.masked_values(
-            x=dask.array.stack(seq=daarray_list), value=dataset.nodatavals
+            x=dask.array.stack(seq=daarray_list),
+            value=np.nan_to_num(-np.inf)
+            if dataset.dtype == np.int16 and dataset.nodatavals == (np.nan,)
+            else dataset.nodatavals,
         )
 
         assert daarray_stack.ndim == 4  # check that shape is like (m, 1, height, width)
         assert daarray_stack.shape[1] == 1  # channel-first (assuming only 1 channel)
         assert not 0 in daarray_stack.shape  # ensure no empty dimensions (bad window)
-        print("done!")
 
     out_tiles = dask.array.ma.getdata(daarray_stack).compute().astype(dtype=np.float32)
     mask = dask.array.ma.getmaskarray(daarray_stack).compute()
@@ -659,6 +661,7 @@ def selective_tile(
 
         # Replace pixels from another raster if available, else raise error
         if gapfill_raster_filepath is not None:
+            print(f"gapfilling ... ", end="")
             with xr.open_rasterio(gapfill_raster_filepath, chunks={}) as dataset2:
                 daarray_list2 = [
                     dataset2.interp_like(daarray_list[idx].squeeze(), method="linear")
@@ -676,7 +679,7 @@ def selective_tile(
             for i, array2 in enumerate(fill_tiles):
                 idx = nan_grid_indexes[i]
                 np.copyto(dst=out_tiles[idx], src=array2, where=mask[idx])
-                assert not (mask[idx] & mask2[i]).any()  # Ensure no NANs after gapfill
+                # assert not (mask[idx] & mask2[i]).any()  # Ensure no NANs after gapfill
 
         else:
             for i in nan_grid_indexes:
@@ -684,6 +687,7 @@ def selective_tile(
                 plt.show()
             print(f"WARN: Tiles have missing data, try pass in gapfill_raster_filepath")
 
+    print("done!")
     return out_tiles
 
 

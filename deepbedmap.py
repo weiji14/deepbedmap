@@ -26,6 +26,9 @@ import typing
 
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
+import xarray as xr
+import salem
+
 import comet_ml
 import cupy
 import matplotlib
@@ -37,7 +40,6 @@ import pygmt as gmt
 import quilt
 import rasterio
 import skimage
-import xarray as xr
 
 import chainer
 
@@ -49,40 +51,60 @@ data_prep = _load_ipynb_modules("data_prep.ipynb")
 # ## Get bounding box of area we want to predict on
 
 # %%
-def get_image_and_bounds(filepaths: list) -> (np.ndarray, rasterio.coords.BoundingBox):
+def get_image_with_bounds(filepaths: list, indexers: dict = None) -> xr.DataArray:
     """
-    Retrieve raster image in numpy array format and
-    geographic bounds as (xmin, ymin, xmax, ymax)
+    Retrieve raster image in xarray.DataArray format patched
+    with projected coordinate bounds as (xmin, ymin, xmax, ymax)
 
     Note that if more than one filepath is passed in,
     the output groundtruth image array will not be valid
     (see https://github.com/pydata/xarray/issues/2159),
     but the window_bound extents will be correct
     """
-    if len(filepaths) > 1:
-        print("WARN: using multiple inputs, output groundtruth image will look funny")
 
-    with xr.open_mfdataset(paths=filepaths, concat_dim=None) as data:
-        groundtruth = data.z.to_masked_array()
-        groundtruth = np.flipud(groundtruth)  # flip on y-axis...
-        groundtruth = np.expand_dims(
-            np.expand_dims(groundtruth, axis=0), axis=0
-        )  # add extra dimensions (batch and channel)
-        assert groundtruth.shape[0:2] == (1, 1)  # check that shape is like (1, 1, h, w)
+    with xr.open_mfdataset(paths=filepaths, concat_dim=None) as dataset:
+        # Retrieve dataarray from NetCDF datasets
+        dataarray = dataset.z.isel(indexers=indexers)
 
-        xmin, xmax = float(data.x.min()), float(data.x.max())
-        ymin, ymax = float(data.y.min()), float(data.y.max())
+    # Patch projection information into xarray grid
+    dataarray.attrs["pyproj_srs"] = "epsg:3031"
+    sgrid = dataarray.salem.grid.corner_grid
+    assert sgrid.origin == "lower-left"  # should be "lower-left", not "upper-left"
 
-        window_bound = rasterio.coords.BoundingBox(
-            left=xmin, bottom=ymin, right=xmax, top=ymax
+    # Patch bounding box extent into xarray grid
+    if len(filepaths) == 1:
+        left, right, bottom, top = sgrid.extent
+    elif len(filepaths) > 1:
+        print("WARN: using multiple inputs, output groundtruth image may look funny")
+        x_offset, y_offset = sgrid.dx / 2, sgrid.dy / 2
+        left, right = (
+            float(dataarray.x[0] - x_offset),
+            float(dataarray.x[-1] + x_offset),
         )
-    return groundtruth, window_bound
+        assert sgrid.x0 == left
+        bottom, top = (
+            float(dataarray.y[0] - y_offset),
+            float(dataarray.y[-1] + y_offset),
+        )
+        assert sgrid.y0 == bottom  # dataarray.y.min()-y_offset
+
+    # check that y-axis and x-axis lengths are divisible by 4
+    try:
+        shape = int((top - bottom) / sgrid.dy), int((right - left) / sgrid.dx)
+        assert all(i % 4 == 0 for i in shape)
+    except AssertionError:
+        print(f"WARN: Image shape {shape} should be divisible by 4 for DeepBedMap")
+    finally:
+        dataarray.attrs["bounds"] = [left, bottom, right, top]
+
+    return dataarray
 
 
 # %%
 test_filepaths = ["highres/2007tx", "highres/2010tr", "highres/istarxx"]
-groundtruth, window_bound = get_image_and_bounds(
-    filepaths=[f"{t}.nc" for t in test_filepaths]
+groundtruth = get_image_with_bounds(
+    filepaths=[f"{t}.nc" for t in test_filepaths],
+    indexers={"y": slice(0, -1), "x": slice(0, -1)},
 )
 
 # %% [markdown]
@@ -91,7 +113,7 @@ groundtruth, window_bound = get_image_and_bounds(
 # %%
 def get_deepbedmap_model_inputs(
     window_bound: rasterio.coords.BoundingBox, padding=1000
-) -> typing.Dict[str, np.ndarray]:
+) -> (np.ndarray, np.ndarray, np.ndarray):
     """
     Outputs one large tile for each of
     BEDMAP2, REMA and MEASURES Ice Flow Velocity
@@ -103,18 +125,20 @@ def get_deepbedmap_model_inputs(
     X_tile = data_prep.selective_tile(
         filepath="lowres/bedmap2_bed.tif",
         window_bounds=[[*window_bound]],
+        # out_shape=None,  # 1000m spatial resolution
         padding=padding,
     )
     W2_tile = data_prep.selective_tile(
         filepath="misc/MEaSUREs_IceFlowSpeed_450m.tif",
         window_bounds=[[*window_bound]],
-        out_shape=(2 * X_tile.shape[2], 2 * X_tile.shape[3]),
+        out_shape=(2 * X_tile.shape[2], 2 * X_tile.shape[3]),  # 500m spatial resolution
         padding=padding,
         gapfill_raster_filepath="misc/lisa750_2013182_2017120_0000_0400_vv_v1_myr.tif",
     )
     W1_tile = data_prep.selective_tile(
         filepath="misc/REMA_100m_dem.tif",
         window_bounds=[[*window_bound]],
+        # out_shape=(5 * W2_tile.shape[2], 5 * W2_tile.shape[3]),  # 100m spatial resolution
         padding=padding,
         gapfill_raster_filepath="misc/REMA_200m_dem_filled.tif",
     )
@@ -145,7 +169,8 @@ def plot_3d_view(
 
 
 # %%
-X_tile, W1_tile, W2_tile = get_deepbedmap_model_inputs(window_bound=window_bound)
+X_tile, W1_tile, W2_tile = get_deepbedmap_model_inputs(window_bound=groundtruth.bounds)
+print(X_tile.shape, W1_tile.shape, W2_tile.shape)
 
 # Build quilt package for datasets covering our test region
 reupload = False
@@ -253,7 +278,7 @@ assert cubicbedmap2.shape == Y_hat.shape
 
 # %%
 S_tile = data_prep.selective_tile(
-    filepath="model/hres.tif", window_bounds=[[*window_bound]]
+    filepath="model/hres.tif", window_bounds=[[*groundtruth.bounds]]
 )
 
 # %% [markdown]
@@ -267,7 +292,7 @@ axarr[0, 1].imshow(Y_hat[0, 0, :, :], cmap="BrBG")
 axarr[0, 1].set_title("Super Resolution Generative Adversarial Network prediction")
 axarr[0, 2].imshow(S_tile[0, 0, :, :], cmap="BrBG")
 axarr[0, 2].set_title("Synthetic High Resolution Grid")
-axarr[0, 3].imshow(groundtruth[0, 0, :, :], cmap="BrBG")
+groundtruth.plot(ax=axarr[0, 3], cmap="BrBG")
 axarr[0, 3].set_title("Groundtruth grids")
 plt.show()
 
@@ -354,13 +379,13 @@ def save_array_to_grid(
 # %%
 # Save BEDMAP3 to GeoTiff and NetCDF format
 save_array_to_grid(
-    window_bound=window_bound, array=Y_hat, outfilepath="model/deepbedmap3"
+    window_bound=groundtruth.bounds, array=Y_hat, outfilepath="model/deepbedmap3"
 )
 
 # %%
 # Save Bicubic Resampled BEDMAP2 to GeoTiff and NetCDF format
 save_array_to_grid(
-    window_bound=window_bound, array=cubicbedmap2, outfilepath="model/cubicbedmap"
+    window_bound=groundtruth.bounds, array=cubicbedmap2, outfilepath="model/cubicbedmap"
 )
 
 # %%
@@ -374,7 +399,7 @@ synthetic = skimage.transform.rescale(
     preserve_range=True,
 )
 save_array_to_grid(
-    window_bound=window_bound,
+    window_bound=groundtruth.bounds,
     array=np.expand_dims(np.expand_dims(synthetic, axis=0), axis=0),
     outfilepath="model/synthetichr",
 )
