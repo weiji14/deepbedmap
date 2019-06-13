@@ -39,7 +39,6 @@ import xarray as xr
 import salem
 
 import dask
-import dask.diagnostics
 import geopandas as gpd
 import pygmt as gmt
 import IPython.display
@@ -621,8 +620,9 @@ def selective_tile(
         for x0, y0, x1, y1 in window_bounds  # xmin, ymin, xmax, ymax
     ]
 
+    # Retrieve tiles from the main raster
     with xr.open_rasterio(
-        filepath, chunks=None if out_shape is None else {}, cache=False
+        filepath, chunks=None if out_shape is None else {}
     ) as dataset:
         print(f"Tiling: {filepath} ... ", end="")
 
@@ -641,21 +641,50 @@ def selective_tile(
                 )
                 for da in daarray_list
             ]
-        daarray_stack = dask.array.stack(seq=daarray_list)
+        daarray_stack = dask.array.ma.masked_values(
+            x=dask.array.stack(seq=daarray_list), value=dataset.nodatavals
+        )
 
         assert daarray_stack.ndim == 4  # check that shape is like (m, 1, height, width)
         assert daarray_stack.shape[1] == 1  # channel-first (assuming only 1 channel)
         assert not 0 in daarray_stack.shape  # ensure no empty dimensions (bad window)
         print("done!")
 
-    with dask.diagnostics.ProgressBar(minimum=5.0):
-        try:
-            out_tiles = daarray_stack.compute().astype(dtype=np.float32)
-            assert not np.isnan(out_tiles).any()  # check that there are no NAN values
-        except AssertionError:
-            raise NotImplementedError("gapfilling on dask xarray not yet implemented")
-        finally:
-            return out_tiles
+    out_tiles = dask.array.ma.getdata(daarray_stack).compute().astype(dtype=np.float32)
+    mask = dask.array.ma.getmaskarray(daarray_stack).compute()
+
+    # Gapfill main raster if there are blank spaces
+    if mask.any():  # check that there are no NAN values
+        nan_grid_indexes = np.argwhere(mask.any(axis=(-3, -2, -1))).ravel()
+
+        # Replace pixels from another raster if available, else raise error
+        if gapfill_raster_filepath is not None:
+            with xr.open_rasterio(gapfill_raster_filepath, chunks={}) as dataset2:
+                daarray_list2 = [
+                    dataset2.interp_like(daarray_list[idx].squeeze(), method="linear")
+                    for idx in nan_grid_indexes
+                ]
+                daarray_stack2 = dask.array.ma.masked_values(
+                    x=dask.array.stack(seq=daarray_list2), value=dataset2.nodatavals
+                )
+
+            fill_tiles = (
+                dask.array.ma.getdata(daarray_stack2).compute().astype(dtype=np.float32)
+            )
+            mask2 = dask.array.ma.getmaskarray(daarray_stack2).compute()
+
+            for i, array2 in enumerate(fill_tiles):
+                idx = nan_grid_indexes[i]
+                np.copyto(dst=out_tiles[idx], src=array2, where=mask[idx])
+                assert not (mask[idx] & mask2[i]).any()  # Ensure no NANs after gapfill
+
+        else:
+            for i in nan_grid_indexes:
+                daarray_list[i].plot()
+                plt.show()
+            print(f"WARN: Tiles have missing data, try pass in gapfill_raster_filepath")
+
+    return out_tiles
 
 
 # %%
@@ -695,7 +724,7 @@ rema = selective_tile(
     filepath="misc/REMA_100m_dem.tif",
     window_bounds=window_bounds_concat,
     padding=1000,
-    # gapfill_raster_filepath="misc/REMA_200m_dem_filled.tif",
+    gapfill_raster_filepath="misc/REMA_200m_dem_filled.tif",
 )
 print(rema.shape, rema.dtype)
 
