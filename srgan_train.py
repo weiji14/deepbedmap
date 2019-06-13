@@ -40,9 +40,11 @@ import IPython.display
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import pygmt as gmt
 import quilt
 import skimage.transform
 import tqdm
+import xarray as xr
 
 import chainer
 import chainer.functions as F
@@ -1231,10 +1233,9 @@ def save_model_weights_and_architecture(
 # %%
 def get_deepbedmap_test_result(
     test_filepath: str = "highres/2007tx",
+    indexers={"x": slice(1, -1), "y": slice(1, -1)},  # custom index-based crop
     model=None,
     model_weights_path: str = "model/weights/srgan_generator_model_weights.npz",
-    outfilesuffix: str = "",  # unique suffix (e.g. ID) for temporary files
-    redo_testtrack: bool = True,
 ) -> float:
     """
     Gets Root Mean Squared Error of elevation difference between
@@ -1243,12 +1244,12 @@ def get_deepbedmap_test_result(
     """
     deepbedmap = _load_ipynb_modules("deepbedmap.ipynb")
 
-    # Get groundtruth images, window_bounds and neural network input datasets
-    groundtruth, window_bound = deepbedmap.get_image_and_bounds(
-        filepaths=f"{test_filepath}.nc"
+    # Get neural network input datasets associated with groundtruth image bounds
+    groundtruth = deepbedmap.get_image_with_bounds(
+        filepaths=[f"{test_filepath}.nc"], indexers=indexers
     )
     X_tile, W1_tile, W2_tile = deepbedmap.get_deepbedmap_model_inputs(
-        window_bound=window_bound
+        window_bound=groundtruth.bounds
     )
 
     # Run input datasets through trained neural network model
@@ -1261,35 +1262,23 @@ def get_deepbedmap_test_result(
         w2=model.xp.asarray(a=W2_tile),
     ).array
 
-    # Save infered deepbedmap to grid file(s)
-    outfilepath: str = f"model/deepbedmap3_{outfilesuffix}"
-    deepbedmap.save_array_to_grid(
-        window_bound=window_bound, array=cupy.asnumpy(a=Y_hat), outfilepath=outfilepath
+    # Create xarray grid from model prediction
+    grid = xr.DataArray(
+        data=cupy.asnumpy(np.flipud(cupy.asnumpy(Y_hat[0, 0, :, :]))),
+        dims=["y", "x"],
+        coords={"y": groundtruth.y, "x": groundtruth.x},
     )
 
-    # Load xyz table for test region
-    if redo_testtrack:
-        data_prep = _load_ipynb_modules("data_prep.ipynb")
-        track_test = data_prep.ascii_to_xyz(pipeline_file=f"{test_filepath}.json")
-        track_test.to_csv("track_test.xyz", sep="\t", index=False)
+    # Load xyz points table for test region
+    data_prep = _load_ipynb_modules("data_prep.ipynb")
+    points = data_prep.ascii_to_xyz(pipeline_file=f"{test_filepath}.json")
 
     # Get the elevation (z) value at specified x, y points along the groundtruth track
-    outtrackpath: str = f"model/track_deepbedmap3_{outfilesuffix}"
-    !gmt grdtrack track_test.xyz -G{outfilepath}.nc -h1 -i0,1,2 > {outtrackpath}.xyzi
-    df_deepbedmap3 = pd.read_csv(
-        f"{outtrackpath}.xyzi",
-        sep="\t",
-        header=1,
-        names=["x", "y", "z", "z_interpolated"],
-    )
+    df_deepbedmap3 = gmt.grdtrack(points=points, grid=grid, newcolname="z_interpolated")
 
     # Calculate elevation error between groundtruth xyz tracks and deepbedmap
     df_deepbedmap3["error"] = df_deepbedmap3.z_interpolated - df_deepbedmap3.z
     rmse_deepbedmap3 = (df_deepbedmap3.error ** 2).mean() ** 0.5
-
-    os.remove(path=f"{outfilepath}.nc")
-    # os.remove(path=f"{outfilepath}.tif")
-    os.remove(path=f"{outtrackpath}.xyzi")
 
     return float(rmse_deepbedmap3)
 
@@ -1454,10 +1443,7 @@ def objective(
 
     ## Evaluate model and return metrics
     rmse_test = get_deepbedmap_test_result(
-        model=g_model,
-        model_weights_path=model_weights_path,
-        outfilesuffix=f"{trial.trial_id if hasattr(trial, 'trial_id') else ''}",
-        redo_testtrack=True if refresh_cache else False,
+        model=g_model, model_weights_path=model_weights_path
     )
     print(f"Experiment yielded Root Mean Square Error of {rmse_test:.2f} on test set")
     experiment.log_metric(name="rmse_test", value=rmse_test)
