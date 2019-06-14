@@ -78,7 +78,7 @@ if cupy.is_available():
 # %%
 def load_data_into_memory(
     redownload: bool = True,
-    quilt_hash: str = "07346a5773aad87a71a57f83624289f5af507ad12f7008aec29eee209f98c399",
+    quilt_hash: str = "df0d28b24283c642f5dbe1a9baa22b605d8ae02ec1875c2edd067a614e99e5a4",
 ) -> (chainer.datasets.dict_dataset.DictDataset, str):
     """
     Downloads the prepackaged tiled data from quilt based on a hash,
@@ -1236,7 +1236,7 @@ def get_deepbedmap_test_result(
     indexers={"x": slice(1, -1), "y": slice(1, -1)},  # custom index-based crop
     model=None,
     model_weights_path: str = "model/weights/srgan_generator_model_weights.npz",
-) -> float:
+) -> (float, xr.DataArray):
     """
     Gets Root Mean Squared Error of elevation difference between
     DeepBedMap topography and reference groundtruth xyz tracks
@@ -1280,7 +1280,7 @@ def get_deepbedmap_test_result(
     df_deepbedmap3["error"] = df_deepbedmap3.z_interpolated - df_deepbedmap3.z
     rmse_deepbedmap3 = (df_deepbedmap3.error ** 2).mean() ** 0.5
 
-    return float(rmse_deepbedmap3)
+    return float(rmse_deepbedmap3), grid
 
 
 # %% [markdown]
@@ -1315,6 +1315,7 @@ def objective(
     - Number of residual blocks
     - Batch Size
     - Number of training epochs
+    - Residual Scaling factor
     """
 
     # Start tracking experiment using Comet.ML
@@ -1325,9 +1326,9 @@ def objective(
     )
 
     # Don't use cached stuff if it's a FixedTrial or the first trial
-    if not hasattr(trial, "trial_id") or trial.trial_id == 1:
+    if not hasattr(trial, "number") or trial.number == 0:
         refresh_cache = True
-    elif trial.trial_id > 1:  # Use cache if trial.trial_id > 1
+    elif trial.trial_id > 0:  # Use cache if this is not the first trial
         refresh_cache = False
 
     ## Load Dataset
@@ -1434,19 +1435,34 @@ def objective(
         trained_model=g_model
     )
     experiment.log_asset(
-        file_path=model_weights_path, file_name=os.path.basename(model_weights_path)
+        file_data=model_weights_path, file_name=os.path.basename(model_weights_path)
     )
     experiment.log_asset(
-        file_path=model_architecture_path,
+        file_data=model_architecture_path,
         file_name=os.path.basename(model_architecture_path),
     )
 
     ## Evaluate model and return metrics
-    rmse_test = get_deepbedmap_test_result(
+    rmse_test, predicted_test_grid = get_deepbedmap_test_result(
         model=g_model, model_weights_path=model_weights_path
     )
     print(f"Experiment yielded Root Mean Square Error of {rmse_test:.2f} on test set")
     experiment.log_metric(name="rmse_test", value=rmse_test)
+
+    ## Upload raw image output and figure with scalebar
+    experiment.log_image(
+        name="predicted_test_grid",
+        image_data=np.flipud(predicted_test_grid.data),
+        image_colormap="BrBG",
+    )
+    predicted_test_grid.plot.imshow(
+        cmap="BrBG",
+        size=14,
+        aspect=predicted_test_grid.shape[1] / predicted_test_grid.shape[0],
+    )
+    plt.tight_layout()
+    experiment.log_figure()
+
     experiment.end()
 
     return rmse_test
@@ -1474,7 +1490,7 @@ elif n_trials > 1:  # perform hyperparameter tuning with multiple experimental t
 
 # %%
 if n_trials > 1:
-    study = optuna.Study(
+    study = optuna.load_study(
         study_name="DeepBedMap_tuning", storage="sqlite:///model/logs/train.db"
     )
     IPython.display.display(study.trials_dataframe().nsmallest(n=10, columns="value"))
