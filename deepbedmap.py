@@ -182,7 +182,7 @@ X_tile, W1_tile, W2_tile, W3_tile = get_deepbedmap_model_inputs(
 print(X_tile.shape, W1_tile.shape, W2_tile.shape, W3_tile.shape)
 
 # Build quilt package for datasets covering our test region
-reupload = True
+reupload = False
 if reupload == True:
     quilt.build(package="weiji14/deepbedmap/model/test/W1_tile", path=W1_tile)
     quilt.build(package="weiji14/deepbedmap/model/test/W2_tile", path=W2_tile)
@@ -400,6 +400,11 @@ def save_array_to_grid(
 save_array_to_grid(
     window_bound=groundtruth.bounds, array=Y_hat, outfilepath="model/deepbedmap3"
 )
+deepbedmap3_grid = xr.DataArray(
+    data=cupy.asnumpy(np.flipud(cupy.asnumpy(Y_hat[0, 0, :, :]))),
+    dims=["y", "x"],
+    coords={"y": groundtruth.y, "x": groundtruth.x},
+)
 
 # %%
 # Save Bicubic Resampled BEDMAP2 to GeoTiff and NetCDF format
@@ -408,6 +413,7 @@ save_array_to_grid(
 )
 
 # %%
+# Save Billinear Resampled Synthetic High Resolution grid to GeoTiff and NetCDF format
 synthetic = skimage.transform.rescale(
     image=S_tile[0, 0, :, :].astype(np.int32),
     scale=1 / 2.5,  # 2.5 downscaling
@@ -459,8 +465,11 @@ df_groundtruth = gmt.grdtrack(
     points=xyz_track, grid=f"{test_filepath}.nc", newcolname="z_interpolated"
 )
 df_deepbedmap3 = gmt.grdtrack(
-    points=xyz_track, grid="model/deepbedmap3.nc", newcolname="z_interpolated"
+    points=xyz_track, grid=deepbedmap3_grid, newcolname="z_interpolated"
 )
+# df_deepbedmap3 = gmt.grdtrack(
+# points=xyz_track, grid="model/deepbedmap3.nc", newcolname="z_interpolated"
+# )
 df_cubicbedmap = gmt.grdtrack(
     points=xyz_track, grid="model/cubicbedmap.nc", newcolname="z_interpolated"
 )
@@ -493,7 +502,6 @@ rmse_groundtruth = (df_groundtruth.error ** 2).mean() ** 0.5
 rmse_deepbedmap3 = (df_deepbedmap3.error ** 2).mean() ** 0.5
 rmse_cubicbedmap = (df_cubicbedmap.error ** 2).mean() ** 0.5
 rmse_synthetichr = (df_synthetichr.error ** 2).mean() ** 0.5
-print(f"Difference      : {rmse_deepbedmap3 - rmse_cubicbedmap:.2f}")
 
 bins = 50
 
@@ -543,10 +551,6 @@ plt.show()
 
 # %%
 # https://medium.com/usf-msds/choosing-the-right-metric-for-machine-learning-models-part-1-a99d7d7414e4
-rmse_groundtruth = (df_groundtruth.error ** 2).mean() ** 0.5
-rmse_deepbedmap3 = (df_deepbedmap3.error ** 2).mean() ** 0.5
-rmse_synthetichr = (df_synthetichr.error ** 2).mean() ** 0.5
-rmse_cubicbedmap = (df_cubicbedmap.error ** 2).mean() ** 0.5
 print(f"Groundtruth RMSE: {rmse_groundtruth}")
 print(f"DeepBedMap3 RMSE: {rmse_deepbedmap3}")
 print(f"SyntheticHR RMSE: {rmse_synthetichr}")
