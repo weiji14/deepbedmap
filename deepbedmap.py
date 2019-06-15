@@ -101,10 +101,11 @@ def get_image_with_bounds(filepaths: list, indexers: dict = None) -> xr.DataArra
 
 
 # %%
-test_filepaths = ["highres/2007tx", "highres/2010tr", "highres/istarxx"]
+test_filepaths = ["highres/2007tx"]  # , "highres/2010tr", "highres/istarxx"]
 groundtruth = get_image_with_bounds(
     filepaths=[f"{t}.nc" for t in test_filepaths],
-    indexers={"y": slice(0, -1), "x": slice(0, -1)},
+    # indexers={"y": slice(0, -1), "x": slice(0, -1)},  # for 2007tx, 2010tr and istarxx
+    indexers={"y": slice(1, -1), "x": slice(1, -1)},  # for 2007tx only
 )
 
 # %% [markdown]
@@ -113,7 +114,7 @@ groundtruth = get_image_with_bounds(
 # %%
 def get_deepbedmap_model_inputs(
     window_bound: rasterio.coords.BoundingBox, padding=1000
-) -> (np.ndarray, np.ndarray, np.ndarray):
+) -> (np.ndarray, np.ndarray, np.ndarray, np.ndarray):
     """
     Outputs one large tile for each of
     BEDMAP2, REMA and MEASURES Ice Flow Velocity
@@ -124,6 +125,12 @@ def get_deepbedmap_model_inputs(
 
     X_tile = data_prep.selective_tile(
         filepath="lowres/bedmap2_bed.tif",
+        window_bounds=[[*window_bound]],
+        # out_shape=None,  # 1000m spatial resolution
+        padding=padding,
+    )
+    W3_tile = data_prep.selective_tile(
+        filepath="misc/Arthern_accumulation_bedmap2_grid1.tif",
         window_bounds=[[*window_bound]],
         # out_shape=None,  # 1000m spatial resolution
         padding=padding,
@@ -143,7 +150,7 @@ def get_deepbedmap_model_inputs(
         gapfill_raster_filepath="misc/REMA_200m_dem_filled.tif",
     )
 
-    return X_tile, W1_tile, W2_tile
+    return X_tile, W1_tile, W2_tile, W3_tile
 
 
 # %%
@@ -169,35 +176,40 @@ def plot_3d_view(
 
 
 # %%
-X_tile, W1_tile, W2_tile = get_deepbedmap_model_inputs(window_bound=groundtruth.bounds)
-print(X_tile.shape, W1_tile.shape, W2_tile.shape)
+X_tile, W1_tile, W2_tile, W3_tile = get_deepbedmap_model_inputs(
+    window_bound=groundtruth.bounds
+)
+print(X_tile.shape, W1_tile.shape, W2_tile.shape, W3_tile.shape)
 
 # Build quilt package for datasets covering our test region
-reupload = False
+reupload = True
 if reupload == True:
     quilt.build(package="weiji14/deepbedmap/model/test/W1_tile", path=W1_tile)
     quilt.build(package="weiji14/deepbedmap/model/test/W2_tile", path=W2_tile)
+    quilt.build(package="weiji14/deepbedmap/model/test/W3_tile", path=W3_tile)
     quilt.build(package="weiji14/deepbedmap/model/test/X_tile", path=X_tile)
     quilt.push(package="weiji14/deepbedmap/model/test", is_public=True)
 
 # %%
-fig, axarr = plt.subplots(nrows=1, ncols=3, squeeze=False, figsize=(16, 12))
+fig, axarr = plt.subplots(nrows=1, ncols=4, squeeze=False, figsize=(16, 12))
 axarr[0, 0].imshow(X_tile[0, 0, :, :], cmap="BrBG")
 axarr[0, 0].set_title("BEDMAP2\n(1000m resolution)")
 axarr[0, 1].imshow(W1_tile[0, 0, :, :], cmap="BrBG")
 axarr[0, 1].set_title("Reference Elevation Model of Antarctica\n(100m resolution)")
 axarr[0, 2].imshow(W2_tile[0, 0, :, :], cmap="BrBG")
 axarr[0, 2].set_title("MEaSUREs Ice Velocity\n(450m, resampled to 500m)")
+axarr[0, 3].imshow(W3_tile[0, 0, :, :], cmap="BrBG")
+axarr[0, 3].set_title("Antarctic Snow Accumulation\n(1000m resolution)")
 plt.show()
 
 # %%
-fig = plt.figure(figsize=plt.figaspect(1 / 3) * 2.5)
+fig = plt.figure(figsize=plt.figaspect(1 / 4) * 2.5)
 
-ax = fig.add_subplot(1, 3, 1, projection="3d")
+ax = fig.add_subplot(1, 4, 1, projection="3d")
 ax = plot_3d_view(img=X_tile, ax=ax, title="BEDMAP2\n(1000m resolution)")
 ax.set_zlabel("\n\nElevation (metres)", fontsize=16)
 
-ax = fig.add_subplot(1, 3, 2, projection="3d")
+ax = fig.add_subplot(1, 4, 2, projection="3d")
 ax = plot_3d_view(
     img=W1_tile,
     ax=ax,
@@ -205,12 +217,19 @@ ax = plot_3d_view(
 )
 ax.set_zlabel("\n\nElevation (metres)", fontsize=16)
 
-ax = fig.add_subplot(1, 3, 3, projection="3d")
+ax = fig.add_subplot(1, 4, 3, projection="3d")
 ax = plot_3d_view(
     img=W2_tile, ax=ax, title="MEaSUREs Surface Ice Velocity\n(450m, resampled to 500m)"
 )
 ax.set_zlabel("\n\nSurface Ice Velocity (metres/year)", fontsize=16)
 
+ax = fig.add_subplot(1, 4, 4, projection="3d")
+ax = plot_3d_view(
+    img=W3_tile, ax=ax, title="Antarctic Snow Accumulation\n(1000m resolution)"
+)
+ax.set_zlabel("\n\nSnow Accumulation (kg/m2/a)", fontsize=16)
+
+plt.tight_layout()
 plt.show()
 
 
@@ -254,7 +273,7 @@ model = load_trained_model()
 
 # %%
 # Prediction on small area
-Y_hat = model.forward(x=X_tile, w1=W1_tile, w2=W2_tile).array
+Y_hat = model.forward(x=X_tile, w1=W1_tile, w2=W2_tile, w3=W3_tile).array
 
 # %% [markdown]
 # ## Load other interpolated grids for comparison
@@ -545,7 +564,9 @@ window_bound_big = rasterio.coords.BoundingBox(
 print(window_bound_big)
 
 # %%
-X_tile, W1_tile, W2_tile = get_deepbedmap_model_inputs(window_bound=window_bound_big)
+X_tile, W1_tile, W2_tile, W3_tile = get_deepbedmap_model_inputs(
+    window_bound=window_bound_big
+)
 
 # %%
 # Oh we will definitely need a GPU for this
@@ -559,7 +580,7 @@ W1_tile = np.pad(
 )
 
 # %%
-print(X_tile.shape, W1_tile.shape, W2_tile.shape)
+print(X_tile.shape, W1_tile.shape, W2_tile.shape, W3_tile.shape)
 
 # %% [markdown]
 # ## The whole of Antarctica tiler and predictor!!
@@ -599,8 +620,11 @@ if 1 == 1:
             W2_tile_crop = cupy.asarray(
                 a=W2_tile[:, :, y0 * 2 : y1 * 2, x0 * 2 : x1 * 2], dtype="float32"
             )
+            W3_tile_crop = cupy.asarray(a=W3_tile[:, :, y0:y1, x0:x1], dtype="float32")
 
-            Y_pred = model.forward(x=X_tile_crop, w1=W1_tile_crop, w2=W2_tile_crop)
+            Y_pred = model.forward(
+                x=X_tile_crop, w1=W1_tile_crop, w2=W2_tile_crop, w3=W3_tile_crop
+            )
             try:
                 Y_hat[
                     :, (y0 * 4) + 4 : (y1 * 4) - 4, (x0 * 4) + 4 : (x1 * 4) - 4
@@ -609,7 +633,7 @@ if 1 == 1:
             except ValueError:
                 raise
             finally:
-                X_tile_crop = W1_tile_crop = W2_tile_crop = None
+                X_tile_crop = W1_tile_crop = W2_tile_crop = W3_tile_crop = None
 
     Y_hat = Y_hat[:, 10:-10, 10:-10]
 
