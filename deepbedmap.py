@@ -256,7 +256,7 @@ def load_trained_model(
     if model is None:
         model = srgan_train.GeneratorModel(
             # num_residual_blocks=12,
-            # residual_scaling=0.4,
+            # residual_scaling=0.15,
         )
 
     # Load trained neural network weights into model
@@ -435,7 +435,7 @@ save_array_to_grid(
 # We use [grdtrack](https://gmt.soest.hawaii.edu/doc/latest/grdtrack) to sample our grid along the survey tracks.
 #
 # The survey tracks are basically geographic xy points flown by a plane.
-# The three grids are all 250m spatial resolution, and they are:
+# The four grids are all 250m spatial resolution, and they are:
 #
 # - Groundtruth grid (interpolated from our groundtruth points using [surface](https://gmt.soest.hawaii.edu/doc/latest/surface.html))
 # - DeepBedMap3 grid (predicted from our [Super Resolution Generative Adversarial Network model](/srgan_train.ipynb))

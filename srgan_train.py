@@ -272,7 +272,7 @@ class ResidualDenseBlock(chainer.Chain):
         self,
         in_out_channels: int = 64,
         inter_channels: int = 32,
-        residual_scaling: float = 0.2,
+        residual_scaling: float = 0.15,
     ):
         super().__init__()
         self.residual_scaling = residual_scaling
@@ -368,7 +368,7 @@ class ResInResDenseBlock(chainer.Chain):
         self,
         denseblock_class=ResidualDenseBlock,
         out_channels: int = 64,
-        residual_scaling: float = 0.2,
+        residual_scaling: float = 0.15,
     ):
         super().__init__()
         self.residual_scaling = residual_scaling
@@ -445,7 +445,7 @@ class GeneratorModel(chainer.Chain):
         inblock_class=DeepbedmapInputBlock,
         resblock_class=ResInResDenseBlock,
         num_residual_blocks: int = 12,
-        residual_scaling: float = 0.2,
+        residual_scaling: float = 0.15,
         out_channels: int = 1,
     ):
         super().__init__()
@@ -900,7 +900,7 @@ def calculate_discriminator_loss(
 # Build the models
 def compile_srgan_model(
     num_residual_blocks: int = 12,
-    residual_scaling: float = 0.2,
+    residual_scaling: float = 0.15,
     learning_rate: float = 6e-4,
 ):
     """
@@ -1326,7 +1326,7 @@ def objective(
         params={
             "batch_size_exponent": 7,
             "num_residual_blocks": 12,
-            "residual_scaling": 0.2,
+            "residual_scaling": 0.15,
             "learning_rate": 7.5e-5,
             "num_epochs": 90,
         }
