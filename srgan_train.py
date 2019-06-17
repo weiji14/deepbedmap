@@ -1327,8 +1327,8 @@ def objective(
             "batch_size_exponent": 7,
             "num_residual_blocks": 12,
             "residual_scaling": 0.2,
-            "learning_rate": 6e-4,
-            "num_epochs": 20,
+            "learning_rate": 7.5e-5,
+            "num_epochs": 90,
         }
     ),
     enable_livelossplot: bool = False,  # Default: False, no plots makes it go faster!
@@ -1356,7 +1356,7 @@ def objective(
     # Don't use cached stuff if it's a FixedTrial or the first trial
     if not hasattr(trial, "number") or trial.number == 0:
         refresh_cache = True
-    elif trial.trial_id > 0:  # Use cache if this is not the first trial
+    elif trial.number > 0:  # Use cache if this is not the first trial
         refresh_cache = False
 
     ## Load Dataset
@@ -1366,7 +1366,7 @@ def objective(
     experiment.log_parameter(name="dataset_hash", value=quilt_hash)
     experiment.log_parameter(name="use_gpu", value=cupy.is_available())
     batch_size: int = int(
-        2 ** trial.suggest_int(name="batch_size_exponent", low=7, high=7)
+        2 ** trial.suggest_int(name="batch_size_exponent", low=6, high=7)
     )
     experiment.log_parameter(name="batch_size", value=batch_size)
     train_iter, train_len, dev_iter, dev_len = get_train_dev_iterators(
@@ -1381,10 +1381,10 @@ def objective(
         name="num_residual_blocks", low=12, high=12
     )
     residual_scaling: float = trial.suggest_discrete_uniform(
-        name="residual_scaling", low=0.2, high=0.2, q=0.05
+        name="residual_scaling", low=0.1, high=0.3, q=0.05
     )
     learning_rate: float = trial.suggest_discrete_uniform(
-        name="learning_rate", high=8e-4, low=2e-4, q=5e-5
+        name="learning_rate", high=5e-4, low=5e-5, q=5e-5
     )
     g_model, g_optimizer, d_model, d_optimizer = compile_srgan_model(
         num_residual_blocks=num_residual_blocks,
@@ -1405,7 +1405,7 @@ def objective(
     )
 
     ## Run Trainer and save trained model
-    epochs: int = trial.suggest_int(name="num_epochs", low=20, high=120)
+    epochs: int = trial.suggest_int(name="num_epochs", low=60, high=120)
     experiment.log_parameter(name="num_epochs", value=epochs)
 
     metric_names = [
@@ -1498,7 +1498,7 @@ def objective(
 
 
 # %%
-n_trials = 1
+n_trials = 25
 if n_trials == 1:  # run training once only, i.e. just test the objective function
     objective(enable_livelossplot=True, enable_comet_logging=True)
 elif n_trials > 1:  # perform hyperparameter tuning with multiple experimental trials
