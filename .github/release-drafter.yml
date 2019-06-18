@@ -1,16 +1,16 @@
+name-template: 'v$NEXT_PATCH_VERSION'
+tag-template: 'v$NEXT_PATCH_VERSION'
+categories:
+  - title: ':building_construction: Model Improvements'
+    label: 'model :building_construction:'
+  - title: ':card_file_box: Dataset Changes'
+    label: 'data :card_file_box:'
+  - title: ':package: Software Revisions'
+    label: 'dependencies'
+change-template: '* $TITLE (#$NUMBER) @$AUTHOR'
 template: |
-  ## What's Changed
-  
-  ### :building_construction: Model Improvements
-  
-  * 
-  
-  ### :card_file_box: Dataset Changes
-  
-  * 
-  
-  ### :package: Software Revisions
+  # What's Changed
   
   $CHANGES
-  
-  Full list of commits made since last release viewable at [compare view](https://github.com/weiji14/deepbedmap/compare/v0.7.0...v0.8.0).
+
+  Full list of commits made since last release viewable at [compare view](https://github.com/weiji14/deepbedmap/compare/v0.8.0...v0.9.0).
