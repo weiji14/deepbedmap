@@ -68,6 +68,7 @@ def _quick_download_lowres_misc_datasets():
             "misc/REMA_100m_dem",
             "misc/REMA_200m_dem_filled",
             "misc/MEaSUREs_IceFlowSpeed_450m",
+            "misc/Arthern_accumulation_bedmap2_grid1",
         ]:
 
             if not os.path.exists(path=f"{geotiff}.tif"):
