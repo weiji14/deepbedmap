@@ -30,6 +30,7 @@ import os
 import shutil
 import sys
 import tarfile
+import tempfile
 import urllib
 import yaml
 import zipfile
@@ -306,6 +307,7 @@ def ascii_to_xyz(pipeline_file: str) -> pd.DataFrame:
         )
         for f in files
     )
+    df.dropna(axis="index", inplace=True)  # drop rows with NaN values
     df.reset_index(drop=True, inplace=True)  # reset index after concatenation
 
     ## Advanced table read with conversions
@@ -354,19 +356,32 @@ for pf in sorted(glob.glob("highres/*.json")):
 # ![Clean XYZ Table to Raster Grid via interpolation function](https://yuml.me/diagram/scruffy;dir:LR/class/[Clean-XYZ-Table|*.xyz]->[Interpolation-Function],[Interpolation-Function]->[Raster-Grid|*.tif/*.nc])
 
 # %%
-def get_region(xyz_data: pd.DataFrame) -> str:
+def get_region(xyz_data: pd.DataFrame, round_increment: int = 250) -> str:
     """
-    Gets the bounding box region of an xyz pandas.DataFrame in string
-    format xmin/xmax/ymin/ymax rounded to 5 decimal places.
-    Used for the -R 'region of interest' parameter in GMT.
+    Gets an extended bounding box region for points in an xyz pandas.DataFrame with
+    columns x, y, and z. The coordinates will be rounded to values specified by the
+    round_increment parameter. Implementation uses gmt.info with the -I (increment)
+    setting, see also https://gmt.soest.hawaii.edu/doc/latest/gmtinfo.html#i
 
-    >>> xyz_data = pd.DataFrame(np.random.RandomState(seed=42).rand(30).reshape(10, 3))
+    The output region is returned in a string format 'xmin/xmax/ymin/ymax' directly
+    usable as the -R 'region of interest' parameter in GMT. Indeed, the rounding is
+    specifically optimized to give grid dimensions for fastest results in programs like
+    GMT surface.
+
+    >>> xyz_data = pd.DataFrame(
+    ...     10000 * np.random.RandomState(seed=42).rand(30).reshape(10, 3),
+    ...     columns=["x", "y", "z"],
+    ... )
     >>> get_region(xyz_data=xyz_data)
-    '0.05808/0.83244/0.02058/0.95071'
+    '-250/9500/0/9750'
     """
-    xmin, ymin, _ = xyz_data.min(axis="rows")
-    xmax, ymax, _ = xyz_data.max(axis="rows")
-    return f"{xmin:.5f}/{xmax:.5f}/{ymin:.5f}/{ymax:.5f}"
+    assert (xyz_data.columns == pd.Index(data=["x", "y", "z"], dtype="object")).all()
+
+    with tempfile.NamedTemporaryFile(suffix=".csv") as tmpfile:
+        xyz_data.to_csv(tmpfile.name, header=False, index=False)
+        region = gmt.info(fname=tmpfile.name, I=f"s{round_increment}").strip()[2:]
+
+    return region
 
 
 # %%
@@ -381,18 +396,19 @@ def xyz_to_grid(
     """
     Performs interpolation of x, y, z point data to a raster grid.
 
-    >>> xyz_data = 1000*pd.DataFrame(np.random.RandomState(seed=42).rand(60).reshape(20, 3))
+    >>> xyz_data = pd.DataFrame(
+    ...     600 * np.random.RandomState(seed=42).rand(60).reshape(20, 3),
+    ...     columns=["x", "y", "z"],
+    ... )
     >>> region = get_region(xyz_data=xyz_data)
     >>> grid = xyz_to_grid(xyz_data=xyz_data, region=region, spacing=250)
     >>> grid.to_array().shape
-    (1, 5, 5)
+    (1, 4, 4)
     >>> grid.to_array().values
-    array([[[403.17618 , 544.92535 , 670.7824  , 980.75055 , 961.47723 ],
-            [379.0757  , 459.26407 , 314.38297 , 377.78555 , 546.0469  ],
-            [450.67664 , 343.26    ,  88.391594, 260.10492 , 452.3337  ],
-            [586.09906 , 469.74008 , 216.8168  , 486.9802  , 642.2116  ],
-            [451.4794  , 652.7244  , 325.77896 , 879.8973  , 916.7921  ]]],
-          dtype=float32)
+    array([[[135.95927, 294.8152 , 615.32513, 706.4135 ],
+            [224.46773, 191.75693, 298.87057, 521.85254],
+            [242.41916, 149.34332, 430.84137, 603.4236 ],
+            [154.60516, 194.24237, 447.6185 , 645.13574]]], dtype=float32)
     """
     ## Preprocessing with blockmedian
     with gmt.helpers.GMTTempFile(suffix=".txt") as tmpfile:
@@ -414,7 +430,7 @@ def xyz_to_grid(
         region=region,
         spacing=f"{spacing}+e",
         T=tension,
-        V="",
+        V="n",  # normal verbosity: produce only fatal error messages
         M=f"{mask_cell_radius}c",
     )
 
@@ -435,7 +451,7 @@ for name in xyz_dict.keys():
     grid_dict[name] = xyz_to_grid(
         xyz_data=xyz_data, region=region, outfile=f"highres/{name}.nc"
     )
-    print(f"done! {grid_dict[name].to_array().shape}")
+    print(f"done! {grid_dict[name].z.shape}")
 
 # %% [markdown]
 # ### 2.3 Plot raster grids
