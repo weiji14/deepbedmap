@@ -108,11 +108,10 @@ def get_image_with_bounds(filepaths: list, indexers: dict = None) -> xr.DataArra
 
 
 # %%
-test_filepaths = ["highres/2007tx", "highres/2010tr", "highres/istarxx"]
+test_filepaths = ["highres/2007tx"]  # , "highres/2010tr", "highres/istarxx"]
 groundtruth = get_image_with_bounds(
     filepaths=[f"{t}.nc" for t in test_filepaths],
-    indexers={"y": slice(0, -1), "x": slice(0, -1)},  # for 2007tx, 2010tr and istarxx
-    # indexers={"y": slice(1, -1), "x": slice(1, -1)},  # for 2007tx only
+    # indexers={"y": slice(0, -1), "x": slice(0, -1)},  # for 2007tx, 2010tr and istarxx
 )
 
 # %% [markdown]

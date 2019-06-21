@@ -84,10 +84,13 @@ def _quick_download_lowres_misc_datasets():
         print("done!")
 
 
-def _download_deepbedmap_model_weights_from_comet():
+def _download_deepbedmap_model_weights_from_comet(experiment_key: str = "latest"):
     """
-    Download latest neural network model weights from Comet.ML
-    Uses their Python REST API class at https://www.comet.ml/docs/python-sdk/API/
+    Download DeepBedMap's Generator neural network model weights from Comet.ML
+    By default, the model weights from the latest experimental run are downloaded
+    Passing in an alternative experiment_key hash will download that one instead
+
+    Uses Comet.ML's Python REST API class at https://www.comet.ml/docs/python-sdk/API/
     Requires the COMET_REST_API_KEY environment variable to be set in the .env file
     """
     comet_api = comet_ml.API(
@@ -99,7 +102,8 @@ def _download_deepbedmap_model_weights_from_comet():
     df = pd.io.json.json_normalize(data=project.data["experiments"].values())
 
     # Get the key to the latest DeepBedMap experiment on Comet ML
-    experiment_key = df.loc[df["start_server_timestamp"].idxmax()].experiment_key
+    if experiment_key == "latest":
+        experiment_key = df.loc[df["start_server_timestamp"].idxmax()].experiment_key
     experiment = comet_api.get(
         workspace="weiji14", project="deepbedmap", experiment=experiment_key
     )
