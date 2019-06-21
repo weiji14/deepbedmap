@@ -45,7 +45,8 @@ def process_data_through_pipeline_and_get_output(context, pipeline_file):
 @when("interpolate the xyz data table to {output_file}")
 def interpolate_xyz_data_to_grid(context, output_file):
     region = context.data_prep.get_region(context.xyz_data)
-    context.outfile = os.path.join("highres", output_file)
+    context.outfile = os.path.join("/tmp/highres", output_file)
+    os.makedirs(os.path.dirname(context.outfile), exist_ok=True)
     context.data_prep.xyz_to_grid(
         xyz_data=context.xyz_data, region=region, outfile=context.outfile
     )
@@ -60,7 +61,8 @@ def open_raster_grid_to_check(context):
 @given("a big {dataset_type} raster grid {raster_grid}")
 def get_a_raster_grid(context, dataset_type, raster_grid):
     context.raster_grid = raster_grid
-    context.filepath = os.path.join(dataset_type, raster_grid)
+    context.filepath = os.path.join("/tmp", dataset_type, raster_grid)
+    os.makedirs(os.path.dirname(context.filepath), exist_ok=True)
     url = (
         f"https://github.com/weiji14/deepbedmap/releases/download/v0.7.0/{raster_grid}"
     )
