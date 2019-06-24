@@ -26,8 +26,10 @@
 # # 0. Setup libraries
 
 # %%
+import glob
 import os
 import random
+import shutil
 import sys
 import typing
 
@@ -79,7 +81,7 @@ if cupy.is_available():
 # %%
 def load_data_into_memory(
     redownload: bool = True,
-    quilt_hash: str = "ad18f48a7f606b19a0db92fc249e10a85765fc5dbd2f952db77a67530a88383d",
+    quilt_hash: str = "0734959aa4f4903a17ed2acdfd53b3c0c826aadfc718e5fdd3c1b04963e1206e",
 ) -> (chainer.datasets.dict_dataset.DictDataset, str):
     """
     Downloads the prepackaged tiled data from quilt based on a hash,
@@ -1259,15 +1261,18 @@ def save_model_weights_and_architecture(
 
 # %%
 def get_deepbedmap_test_result(
-    test_filepath: str = "highres/2007tx",
-    indexers={"x": slice(1, -1), "y": slice(1, -1)},  # custom index-based crop
     model=None,
+    test_filepath: str = "highres/2007tx",
+    indexers: dict = None,  # custom index-based crop e.g. {"x": slice(1, -1), "y": slice(1, -1)}
     model_weights_path: str = "model/weights/srgan_generator_model_weights.npz",
 ) -> (float, xr.DataArray):
     """
-    Gets Root Mean Squared Error of elevation difference between
-    DeepBedMap topography and reference groundtruth xyz tracks
-    at a particular test region
+    Gets Root Mean Squared Error of elevation difference between DeepBedMap topography
+    and reference groundtruth xyz tracks at a particular test region.
+
+    If a trained model is passed in, the 'model_weights_path' parameter will be ignored
+    (i.e. the trained weights will not be reloaded). If instead there is no model passed
+    in, the default model will be loaded with trained weights from 'model_weights_path'.
     """
     deepbedmap = _load_ipynb_modules("deepbedmap.ipynb")
 
@@ -1280,9 +1285,10 @@ def get_deepbedmap_test_result(
     )
 
     # Run input datasets through trained neural network model
-    model = deepbedmap.load_trained_model(
-        model=model, model_weights_path=model_weights_path
-    )
+    if model is None:
+        model = deepbedmap.load_trained_model(
+            model=model, model_weights_path=model_weights_path
+        )
     Y_hat = model.forward(
         x=model.xp.asarray(a=X_tile),
         w1=model.xp.asarray(a=W1_tile),
@@ -1292,7 +1298,7 @@ def get_deepbedmap_test_result(
 
     # Create xarray grid from model prediction
     grid = xr.DataArray(
-        data=cupy.asnumpy(np.flipud(cupy.asnumpy(Y_hat[0, 0, :, :]))),
+        data=np.flipud(cupy.asnumpy(Y_hat[0, 0, :, :])),
         dims=["y", "x"],
         coords={"y": groundtruth.y, "x": groundtruth.x},
     )
@@ -1366,7 +1372,7 @@ def objective(
     experiment.log_parameter(name="dataset_hash", value=quilt_hash)
     experiment.log_parameter(name="use_gpu", value=cupy.is_available())
     batch_size: int = int(
-        2 ** trial.suggest_int(name="batch_size_exponent", low=6, high=7)
+        2 ** trial.suggest_int(name="batch_size_exponent", low=7, high=7)
     )
     experiment.log_parameter(name="batch_size", value=batch_size)
     train_iter, train_len, dev_iter, dev_len = get_train_dev_iterators(
@@ -1381,10 +1387,10 @@ def objective(
         name="num_residual_blocks", low=12, high=12
     )
     residual_scaling: float = trial.suggest_discrete_uniform(
-        name="residual_scaling", low=0.1, high=0.3, q=0.05
+        name="residual_scaling", low=0.15, high=0.30, q=0.05
     )
     learning_rate: float = trial.suggest_discrete_uniform(
-        name="learning_rate", high=5e-4, low=5e-5, q=5e-5
+        name="learning_rate", high=8.5e-5, low=6.5e-5, q=0.5e-5
     )
     g_model, g_optimizer, d_model, d_optimizer = compile_srgan_model(
         num_residual_blocks=num_residual_blocks,
@@ -1405,7 +1411,7 @@ def objective(
     )
 
     ## Run Trainer and save trained model
-    epochs: int = trial.suggest_int(name="num_epochs", low=60, high=120)
+    epochs: int = trial.suggest_int(name="num_epochs", low=60, high=90)
     experiment.log_parameter(name="num_epochs", value=epochs)
 
     metric_names = [
@@ -1460,7 +1466,7 @@ def objective(
             raise optuna.structs.TrialPruned()
 
     model_weights_path, model_architecture_path = save_model_weights_and_architecture(
-        trained_model=g_model
+        trained_model=g_model, save_path=f"model/weights/{experiment.get_key()}"
     )
     experiment.log_asset(
         file_data=model_weights_path, file_name=os.path.basename(model_weights_path)
@@ -1469,11 +1475,12 @@ def objective(
         file_data=model_architecture_path,
         file_name=os.path.basename(model_architecture_path),
     )
+    for f in glob.glob(f"model/weights/{experiment.get_key()}/*"):
+        shutil.copy2(src=f, dst="model/weights")
+    shutil.rmtree(path=f"model/weights/{experiment.get_key()}")
 
     ## Evaluate model and return metrics
-    rmse_test, predicted_test_grid = get_deepbedmap_test_result(
-        model=g_model, model_weights_path=model_weights_path
-    )
+    rmse_test, predicted_test_grid = get_deepbedmap_test_result(model=g_model)
     print(f"Experiment yielded Root Mean Square Error of {rmse_test:.2f} on test set")
     experiment.log_metric(name="rmse_test", value=rmse_test)
 
@@ -1500,11 +1507,11 @@ def objective(
 # %%
 n_trials = 25
 if n_trials == 1:  # run training once only, i.e. just test the objective function
-    objective(enable_livelossplot=True, enable_comet_logging=True)
+    objective(enable_livelossplot=True, enable_comet_logging=False)
 elif n_trials > 1:  # perform hyperparameter tuning with multiple experimental trials
-    tpe_seed = int(
-        os.environ["CUDA_VISIBLE_DEVICES"]
-    )  # different seed for different GPU
+    tpe_seed = len(os.uname().nodename) + int(
+        os.getenv(key="CUDA_VISIBLE_DEVICES", default="0")
+    )  # Set different seed using len($HOSTNAME) + GPU_ID
     sampler = optuna.samplers.TPESampler(
         seed=tpe_seed
     )  # Tree-structured Parzen Estimator
