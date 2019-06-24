@@ -29,7 +29,7 @@ def get_model_input_raster_images(context):
 
 @when("pass those images into our trained neural network model")
 def predict_using_trained_neural_network(context):
-    model = context.deepbedmap.load_trained_model()
+    model = context.deepbedmap.load_trained_model(experiment_key="latest")
     context.Y_hat = model.forward(
         x=context.X_tile, w1=context.W1_tile, w2=context.W2_tile, w3=context.W3_tile
     ).array

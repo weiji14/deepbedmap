@@ -45,7 +45,7 @@ import skimage
 
 import chainer
 
-from features.environment import _load_ipynb_modules
+from features.environment import _load_ipynb_modules, _download_model_weights_from_comet
 
 data_prep = _load_ipynb_modules("data_prep.ipynb")
 
@@ -318,20 +318,28 @@ print(synthetic250.shape)
 
 # %%
 def load_trained_model(
-    model=None,
+    experiment_key: str = "abc3af8e9abc4080a6b5b44b33c537c2",  # or simply use "latest"
     model_weights_path: str = "model/weights/srgan_generator_model_weights.npz",
 ):
     """
-    Builds the Generator component of the DeepBedMap neural network.
-    Also loads trained parameter weights into the model from a .npz file.
+    Returns a trained Generator DeepBedMap neural network model.
+
+    The model's weights and hyperparameters settings are retrieved from
+    https://comet.ml/weiji14/deepbedmap using an `experiment_key` setting
+    which can be set to 'latest' or some 32-character alphanumeric string.
     """
     srgan_train = _load_ipynb_modules("srgan_train.ipynb")
 
-    if model is None:
-        model = srgan_train.GeneratorModel(
-            # num_residual_blocks=12,
-            # residual_scaling=0.15,
-        )
+    # Download either 'latest' model weights from Comet.ML or one using experiment_key
+    # Will also get the hyperparameters "num_residual_blocks" and "residual_scaling"
+    num_residual_blocks, residual_scaling = _download_model_weights_from_comet(
+        experiment_key=experiment_key, download_path=model_weights_path
+    )
+
+    # Architect the model with appropriate "num_residual_blocks" and "residual_scaling"
+    model = srgan_train.GeneratorModel(
+        num_residual_blocks=num_residual_blocks, residual_scaling=residual_scaling
+    )
 
     # Load trained neural network weights into model
     chainer.serializers.load_npz(file=model_weights_path, obj=model)
