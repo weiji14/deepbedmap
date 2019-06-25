@@ -13,4 +13,4 @@ Feature: DeepBedMap
 
   Examples: Bounding box views of Antarctica
     | bounding_box |
-    | -1593589.328,-164048.7848,-1575589.328,-98048.7848 |
+    | -1594375.0, -166875.0, -1574375.0, -94875.0 |

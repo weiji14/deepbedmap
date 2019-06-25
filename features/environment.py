@@ -121,7 +121,7 @@ def _download_model_weights_from_comet(
             break
 
     # Download the neural network weight file (npz format) to the right place!
-    open(file=download_path, mode="wb").write(experiment.get_asset(asset_id=asset_id))
+    open(download_path, mode="wb").write(experiment.get_asset(asset_id=asset_id))
 
     # Get hyperparameters needed to recreate DeepBedMap model architecture properly
     parameters: dict = (
@@ -150,8 +150,6 @@ def fixture_srgan_train(context):
 def fixture_deepbedmap(context):
     # Quickly download all the neural network input datasets
     # _quick_download_lowres_misc_datasets()
-    # Download trained neural network weight file
-    _download_model_weights_from_comet()
     # set context.deepbedmap to have all the module functions
     context.deepbedmap = _load_ipynb_modules(ipynb_path="deepbedmap.ipynb")
     return context.deepbedmap

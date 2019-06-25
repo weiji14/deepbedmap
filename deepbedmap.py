@@ -168,7 +168,7 @@ X_tile, W1_tile, W2_tile, W3_tile = get_deepbedmap_model_inputs(
 print(X_tile.shape, W1_tile.shape, W2_tile.shape, W3_tile.shape)
 
 # Build quilt package for datasets covering our test region
-reupload = False
+reupload = True
 if reupload == True:
     quilt.build(package="weiji14/deepbedmap/model/test/W1_tile", path=W1_tile)
     quilt.build(package="weiji14/deepbedmap/model/test/W2_tile", path=W2_tile)
