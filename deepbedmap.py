@@ -108,10 +108,10 @@ def get_image_with_bounds(filepaths: list, indexers: dict = None) -> xr.DataArra
 
 
 # %%
-test_filepaths = ["highres/2007tx"]  # , "highres/2010tr", "highres/istarxx"]
+test_filepaths = ["highres/2007tx", "highres/2010tr", "highres/istarxx"]
 groundtruth = get_image_with_bounds(
     filepaths=[f"{t}.nc" for t in test_filepaths],
-    # indexers={"y": slice(0, -1), "x": slice(0, -1)},  # for 2007tx, 2010tr and istarxx
+    indexers={"y": slice(0, -1)},  # for 2007tx, 2010tr and istarxx
 )
 
 # %% [markdown]
@@ -168,7 +168,7 @@ X_tile, W1_tile, W2_tile, W3_tile = get_deepbedmap_model_inputs(
 print(X_tile.shape, W1_tile.shape, W2_tile.shape, W3_tile.shape)
 
 # Build quilt package for datasets covering our test region
-reupload = True
+reupload = False
 if reupload == True:
     quilt.build(package="weiji14/deepbedmap/model/test/W1_tile", path=W1_tile)
     quilt.build(package="weiji14/deepbedmap/model/test/W2_tile", path=W2_tile)
@@ -505,11 +505,8 @@ tracks = [data_prep.ascii_to_xyz(pipeline_file=f"{pf}.json") for pf in test_file
 points: pd.DataFrame = pd.concat(objs=tracks)  # concatenate all tracks into one table
 
 # %%
-df_groundtruth = pd.concat(
-    objs=[
-        gmt.grdtrack(points=p, grid=f"{g}.nc", newcolname="z_interpolated")
-        for p, g in zip(tracks, test_filepaths)
-    ]
+df_groundtruth = gmt.grdtrack(
+    points=points, grid=groundtruth, newcolname="z_interpolated"
 )
 # df_deepbedmap3 = gmt.grdtrack(
 #     points=points, grid=deepbedmap3_grid, newcolname="z_interpolated"
