@@ -26,6 +26,8 @@
 
 \node[canvas is zy plane at x=0] (temp) at (-1.5,-3,0) {\includegraphics[width=3cm,height=3cm]{/home/weiji/Documents/github/deepbedmap/paper/figures/glac_flowspeed.png}};
 
+\node[canvas is zy plane at x=0] (temp) at (-1.5,-6,0) {\includegraphics[width=3cm,height=3cm]{/home/weiji/Documents/github/deepbedmap/paper/figures/glac_albmap_snowacca.png}};
+
 \pic[shift={(0,3.5,0)}] at (0,0,0)
     {Box={
         name=x,
@@ -65,11 +67,24 @@
         }
     };
 
+\pic[shift={(0,-5.5,0)}] at (0,0,0)
+    {Box={
+        name=w3,
+        caption= ,
+        xlabel={{32, }},
+        zlabel=10,
+        fill=\ConvColor,
+        height=4,
+        width=1.6,
+        depth=4
+        }
+    };
+
 \pic[shift={(1.2,0,0)}] at (w1-east)
     {Box={
         name=concat,
         caption=Concat-enated Inputs,
-        xlabel={{96, }},
+        xlabel={{128, }},
         zlabel=8,
         fill=\ConvColor,
         height=4,
@@ -83,6 +98,8 @@
 \draw [connection]  (w1-east)    -- node {\midarrow} (concat-west);
 
 \draw [connection]  (w2-east)    -- node {\midarrow} (concat-west);
+
+\draw [connection]  (w3-east)    -- node {\midarrow} (concat-west);
 
 \pic[shift={(1.2,0,0)}] at (concat-east)
     {Box={

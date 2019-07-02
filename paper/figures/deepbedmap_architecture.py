@@ -17,14 +17,18 @@ arch = [
     to_input(os.path.join(PLOTNN_DIR, "ter_bedmap.png"), to="(-1.5,3,0)", width=3, height=3),
     to_input(os.path.join(PLOTNN_DIR, "REMA-hillshade-rendering-800px-768x768.jpg"), to="(-1.5,0,0)", width=3, height=3),
     to_input(os.path.join(PLOTNN_DIR, "glac_flowspeed.png"), to="(-1.5,-3,0)", width=3, height=3),
+    to_input(os.path.join(PLOTNN_DIR, "glac_albmap_snowacca.png"), to="(-1.5,-6,0)", width=3, height=3),
+
     # Input Convolutions
     to_Conv(name="x", s_filer=10, n_filer=32, offset="(0,3.5,0)", to="(0,0,0)", width=1.6, height=4, depth=4),
     to_Conv(name="w1", s_filer=100, n_filer=32, offset="(0,0,0)", to="(0,0,0)", width=1.6, height=16, depth=16),
     to_Conv(name="w2", s_filer=20, n_filer=32, offset="(0,-3.5,0)", to="(0,0,0)", width=1.6, height=8, depth=8),
-    to_Conv(name="concat", s_filer=8, n_filer=96, offset="(1.2,0,0)", to="(w1-east)", width=4.8, height=4, depth=4, caption="Concat-enated Inputs"),
+    to_Conv(name="w3", s_filer=10, n_filer=32, offset="(0,-5.5,0)", to="(0,0,0)", width=1.6, height=4, depth=4),
+    to_Conv(name="concat", s_filer=8, n_filer=128, offset="(1.2,0,0)", to="(w1-east)", width=4.8, height=4, depth=4, caption="Concat-enated Inputs"),
     to_connection(of="x", to="concat"),
     to_connection(of="w1", to="concat"),
     to_connection(of="w2", to="concat"),
+    to_connection(of="w3", to="concat"),
     # RRDB Blocks
     to_Conv(name="pre-residual", s_filer=8, n_filer=64, offset="(1.2,0,0)", to="(concat-east)", width=3.2, height=4, depth=4, caption="Pre-residual"),
     to_connection(of="concat", to="pre-residual"),
