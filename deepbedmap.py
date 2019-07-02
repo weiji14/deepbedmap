@@ -136,21 +136,23 @@ def get_deepbedmap_model_inputs(
         window_bounds=[[*window_bound]],
         # out_shape=None,  # 1000m spatial resolution
         padding=padding,
+        gapfiller=-5000.0,
     )
     W3_tile = data_prep.selective_tile(
         filepath="misc/Arthern_accumulation_bedmap2_grid1.tif",
         window_bounds=[[*window_bound]],
         # out_shape=None,  # 1000m spatial resolution
         padding=padding,
+        gapfiller=0.0,
     )
     W2_tile = data_prep.selective_tile(
         filepath="misc/MEaSUREs_IceFlowSpeed_450m.tif",
         window_bounds=[[*window_bound]],
         out_shape=(2 * X_tile.shape[2], 2 * X_tile.shape[3]),  # 500m spatial resolution
         padding=padding,
-        gapfill_raster_filepath="misc/lisa750_2013182_2017120_0000_0400_vv_v1_myr.tif",
+        gapfiller="misc/lisa750_2013182_2017120_0000_0400_vv_v1_myr.tif",
     )
-    W1_tile = data_prep.selective_tile(
+    W1_tile = data_prep.selective_tile_old(
         filepath="misc/REMA_100m_dem.tif",
         window_bounds=[[*window_bound]],
         # out_shape=(5 * W2_tile.shape[2], 5 * W2_tile.shape[3]),  # 100m spatial resolution
@@ -606,7 +608,7 @@ print(f"Difference      : {rmse_deepbedmap3 - rmse_cubicbedmap}")
 # %% [markdown]
 # # 4. Antarctic-wide **DeepBedMap**
 #
-# TODO again (problem with slow loading of DeepBedMap inputs after refactor at [#149](https://github.com/weiji14/deepbedmap/pull/149)).
+# Using our neural network to predict the bed elevation of the whole Antarctic continent!
 # A previous version (April 2019) presented at EGU2019 can be found in this [issue](https://github.com/weiji14/deepbedmap/issues/133) with reproducible code in this [pull request](https://github.com/weiji14/deepbedmap/pull/136).
 
 # %%
@@ -633,6 +635,10 @@ W1_tile = np.pad(
 )
 
 # %%
+# the gapfilled Ice Velocity layer still has gaps (filled with -3.4027863e+38), so we clip to above 0.0
+W2_tile = np.clip(a=W2_tile, a_min=0.0, a_max=None)
+
+# %%
 print(X_tile.shape, W1_tile.shape, W2_tile.shape, W3_tile.shape)
 
 # %% [markdown]
@@ -640,7 +646,7 @@ print(X_tile.shape, W1_tile.shape, W2_tile.shape, W3_tile.shape)
 #
 # Antarctica won't fit into our 16GB of GPU memory, so we have to:
 #
-# 1. Cut a 1000x1000 tile and load the data within this one small tile into GPU memory
+# 1. Cut a 250kmx250km tile and load the data within this one small tile into GPU memory
 # 2. Use our GPU-enabled model to make a prediction for this tile area
 # 3. Repeat (1) and (2) for every tile we have covering Antarctica
 
@@ -696,7 +702,7 @@ if 1 == 1:
 # %%
 # Save BEDMAP3 to GeoTiff and NetCDF format
 # Using int16 instead of float32 to keep things smaller
-save_array_to_grid(
+_ = save_array_to_grid(
     window_bound=window_bound_big,
     array=np.expand_dims(Y_hat.astype(dtype=np.int16), axis=0),
     outfilepath="model/deepbedmap3_big_int16",
@@ -713,8 +719,8 @@ with rasterio.open("model/deepbedmap3_big_int16.tif") as raster_tiff:
 # %%
 fig, ax = plt.subplots(nrows=1, ncols=1, squeeze=True, figsize=(12, 12))
 rasterio.plot.show(
-    source=np.ma.masked_less(x=deepbedmap_dem, value=-10000, copy=False),
+    source=np.ma.masked_less(x=deepbedmap_dem, value=-3000, copy=False),
     transform=raster_tiff.transform,
-    cmap="BrBG_r",
+    cmap="Blues_r",
     ax=ax,
 )
