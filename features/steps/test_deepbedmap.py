@@ -15,7 +15,7 @@ def window_view_of_Antarctica(context, bounding_box):
 def get_model_input_raster_images(context):
     # TODO refactor code below that is hardcoded for a particular test region
     if context.window_bound == rasterio.coords.BoundingBox(
-        left=-1_593_589.328, bottom=-164_048.7848, right=-1_575_589.328, top=-98048.7848
+        left=-1_594_375.0, bottom=-166_875.0, right=-1_574_375.0, top=-94_875.0
     ):
         quilt.install(package="weiji14/deepbedmap/model/test", force=True)
         pkg = quilt.load(pkginfo="weiji14/deepbedmap/model/test")
@@ -29,7 +29,7 @@ def get_model_input_raster_images(context):
 
 @when("pass those images into our trained neural network model")
 def predict_using_trained_neural_network(context):
-    model = context.deepbedmap.load_trained_model()
+    model = context.deepbedmap.load_trained_model(experiment_key="latest")
     context.Y_hat = model.forward(
         x=context.X_tile, w1=context.W1_tile, w2=context.W2_tile, w3=context.W3_tile
     ).array
