@@ -68,6 +68,7 @@ def _quick_download_lowres_misc_datasets():
             "misc/REMA_100m_dem",
             "misc/REMA_200m_dem_filled",
             "misc/MEaSUREs_IceFlowSpeed_450m",
+            "misc/Arthern_accumulation_bedmap2_grid1",
         ]:
 
             if not os.path.exists(path=f"{geotiff}.tif"):
@@ -83,22 +84,31 @@ def _quick_download_lowres_misc_datasets():
         print("done!")
 
 
-def _download_deepbedmap_model_weights_from_comet():
+def _download_model_weights_from_comet(
+    experiment_key: str = "latest",
+    download_path: str = "model/weights/srgan_generator_model_weights.npz",
+) -> (int, float):
     """
-    Download latest neural network model weights from Comet.ML
-    Uses their Python REST API class at https://www.comet.ml/docs/python-sdk/API/
+    Download DeepBedMap's Generator neural network model weights from Comet.ML
+    By default, the model weights from the latest experimental run are downloaded
+    Passing in an alternative experiment_key hash will download that one instead.
+    Also returns the model's num_residual_blocks and residual_scaling hyperparameters.
+
+    Uses Comet.ML's Python REST API class at https://www.comet.ml/docs/python-sdk/API/
     Requires the COMET_REST_API_KEY environment variable to be set in the .env file
     """
     comet_api = comet_ml.API(
         rest_api_key=base64.b64decode(s=os.environ["COMET_REST_API_KEY"])
     )
 
-    # Get list of DeepBedMap experiments
-    project = comet_api.get(workspace="weiji14", project="deepbedmap")
-    df = pd.io.json.json_normalize(data=project.data["experiments"].values())
+    # Get pointer to a DeepBedMap experiment on Comet ML
+    if experiment_key == "latest":
+        # Get list of DeepBedMap experiments
+        project = comet_api.get(workspace="weiji14", project="deepbedmap")
+        df = pd.io.json.json_normalize(data=project.data["experiments"].values())
+        # Get the key to the latest DeepBedMap experiment on Comet ML
+        experiment_key = df.loc[df["start_server_timestamp"].idxmax()].experiment_key
 
-    # Get the key to the latest DeepBedMap experiment on Comet ML
-    experiment_key = df.loc[df["start_server_timestamp"].idxmax()].experiment_key
     experiment = comet_api.get(
         workspace="weiji14", project="deepbedmap", experiment=experiment_key
     )
@@ -109,10 +119,17 @@ def _download_deepbedmap_model_weights_from_comet():
         if asset["fileName"].endswith(".npz"):  # make sure we pick the .npz file
             asset_id = asset["assetId"]
             break
+
     # Download the neural network weight file (npz format) to the right place!
-    open(file="model/weights/srgan_generator_model_weights.npz", mode="wb").write(
-        experiment.get_asset(asset_id=asset_id)
+    open(download_path, mode="wb").write(experiment.get_asset(asset_id=asset_id))
+
+    # Get hyperparameters needed to recreate DeepBedMap model architecture properly
+    parameters: dict = (
+        pd.io.json.json_normalize(data=experiment.parameters)
+        .set_index(keys="name")
+        .valueCurrent.to_dict()
     )
+    return int(parameters["num_residual_blocks"]), float(parameters["residual_scaling"])
 
 
 @fixture
@@ -133,8 +150,6 @@ def fixture_srgan_train(context):
 def fixture_deepbedmap(context):
     # Quickly download all the neural network input datasets
     # _quick_download_lowres_misc_datasets()
-    # Download trained neural network weight file
-    _download_deepbedmap_model_weights_from_comet()
     # set context.deepbedmap to have all the module functions
     context.deepbedmap = _load_ipynb_modules(ipynb_path="deepbedmap.ipynb")
     return context.deepbedmap

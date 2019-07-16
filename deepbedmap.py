@@ -7,7 +7,7 @@
 #       extension: .py
 #       format_name: hydrogen
 #       format_version: '1.2'
-#       jupytext_version: 1.0.3
+#       jupytext_version: 1.1.4-rc1
 #   kernelspec:
 #     display_name: deepbedmap
 #     language: python
@@ -17,7 +17,9 @@
 # %% [markdown]
 # # **DeepBedMap**
 #
-# Predicting the bed elevation of Antarctica using a Super Resolution Deep Neural Network.
+# Predicting the bed elevation of Antarctica using our trained Super Resolution Deep Neural Network.
+# The results will be compared against other interpolated grid products along groundtruth tracks in small regions.
+# Finally we will produce an Antarctic-wide DeepBedMap Digital Elevation Model (DEM) at the very end!
 
 # %%
 import math
@@ -26,6 +28,9 @@ import typing
 
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
+import xarray as xr
+import salem
+
 import comet_ml
 import cupy
 import matplotlib
@@ -33,92 +38,145 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import axes3d
 import numpy as np
 import pandas as pd
+import pygmt as gmt
 import quilt
 import rasterio
 import skimage
-import xarray as xr
 
 import chainer
 
-from features.environment import _load_ipynb_modules
+from features.environment import _load_ipynb_modules, _download_model_weights_from_comet
 
 data_prep = _load_ipynb_modules("data_prep.ipynb")
 
 # %% [markdown]
-# ## Get bounding box of area we want to predict on
+# # 1. Gather datasets
+
+# %% [markdown]
+# ## 1.1 Get bounding box of our area of interest
+#
+# Basically predict on an place where we have groundtruth data to validate against.
 
 # %%
-def get_image_and_bounds(filepaths: list) -> (np.ndarray, rasterio.coords.BoundingBox):
+def get_image_with_bounds(filepaths: list, indexers: dict = None) -> xr.DataArray:
     """
-    Retrieve raster image in numpy array format and
-    geographic bounds as (xmin, ymin, xmax, ymax)
+    Retrieve raster image in xarray.DataArray format patched
+    with projected coordinate bounds as (xmin, ymin, xmax, ymax)
 
     Note that if more than one filepath is passed in,
     the output groundtruth image array will not be valid
     (see https://github.com/pydata/xarray/issues/2159),
     but the window_bound extents will be correct
     """
-    if len(filepaths) > 1:
-        print("WARN: using multiple inputs, output groundtruth image will look funny")
 
-    with xr.open_mfdataset(paths=filepaths, concat_dim=None) as data:
-        groundtruth = data.z.to_masked_array()
-        groundtruth = np.flipud(groundtruth)  # flip on y-axis...
-        groundtruth = np.expand_dims(
-            np.expand_dims(groundtruth, axis=0), axis=0
-        )  # add extra dimensions (batch and channel)
-        assert groundtruth.shape[0:2] == (1, 1)  # check that shape is like (1, 1, h, w)
+    with xr.open_mfdataset(paths=filepaths, concat_dim=None) as dataset:
+        # Retrieve dataarray from NetCDF datasets
+        dataarray = dataset.z.isel(indexers=indexers)
 
-        xmin, xmax = float(data.x.min()), float(data.x.max())
-        ymin, ymax = float(data.y.min()), float(data.y.max())
+    # Patch projection information into xarray grid
+    dataarray.attrs["pyproj_srs"] = "epsg:3031"
+    sgrid = dataarray.salem.grid.corner_grid
+    assert sgrid.origin == "lower-left"  # should be "lower-left", not "upper-left"
 
-        window_bound = rasterio.coords.BoundingBox(
-            left=xmin, bottom=ymin, right=xmax, top=ymax
+    # Patch bounding box extent into xarray grid
+    if len(filepaths) == 1:
+        left, right, bottom, top = sgrid.extent
+    elif len(filepaths) > 1:
+        print("WARN: using multiple inputs, output groundtruth image may look funny")
+        x_offset, y_offset = sgrid.dx / 2, sgrid.dy / 2
+        left, right = (
+            float(dataarray.x[0] - x_offset),
+            float(dataarray.x[-1] + x_offset),
         )
-    return groundtruth, window_bound
+        assert sgrid.x0 == left
+        bottom, top = (
+            float(dataarray.y[0] - y_offset),
+            float(dataarray.y[-1] + y_offset),
+        )
+        assert sgrid.y0 == bottom  # dataarray.y.min()-y_offset
+
+    # check that y-axis and x-axis lengths are divisible by 4
+    try:
+        shape = int((top - bottom) / sgrid.dy), int((right - left) / sgrid.dx)
+        assert all(i % 4 == 0 for i in shape)
+    except AssertionError:
+        print(f"WARN: Image shape {shape} should be divisible by 4 for DeepBedMap")
+    finally:
+        dataarray.attrs["bounds"] = [left, bottom, right, top]
+
+    return dataarray
 
 
 # %%
 test_filepaths = ["highres/2007tx", "highres/2010tr", "highres/istarxx"]
-groundtruth, window_bound = get_image_and_bounds(
-    filepaths=[f"{t}.nc" for t in test_filepaths]
+groundtruth = get_image_with_bounds(
+    filepaths=[f"{t}.nc" for t in test_filepaths],
+    indexers={"y": slice(0, -1)},  # for 2007tx, 2010tr and istarxx
 )
 
 # %% [markdown]
-# ## Get neural network input datasets for our area of interest
+# ## 1.2 Get neural network input datasets
+#
+# Collect BEDMAP2 (X), REMA (W1), MEaSUREs Ice Flow (W2) and Antarctic Snow Accumulation (W3) datasets
+# cropped to our area of interest that will be fed into our trained neural network later.
 
 # %%
 def get_deepbedmap_model_inputs(
     window_bound: rasterio.coords.BoundingBox, padding=1000
-) -> typing.Dict[str, np.ndarray]:
+) -> (np.ndarray, np.ndarray, np.ndarray, np.ndarray):
     """
-    Outputs one large tile for each of
-    BEDMAP2, REMA and MEASURES Ice Flow Velocity
-    according to a given window_bound in the form of
-    (xmin, ymin, xmax, ymax).
+    Outputs one large tile for each of:
+    BEDMAP2, REMA, MEASURES Ice Flow Velocity and Antarctic Snow Accumulation
+    according to a given window_bound in the form of (xmin, ymin, xmax, ymax).
     """
     data_prep = _load_ipynb_modules("data_prep.ipynb")
 
     X_tile = data_prep.selective_tile(
         filepath="lowres/bedmap2_bed.tif",
         window_bounds=[[*window_bound]],
+        # out_shape=None,  # 1000m spatial resolution
         padding=padding,
+        gapfiller=-5000.0,
+    )
+    W3_tile = data_prep.selective_tile(
+        filepath="misc/Arthern_accumulation_bedmap2_grid1.tif",
+        window_bounds=[[*window_bound]],
+        # out_shape=None,  # 1000m spatial resolution
+        padding=padding,
+        gapfiller=0.0,
     )
     W2_tile = data_prep.selective_tile(
         filepath="misc/MEaSUREs_IceFlowSpeed_450m.tif",
         window_bounds=[[*window_bound]],
-        out_shape=(2 * X_tile.shape[2], 2 * X_tile.shape[3]),
+        out_shape=(2 * X_tile.shape[2], 2 * X_tile.shape[3]),  # 500m spatial resolution
         padding=padding,
-        gapfill_raster_filepath="misc/lisa750_2013182_2017120_0000_0400_vv_v1_myr.tif",
+        gapfiller="misc/lisa750_2013182_2017120_0000_0400_vv_v1_myr.tif",
     )
-    W1_tile = data_prep.selective_tile(
+    W1_tile = data_prep.selective_tile_old(
         filepath="misc/REMA_100m_dem.tif",
         window_bounds=[[*window_bound]],
+        # out_shape=(5 * W2_tile.shape[2], 5 * W2_tile.shape[3]),  # 100m spatial resolution
         padding=padding,
         gapfill_raster_filepath="misc/REMA_200m_dem_filled.tif",
     )
 
-    return X_tile, W1_tile, W2_tile
+    return X_tile, W1_tile, W2_tile, W3_tile
+
+
+# %%
+X_tile, W1_tile, W2_tile, W3_tile = get_deepbedmap_model_inputs(
+    window_bound=groundtruth.bounds
+)
+print(X_tile.shape, W1_tile.shape, W2_tile.shape, W3_tile.shape)
+
+# Build quilt package for datasets covering our test region
+reupload = False
+if reupload == True:
+    quilt.build(package="weiji14/deepbedmap/model/test/W1_tile", path=W1_tile)
+    quilt.build(package="weiji14/deepbedmap/model/test/W2_tile", path=W2_tile)
+    quilt.build(package="weiji14/deepbedmap/model/test/W3_tile", path=W3_tile)
+    quilt.build(package="weiji14/deepbedmap/model/test/X_tile", path=X_tile)
+    quilt.push(package="weiji14/deepbedmap/model/test", is_public=True)
 
 
 # %%
@@ -127,114 +185,96 @@ def plot_3d_view(
     ax: matplotlib.axes._subplots.Axes,
     elev: int = 60,
     azim: int = 330,
-    cm_norm: matplotlib.colors.Normalize = None,
+    z_minmax: tuple = None,
     title: str = None,
+    zlabel: str = None,
 ):
+    """
+    Creates a 3D perspective view plot of an elevation surface using matplotlib 3D.
+    The elevation (elev) and azimuth (azim) angle will need to be set accordingly,
+    here it is looking from the SouthWest (330deg) at an angle 60deg above the z-plane.
+
+    There are also optional parameters to set an elevation (z) range using the z_minmax
+    parameter, just provide a tuple in the form of (zmin, zmax). The resulting 3D plot's
+    colours will also be scaled to this range, or to the input array's z-range if this
+    z_minmax setting is left blank. You can also provide a title and z-axis label.
+    """
     # Get x, y, z data, assuming image in NCHW format
     image = img[0, :, :, :]
     xx, yy = np.mgrid[0 : image.shape[1], 0 : image.shape[2]]
     zz = image[0, :, :]
 
-    # Make the 3D plot
+    # Scale the plot colours according to some elevation(z) range
+    zmin, zmax = z_minmax if z_minmax is not None else (img.min(), img.max())
+    cm_norm = matplotlib.cm.colors.Normalize(vmin=zmin, vmax=zmax)
+
+    # Make the 3D surface plot
     ax.view_init(elev=elev, azim=azim)
     ax.plot_surface(xx, yy, zz, cmap="BrBG", norm=cm_norm)
+
+    # Set title for plot and z-axis label
     ax.set_title(label=f"{title}\n", fontsize=22)
+    ax.set_zlabel(zlabel=f"\n\n{zlabel}", fontsize=16)
+    ax.set_zlim(bottom=zmin, top=zmax)
 
     return ax
 
 
-# %%
-X_tile, W1_tile, W2_tile = get_deepbedmap_model_inputs(window_bound=window_bound)
-
-# Build quilt package for datasets covering our test region
-reupload = False
-if reupload == True:
-    quilt.build(package="weiji14/deepbedmap/model/test/W1_tile", path=W1_tile)
-    quilt.build(package="weiji14/deepbedmap/model/test/W2_tile", path=W2_tile)
-    quilt.build(package="weiji14/deepbedmap/model/test/X_tile", path=X_tile)
-    quilt.push(package="weiji14/deepbedmap/model/test", is_public=True)
+# %% [markdown]
+# ### Plot figures of neural network raster inputs in 2D and 3D
 
 # %%
-fig, axarr = plt.subplots(nrows=1, ncols=3, squeeze=False, figsize=(16, 12))
+fig, axarr = plt.subplots(nrows=1, ncols=4, squeeze=False, figsize=(16, 12))
 axarr[0, 0].imshow(X_tile[0, 0, :, :], cmap="BrBG")
 axarr[0, 0].set_title("BEDMAP2\n(1000m resolution)")
 axarr[0, 1].imshow(W1_tile[0, 0, :, :], cmap="BrBG")
 axarr[0, 1].set_title("Reference Elevation Model of Antarctica\n(100m resolution)")
 axarr[0, 2].imshow(W2_tile[0, 0, :, :], cmap="BrBG")
 axarr[0, 2].set_title("MEaSUREs Ice Velocity\n(450m, resampled to 500m)")
+axarr[0, 3].imshow(W3_tile[0, 0, :, :], cmap="BrBG")
+axarr[0, 3].set_title("Antarctic Snow Accumulation\n(1000m resolution)")
 plt.show()
 
 # %%
-fig = plt.figure(figsize=plt.figaspect(1 / 3) * 2.5)
+fig = plt.figure(figsize=plt.figaspect(1 / 4) * 2.5)
+axarr = [fig.add_subplot(1, 4, i + 1, projection="3d") for i in range(4)]
 
-ax = fig.add_subplot(1, 3, 1, projection="3d")
-ax = plot_3d_view(img=X_tile, ax=ax, title="BEDMAP2\n(1000m resolution)")
-ax.set_zlabel("\n\nElevation (metres)", fontsize=16)
-
-ax = fig.add_subplot(1, 3, 2, projection="3d")
-ax = plot_3d_view(
+plot_3d_view(
+    img=X_tile,
+    ax=axarr[0],
+    title="BEDMAP2\n(1000m resolution)",
+    zlabel="Elevation (metres)",
+)
+plot_3d_view(
     img=W1_tile,
-    ax=ax,
+    ax=axarr[1],
     title="Reference Elevation Model of Antarctica\n(100m resolution)",
+    zlabel="Elevation (metres)",
 )
-ax.set_zlabel("\n\nElevation (metres)", fontsize=16)
-
-ax = fig.add_subplot(1, 3, 3, projection="3d")
-ax = plot_3d_view(
-    img=W2_tile, ax=ax, title="MEaSUREs Surface Ice Velocity\n(450m, resampled to 500m)"
+plot_3d_view(
+    img=W2_tile,
+    ax=axarr[2],
+    title="MEaSUREs Surface Ice Velocity\n(450m, resampled to 500m)",
+    zlabel="Surface Ice Velocity (metres/year)",
 )
-ax.set_zlabel("\n\nSurface Ice Velocity (metres/year)", fontsize=16)
+plot_3d_view(
+    img=W3_tile,
+    ax=axarr[3],
+    title="Antarctic Snow Accumulation\n(1000m resolution)",
+    zlabel="Snow Accumulation (kg/m2/a)",
+)
 
+plt.tight_layout()
 plt.show()
 
-
 # %% [markdown]
-# ## Create custom neural network for our area of interest
+# ## 1.3 Prepare other interpolated grids for comparison
 #
-# Fully convolutional networks rock!!
-# Since we have a fully convolutional model architecture,
-# we can change the shape of the inputs/outputs,
-# but use the same trained weights!
-# That way we can predict directly on an arbitrarily sized window.
-
-# %%
-def load_trained_model(
-    model=None,
-    model_weights_path: str = "model/weights/srgan_generator_model_weights.npz",
-):
-    """
-    Builds the Generator component of the DeepBedMap neural network.
-    Also loads trained parameter weights into the model from a .npz file.
-    """
-    srgan_train = _load_ipynb_modules("srgan_train.ipynb")
-
-    if model is None:
-        model = srgan_train.GeneratorModel(
-            # num_residual_blocks=12,
-            # residual_scaling=0.4,
-        )
-
-    # Load trained neural network weights into model
-    chainer.serializers.load_npz(file=model_weights_path, obj=model)
-
-    return model
-
-
-# %% [markdown]
-# ## Make prediction
-
-# %%
-model = load_trained_model()
-
-# %%
-# Prediction on small area
-Y_hat = model.forward(x=X_tile, w1=W1_tile, w2=W2_tile).array
-
-# %% [markdown]
-# ## Load other interpolated grids for comparison
+# We'll also have two other grids (interpolated to spatial resolution of 250m) to compare with our DeepBedMap model's prediction.
+# They are:
 #
-# - Bicubic interpolated BEDMAP2
-# - Synthetic High Resolution Grid from [Graham et al.](https://doi.org/10.5194/essd-9-267-2017)
+# - Bicubic interpolated BEDMAP2 (baseline)
+# - Synthetic High Resolution Grid from [Graham et al. 2017](https://doi.org/10.5194/essd-9-267-2017)
 
 # %%
 cubicbedmap2 = skimage.transform.rescale(
@@ -247,16 +287,79 @@ cubicbedmap2 = skimage.transform.rescale(
     preserve_range=True,
 )
 cubicbedmap2 = np.expand_dims(np.expand_dims(cubicbedmap2, axis=0), axis=0)
-print(cubicbedmap2.shape, Y_hat.shape)
-assert cubicbedmap2.shape == Y_hat.shape
+print(cubicbedmap2.shape)
 
 # %%
 S_tile = data_prep.selective_tile(
-    filepath="model/hres.tif", window_bounds=[[*window_bound]]
+    filepath="model/hres.tif", window_bounds=[[*groundtruth.bounds]]
 )
+print(S_tile.shape)
+synthetic250 = skimage.transform.rescale(
+    image=S_tile[0, 0, :, :].astype(np.int32),
+    scale=1 / 2.5,  # 2.5 downscaling
+    order=1,  # billinear interpolation
+    mode="reflect",
+    anti_aliasing=True,
+    multichannel=False,
+    preserve_range=True,
+)
+synthetic250 = np.expand_dims(np.expand_dims(synthetic250, axis=0), axis=0)
+print(synthetic250.shape)
+
 
 # %% [markdown]
-# ## Plot results
+# # 2. Predict Bed Elevation
+
+# %% [markdown]
+# ## 2.1 Load trained generator neural network
+#
+# Fully convolutional networks rock!!
+# Since we have a fully convolutional model architecture,
+# we can use the same trained weights on different sized inputs/outputs!
+# That way we can predict directly on an arbitrarily sized window.
+
+# %%
+def load_trained_model(
+    experiment_key: str = "abc3af8e9abc4080a6b5b44b33c537c2",  # or simply use "latest"
+    model_weights_path: str = "model/weights/srgan_generator_model_weights.npz",
+):
+    """
+    Returns a trained Generator DeepBedMap neural network model.
+
+    The model's weights and hyperparameters settings are retrieved from
+    https://comet.ml/weiji14/deepbedmap using an `experiment_key` setting
+    which can be set to 'latest' or some 32-character alphanumeric string.
+    """
+    srgan_train = _load_ipynb_modules("srgan_train.ipynb")
+
+    # Download either 'latest' model weights from Comet.ML or one using experiment_key
+    # Will also get the hyperparameters "num_residual_blocks" and "residual_scaling"
+    num_residual_blocks, residual_scaling = _download_model_weights_from_comet(
+        experiment_key=experiment_key, download_path=model_weights_path
+    )
+
+    # Architect the model with appropriate "num_residual_blocks" and "residual_scaling"
+    model = srgan_train.GeneratorModel(
+        num_residual_blocks=num_residual_blocks, residual_scaling=residual_scaling
+    )
+
+    # Load trained neural network weights into model
+    chainer.serializers.load_npz(file=model_weights_path, obj=model)
+
+    return model
+
+
+# %%
+model = load_trained_model()
+
+# %% [markdown]
+# ## 2.2 Make prediction on area of interest
+
+# %%
+Y_hat = model.forward(x=X_tile, w1=W1_tile, w2=W2_tile, w3=W3_tile).array
+
+# %% [markdown]
+# ### Plot DeepBedMap prediction alongside other interpolated grids and groundtruth in 2D and 3D
 
 # %%
 fig, axarr = plt.subplots(nrows=1, ncols=4, squeeze=False, figsize=(22, 12))
@@ -266,62 +369,65 @@ axarr[0, 1].imshow(Y_hat[0, 0, :, :], cmap="BrBG")
 axarr[0, 1].set_title("Super Resolution Generative Adversarial Network prediction")
 axarr[0, 2].imshow(S_tile[0, 0, :, :], cmap="BrBG")
 axarr[0, 2].set_title("Synthetic High Resolution Grid")
-axarr[0, 3].imshow(groundtruth[0, 0, :, :], cmap="BrBG")
+groundtruth.plot(ax=axarr[0, 3], cmap="BrBG")
 axarr[0, 3].set_title("Groundtruth grids")
 plt.show()
 
 # %%
 fig = plt.figure(figsize=plt.figaspect(12 / 9) * 4.5)  # (height/width)*scaling
+axarr = [fig.add_subplot(2, 2, i + 1, projection="3d") for i in range(4)]
 
-zmin, zmax = (Y_hat.min(), Y_hat.max())
-norm_Z = matplotlib.cm.colors.Normalize(vmin=zmin, vmax=zmax)
-
-# DeepBedMap
-ax = fig.add_subplot(2, 2, 1, projection="3d")
-ax = plot_3d_view(
-    img=Y_hat, ax=ax, cm_norm=norm_Z, title="DeepBedMap (ours)\n 250m resolution"
+plot_3d_view(
+    img=Y_hat,  # DeepBedMap
+    ax=axarr[0],
+    z_minmax=(Y_hat.min(), Y_hat.max()),
+    title="DeepBedMap (ours)\n250m resolution",
+    zlabel="Elevation (metres)",
 )
-ax.set_zlim(bottom=zmin, top=zmax)
-ax.set_zlabel("\n\nElevation (metres)", fontsize=16)
-
-# BEDMAP2
-ax = fig.add_subplot(2, 2, 2, projection="3d")
-ax = plot_3d_view(img=X_tile, ax=ax, cm_norm=norm_Z, title="BEDMAP2\n1000m resolution")
-ax.set_zlim(bottom=zmin, top=zmax)
-ax.set_zlabel("\n\nElevation (metres)", fontsize=16)
-
-# DeepBedMap - BEDMAP2
-ax = fig.add_subplot(2, 2, 3, projection="3d")
-ax = plot_3d_view(
-    img=Y_hat - cubicbedmap2,
-    ax=ax,
-    cm_norm=norm_Z,
+plot_3d_view(
+    img=X_tile,  # BEDMAP2
+    ax=axarr[1],
+    z_minmax=(Y_hat.min(), Y_hat.max()),
+    title="BEDMAP2\n1000m resolution",
+    zlabel="Elevation (metres)",
+)
+plot_3d_view(
+    img=Y_hat - cubicbedmap2,  # DeepBedMap - BEDMAP2
+    ax=axarr[2],
+    z_minmax=(-125, 125),
     title="DeepBedMap minus\nBEDMAP2 (cubic interpolated)",
+    zlabel="Difference (metres)",
 )
-ax.set_zlim(bottom=-500, top=500)
-ax.set_zlabel("\n\nDifference (metres)", fontsize=16)
-
-# Synthetic
-ax = fig.add_subplot(2, 2, 4, projection="3d")
-ax = plot_3d_view(img=S_tile, ax=ax, cm_norm=norm_Z, title="Synthetic HRES ")
-ax.set_zlim(bottom=zmin, top=zmax)
-ax.set_zlabel("\n\nElevation (metres)", fontsize=16)
+plot_3d_view(
+    img=S_tile,  # Synthetic High Resolution product
+    ax=axarr[3],
+    z_minmax=(Y_hat.min(), Y_hat.max()),
+    title="Synthetic HRES\n100m resolution",
+    zlabel="Elevation (metres)",
+)
 
 plt.subplots_adjust(wspace=0.0001, hspace=0.0001, left=0.0, right=0.9, top=1.2)
-plt.savefig(fname="esrgan_prediction.pdf", format="pdf", bbox_inches="tight")
+# plt.savefig(fname="esrgan_prediction.pdf", format="pdf", bbox_inches="tight")
 plt.show()
 
 # %% [markdown]
-# # Save Bicubic BEDMAP2 and ESRGAN DeepBedMap to a grid file
+# ## 2.3 Save interpolated grids to GeoTIFF and NetCDF format
+#
+# 250 spatial resolution grids of:
+# - DeepBedMap'3' (ours)
+# - Bicubic interpolated BEDMAP2 (originally 1000m)
+# - Bilinear interpolated Synthetic High Res (originally 100m)
 
 # %%
 def save_array_to_grid(
     window_bound: tuple, array: np.ndarray, outfilepath: str, dtype: str = None
-):
+) -> xr.DataArray:
     """
-    Saves a numpy array to geotiff and netcdf format.
+    Saves a numpy array to geotiff and netcdf format according to
+    some bounding box window given as (minx, miny, maxx, maxy).
     Appends ".tif" and ".nc" file extension to the outfilepath
     for geotiff and netcdf outputs respectively.
+    Also returns an xarray.DataArray version of the resulting grid.
     """
 
     assert array.ndim == 4
@@ -347,84 +453,78 @@ def save_array_to_grid(
         new_geotiff.write(array[0, 0, :, :], 1)
 
     # Convert deepbedmap3 and cubicbedmap2 from geotiff to netcdf format
-    xr.open_rasterio(f"{outfilepath}.tif").to_netcdf(f"{outfilepath}.nc")
+    with xr.open_rasterio(f"{outfilepath}.tif") as dataset:
+        dataset.to_netcdf(f"{outfilepath}.nc")
+
+    return dataset
 
 
 # %%
 # Save BEDMAP3 to GeoTiff and NetCDF format
-save_array_to_grid(
-    window_bound=window_bound, array=Y_hat, outfilepath="model/deepbedmap3"
+deepbedmap3_grid = save_array_to_grid(
+    window_bound=groundtruth.bounds, array=Y_hat, outfilepath="model/deepbedmap3"
+)
+deepbedmap3_grid = xr.DataArray(
+    data=np.flipud(cupy.asnumpy(Y_hat[0, 0, :, :])),
+    dims=["y", "x"],
+    coords={"y": deepbedmap3_grid.y, "x": deepbedmap3_grid.x},  # for multiple grids
+    # coords={"y": groundtruth.y, "x": groundtruth.x},  # for single grid
 )
 
 # %%
 # Save Bicubic Resampled BEDMAP2 to GeoTiff and NetCDF format
-save_array_to_grid(
-    window_bound=window_bound, array=cubicbedmap2, outfilepath="model/cubicbedmap"
+_ = save_array_to_grid(
+    window_bound=groundtruth.bounds, array=cubicbedmap2, outfilepath="model/cubicbedmap"
 )
-
-# %%
-synthetic = skimage.transform.rescale(
-    image=S_tile[0, 0, :, :].astype(np.int32),
-    scale=1 / 2.5,  # 2.5 downscaling
-    order=1,  # billinear interpolation
-    mode="reflect",
-    anti_aliasing=True,
-    multichannel=False,
-    preserve_range=True,
-)
-save_array_to_grid(
-    window_bound=window_bound,
-    array=np.expand_dims(np.expand_dims(synthetic, axis=0), axis=0),
-    outfilepath="model/synthetichr",
+# Save Billinear Resampled Synthetic High Resolution grid to GeoTiff and NetCDF format
+_ = save_array_to_grid(
+    window_bound=groundtruth.bounds, array=synthetic250, outfilepath="model/synthetichr"
 )
 
 # %% [markdown]
-# # Crossover analysis
+# # 3. Elevation 'error' analysis
+
+# %% [markdown]
+# Here we compare the elevation error (or difference) between our grid and many many points!
+# We use [PyGMT](https://github.com/GenericMappingTools/pygmt)'s [grdtrack](https://gmt.soest.hawaii.edu/doc/latest/grdtrack) to sample the grid along the survey track points.
 #
-# We use [grdtrack](https://gmt.soest.hawaii.edu/doc/latest/grdtrack) to sample our grid along the survey tracks.
-#
-# The survey tracks are basically geographic xy points flown by a plane.
-# The three grids are all 250m spatial resolution, and they are:
+# The survey tracks are basically geographic points (x, y) with an elevation (z)
+# that were collected from an airplane or ground vehicle crossing Antarctica.
+# The four grids we sample from all have a spatial resolution of 250m and they are:
 #
 # - Groundtruth grid (interpolated from our groundtruth points using [surface](https://gmt.soest.hawaii.edu/doc/latest/surface.html))
 # - DeepBedMap3 grid (predicted from our [Super Resolution Generative Adversarial Network model](/srgan_train.ipynb))
 # - CubicBedMap grid (interpolated from BEDMAP2 using a [bicubic spline algorithm](http://scikit-image.org/docs/dev/api/skimage.transform.html#skimage.transform.rescale))
+# - Synthetic High Res grid (created by [Graham et al. 2017](https://doi.org/10.5194/essd-9-267-2017))
 #
-# Reference:
+# References:
 #
-# Wessel, P. (2010). Tools for analyzing intersecting tracks: The x2sys package. Computers & Geosciences, 36(3), 348–354. https://doi.org/10.1016/j.cageo.2009.05.009
+# - Wessel, P., Smith, W. H. F., Scharroo, R., Luis, J., & Wobbe, F. (2013). Generic Mapping Tools: Improved Version Released. Eos, Transactions American Geophysical Union, 94(45), 409–410. https://doi.org/10.1002/2013EO450001
+# - Wessel, P. (2010). Tools for analyzing intersecting tracks: The x2sys package. Computers & Geosciences, 36(3), 348–354. https://doi.org/10.1016/j.cageo.2009.05.009
 
 # %%
-test_filepath = "highres/2007tx"  # only one NetCDF grid can be tested
-track_test = data_prep.ascii_to_xyz(pipeline_file=f"{test_filepath}.json")
-track_test.to_csv("track_test.xyz", sep="\t", index=False)
+tracks = [data_prep.ascii_to_xyz(pipeline_file=f"{pf}.json") for pf in test_filepaths]
+points: pd.DataFrame = pd.concat(objs=tracks)  # concatenate all tracks into one table
 
 # %%
-## TODO make this multi-grid method work...
-# track_test = pd.concat(
-#     objs=[data_prep.ascii_to_xyz(pipeline_file=f"{pf}.json") for pf in test_filepaths]
+df_groundtruth = gmt.grdtrack(
+    points=points, grid=groundtruth, newcolname="z_interpolated"
+)
+# df_deepbedmap3 = gmt.grdtrack(
+#     points=points, grid=deepbedmap3_grid, newcolname="z_interpolated"
 # )
-# grids = r"\n".join(f"{grid}.nc" for grid in test_filepaths)
-# print(grids)
-# !echo "{grids}" > tmp.txt
-# !gmt grdtrack track_test.xyz -G+ltmp.txt -h1 -i0,1,2 > track_groundtruth.xyzi
-
-# %%
-!gmt grdtrack track_test.xyz -G{test_filepath}.nc -h1 -i0,1,2 > track_groundtruth.xyzi
-!gmt grdtrack track_test.xyz -Gmodel/deepbedmap3.nc -h1 -i0,1,2 > track_deepbedmap3.xyzi
-!gmt grdtrack track_test.xyz -Gmodel/cubicbedmap.nc -h1 -i0,1,2 > track_cubicbedmap.xyzi
-!gmt grdtrack track_test.xyz -Gmodel/synthetichr.nc -h1 -i0,1,2 > track_synthetichr.xyzi
-!head track_*.xyzi -n5
+df_deepbedmap3 = gmt.grdtrack(
+    points=points, grid="model/deepbedmap3.nc", newcolname="z_interpolated"
+)
+df_cubicbedmap = gmt.grdtrack(
+    points=points, grid="model/cubicbedmap.nc", newcolname="z_interpolated"
+)
+df_synthetichr = gmt.grdtrack(
+    points=points, grid="model/synthetichr.nc", newcolname="z_interpolated"
+)
 
 # %% [markdown]
 # ### Get table statistics
-
-# %%
-names = ["x", "y", "z", "z_interpolated"]
-df_groundtruth = pd.read_csv("track_groundtruth.xyzi", sep="\t", header=1, names=names)
-df_deepbedmap3 = pd.read_csv("track_deepbedmap3.xyzi", sep="\t", header=1, names=names)
-df_cubicbedmap = pd.read_csv("track_cubicbedmap.xyzi", sep="\t", header=1, names=names)
-df_synthetichr = pd.read_csv("track_synthetichr.xyzi", sep="\t", header=1, names=names)
 
 # %%
 df_groundtruth["error"] = df_groundtruth.z_interpolated - df_groundtruth.z
@@ -442,13 +542,15 @@ df_cubicbedmap.describe()
 df_synthetichr["error"] = df_synthetichr.z_interpolated - df_synthetichr.z
 df_synthetichr.describe()
 
+# %% [markdown]
+# ### Plot elevation error histogram
+
 # %%
 # https://medium.com/usf-msds/choosing-the-right-metric-for-machine-learning-models-part-1-a99d7d7414e4
 rmse_groundtruth = (df_groundtruth.error ** 2).mean() ** 0.5
 rmse_deepbedmap3 = (df_deepbedmap3.error ** 2).mean() ** 0.5
 rmse_cubicbedmap = (df_cubicbedmap.error ** 2).mean() ** 0.5
 rmse_synthetichr = (df_synthetichr.error ** 2).mean() ** 0.5
-print(f"Difference      : {rmse_deepbedmap3 - rmse_cubicbedmap:.2f}")
 
 bins = 50
 
@@ -493,15 +595,10 @@ ax.legend(loc="upper left", fontsize=32)
 plt.tick_params(axis="both", labelsize=20)
 plt.axvline(x=0)
 
-plt.savefig(fname="elevation_error_histogram.pdf", format="pdf", bbox_inches="tight")
+# plt.savefig(fname="elevation_error_histogram.pdf", format="pdf", bbox_inches="tight")
 plt.show()
 
 # %%
-# https://medium.com/usf-msds/choosing-the-right-metric-for-machine-learning-models-part-1-a99d7d7414e4
-rmse_groundtruth = (df_groundtruth.error ** 2).mean() ** 0.5
-rmse_deepbedmap3 = (df_deepbedmap3.error ** 2).mean() ** 0.5
-rmse_synthetichr = (df_synthetichr.error ** 2).mean() ** 0.5
-rmse_cubicbedmap = (df_cubicbedmap.error ** 2).mean() ** 0.5
 print(f"Groundtruth RMSE: {rmse_groundtruth}")
 print(f"DeepBedMap3 RMSE: {rmse_deepbedmap3}")
 print(f"SyntheticHR RMSE: {rmse_synthetichr}")
@@ -509,7 +606,10 @@ print(f"CubicBedMap RMSE: {rmse_cubicbedmap}")
 print(f"Difference      : {rmse_deepbedmap3 - rmse_cubicbedmap}")
 
 # %% [markdown]
-# # **DeepBedMap** for the whole of Antarctica
+# # 4. Antarctic-wide **DeepBedMap**
+#
+# Using our neural network to predict the bed elevation of the whole Antarctic continent!
+# A previous version (April 2019) presented at EGU2019 can be found in this [issue](https://github.com/weiji14/deepbedmap/issues/133) with reproducible code in this [pull request](https://github.com/weiji14/deepbedmap/pull/136).
 
 # %%
 # Bounding Box region in EPSG:3031 covering Antarctica
@@ -519,7 +619,9 @@ window_bound_big = rasterio.coords.BoundingBox(
 print(window_bound_big)
 
 # %%
-X_tile, W1_tile, W2_tile = get_deepbedmap_model_inputs(window_bound=window_bound_big)
+X_tile, W1_tile, W2_tile, W3_tile = get_deepbedmap_model_inputs(
+    window_bound=window_bound_big
+)
 
 # %%
 # Oh we will definitely need a GPU for this
@@ -533,14 +635,18 @@ W1_tile = np.pad(
 )
 
 # %%
-print(X_tile.shape, W1_tile.shape, W2_tile.shape)
+# the gapfilled Ice Velocity layer still has gaps (filled with -3.4027863e+38), so we clip to above 0.0
+W2_tile = np.clip(a=W2_tile, a_min=0.0, a_max=None)
+
+# %%
+print(X_tile.shape, W1_tile.shape, W2_tile.shape, W3_tile.shape)
 
 # %% [markdown]
-# ## The whole of Antarctica tiler and predictor!!
+# ## 4.1 The whole of Antarctica tiler and predictor!!
 #
 # Antarctica won't fit into our 16GB of GPU memory, so we have to:
 #
-# 1. Cut a 1000x1000 tile and load the data within this one small tile into GPU memory
+# 1. Cut a 250kmx250km tile and load the data within this one small tile into GPU memory
 # 2. Use our GPU-enabled model to make a prediction for this tile area
 # 3. Repeat (1) and (2) for every tile we have covering Antarctica
 
@@ -573,8 +679,11 @@ if 1 == 1:
             W2_tile_crop = cupy.asarray(
                 a=W2_tile[:, :, y0 * 2 : y1 * 2, x0 * 2 : x1 * 2], dtype="float32"
             )
+            W3_tile_crop = cupy.asarray(a=W3_tile[:, :, y0:y1, x0:x1], dtype="float32")
 
-            Y_pred = model.forward(x=X_tile_crop, w1=W1_tile_crop, w2=W2_tile_crop)
+            Y_pred = model.forward(
+                x=X_tile_crop, w1=W1_tile_crop, w2=W2_tile_crop, w3=W3_tile_crop
+            )
             try:
                 Y_hat[
                     :, (y0 * 4) + 4 : (y1 * 4) - 4, (x0 * 4) + 4 : (x1 * 4) - 4
@@ -583,17 +692,17 @@ if 1 == 1:
             except ValueError:
                 raise
             finally:
-                X_tile_crop = W1_tile_crop = W2_tile_crop = None
+                X_tile_crop = W1_tile_crop = W2_tile_crop = W3_tile_crop = None
 
     Y_hat = Y_hat[:, 10:-10, 10:-10]
 
 # %% [markdown]
-# ## Save full map to file
+# ## 4.2 Save full map to file
 
 # %%
 # Save BEDMAP3 to GeoTiff and NetCDF format
 # Using int16 instead of float32 to keep things smaller
-save_array_to_grid(
+_ = save_array_to_grid(
     window_bound=window_bound_big,
     array=np.expand_dims(Y_hat.astype(dtype=np.int16), axis=0),
     outfilepath="model/deepbedmap3_big_int16",
@@ -601,7 +710,7 @@ save_array_to_grid(
 )
 
 # %% [markdown]
-# ## Show *the* DeepBedMap
+# ## 4.3 Show *the* DeepBedMap
 
 # %%
 with rasterio.open("model/deepbedmap3_big_int16.tif") as raster_tiff:
@@ -610,8 +719,8 @@ with rasterio.open("model/deepbedmap3_big_int16.tif") as raster_tiff:
 # %%
 fig, ax = plt.subplots(nrows=1, ncols=1, squeeze=True, figsize=(12, 12))
 rasterio.plot.show(
-    source=np.ma.masked_less(x=deepbedmap_dem, value=-10000, copy=False),
+    source=np.ma.masked_less(x=deepbedmap_dem, value=-3000, copy=False),
     transform=raster_tiff.transform,
-    cmap="BrBG_r",
+    cmap="Blues_r",
     ax=ax,
 )

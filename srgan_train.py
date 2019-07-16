@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.2'
-#       jupytext_version: 1.0.3
+#       jupytext_version: 1.1.4-rc1
 #   kernelspec:
 #     display_name: deepbedmap
 #     language: python
@@ -14,19 +14,22 @@
 # ---
 
 # %% [markdown]
-# # **Super-Resolution Generative Adversarial Network training**
+# # **Enhanced Super-Resolution Generative Adversarial Network training**
 #
-# Here in this jupyter notebook, we will train a super-resolution generative adversarial network (SRGAN), to create a high-resolution Antarctic bed Digital Elevation Model(DEM) from a low-resolution DEM.
+# Here in this jupyter notebook, we will train an adapted Enhanced Super-Resolution Generative Adversarial Network (ESRGAN),
+# to create a high-resolution (250m) Antarctic bed Digital Elevation Model(DEM) from a low-resolution (1000m) BEDMAP2 DEM.
 # In addition to that, we use additional correlated inputs that can also tell us something about the bed topography.
 #
-# <img src="https://yuml.me/diagram/scruffy;dir:LR/class/[BEDMAP2 (1000m)]->[Generator model],[REMA (100m)]->[Generator model],[MEASURES Ice Flow Velocity (450m)]->[Generator model],[Generator model]->[High res bed DEM (250m)],[High res bed DEM (250m)]->[Discriminator model],[Groundtruth Image (250m)]->[Discriminator model],[Discriminator model]->[True/False]" alt="3 input SRGAN model"/>
+# <img src="https://yuml.me/diagram/scruffy;dir:LR/class/[Antarctic Snow Accumulation (1000m)]->[Generator model],[MEASURES Ice Flow Velocity (450m)]->[Generator model],[REMA (100m)]->[Generator model],[BEDMAP2 (1000m)]->[Generator model],[Generator model]->[High res bed DEM (250m)],[High res bed DEM (250m)]->[Discriminator model],[Groundtruth Image (250m)]->[Discriminator model],[Discriminator model]->[True/False]" alt="4 input ESRGAN model"/>
 
 # %% [markdown]
 # # 0. Setup libraries
 
 # %%
+import glob
 import os
 import random
+import shutil
 import sys
 import typing
 
@@ -40,9 +43,11 @@ import IPython.display
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import pygmt as gmt
 import quilt
 import skimage.transform
 import tqdm
+import xarray as xr
 
 import chainer
 import chainer.functions as F
@@ -76,7 +81,7 @@ if cupy.is_available():
 # %%
 def load_data_into_memory(
     redownload: bool = True,
-    quilt_hash: str = "07346a5773aad87a71a57f83624289f5af507ad12f7008aec29eee209f98c399",
+    quilt_hash: str = "0734959aa4f4903a17ed2acdfd53b3c0c826aadfc718e5fdd3c1b04963e1206e",
 ) -> (chainer.datasets.dict_dataset.DictDataset, str):
     """
     Downloads the prepackaged tiled data from quilt based on a hash,
@@ -91,22 +96,26 @@ def load_data_into_memory(
 
     W1_data = pkg.W1_data()  # miscellaneous data REMA
     W2_data = pkg.W2_data()  # miscellaneous data MEASURES Ice Flow
+    W3_data = pkg.W3_data()  # miscellaneous data Arthern Accumulation
     X_data = pkg.X_data()  # low resolution BEDMAP2
     Y_data = pkg.Y_data()  # high resolution groundtruth
-    # print(W1_data.shape, W2_data.shape, X_data.shape, Y_data.shape)
+    # print(W1_data.shape, W2_data.shape, W3_data.shape, X_data.shape, Y_data.shape)
 
     # Detect if there is a CUDA GPU first
     if cupy.is_available():
         print("Using GPU")
         W1_data = chainer.backend.cuda.to_gpu(array=W1_data, device=None)
         W2_data = chainer.backend.cuda.to_gpu(array=W2_data, device=None)
+        W3_data = chainer.backend.cuda.to_gpu(array=W3_data, device=None)
         X_data = chainer.backend.cuda.to_gpu(array=X_data, device=None)
         Y_data = chainer.backend.cuda.to_gpu(array=Y_data, device=None)
     else:
         print("Using CPU only")
 
     return (
-        chainer.datasets.DictDataset(X=X_data, W1=W1_data, W2=W2_data, Y=Y_data),
+        chainer.datasets.DictDataset(
+            X=X_data, W1=W1_data, W2=W2_data, W3=W3_data, Y=Y_data
+        ),
         quilt_hash,
     )
 
@@ -192,10 +201,10 @@ class DeepbedmapInputBlock(chainer.Chain):
     So for a 1km resolution image, (i.e. 1km pixel size):
     kernel size is (3, 3), stride is (1, 1), and pad is (0, 0)
 
-      (?,1,10,10) --Conv2D-- (?,32,8,8) \
-    (?,1,100,100) --Conv2D-- (?,32,8,8) --Concat-- (?,96,8,8)
-      (?,1,20,20) --Conv2D-- (?,32,8,8) /
-
+      (?,1,10,10) --Conv2D-- (?,32,8,8)  \
+    (?,1,100,100) --Conv2D-- (?,32,8,8) --Concat-- (?,128,8,8)
+      (?,1,20,20) --Conv2D-- (?,32,8,8)  /
+      (?,1,10,10) --Conv2D-- (?,32,8,8) /
     """
 
     def __init__(self, out_channels=32):
@@ -227,16 +236,25 @@ class DeepbedmapInputBlock(chainer.Chain):
                 pad=(0, 0),  # 'valid' padding
                 initialW=init_weights,
             )
+            self.conv_on_W3 = L.Convolution2D(
+                in_channels=1,
+                out_channels=out_channels,
+                ksize=(3, 3),
+                stride=(1, 1),
+                pad=(0, 0),  # 'valid' padding
+                initialW=init_weights,
+            )
 
-    def forward(self, x, w1, w2):
+    def forward(self, x, w1, w2, w3):
         """
-        Forward computation, i.e. evaluate based on inputs X, W1 and W2
+        Forward computation, i.e. evaluate based on inputs X, W1, W2 and W3
         """
         x_ = self.conv_on_X(x)
         w1_ = self.conv_on_W1(w1)
         w2_ = self.conv_on_W2(w2)
+        w3_ = self.conv_on_W3(w3)
 
-        a = F.concat(xs=(x_, w1_, w2_))
+        a = F.concat(xs=(x_, w1_, w2_, w3_))
         return a
 
 
@@ -385,12 +403,13 @@ class ResInResDenseBlock(chainer.Chain):
 # %% [markdown]
 # ### 2.1.3 Build the Generator Network, with upsampling layers!
 #
-# ![3 inputs feeding into the Generator Network, producing a high resolution prediction output](https://yuml.me/dffffcb0.png)
+# ![4 inputs feeding into the Generator Network, producing a high resolution prediction output](https://yuml.me/4a9cbc25.png)
 #
-# <!--[W2_input(MEASURES)|20x20x1]-k6n32s2>[W2_inter|8x8x32],[W2_inter]->[Concat|8x8x96]
-# [X_input(BEDMAP2)|10x10x1]-k3n32s1>[X_inter|8x8x32],[X_inter]->[Concat|8x8x96]
-# [W1_input(REMA)|100x100x1]-k30n32s10>[W1_inter|8x8x32],[W1_inter]->[Concat|8x8x96]
-# [Concat|8x8x96]->[Generator-Network|Many-Residual-Blocks],[Generator-Network]->[Y_hat(High-Resolution_DEM)|32x32x1]-->
+# <!--[W3_input(ACCUMULATION)|10x10x1]-k3n32s1>[W3_inter|8x8x32],[W3_inter]->[Concat|8x8x128]
+# [W2_input(MEASURES)|20x20x1]-k6n32s2>[W2_inter|8x8x32],[W2_inter]->[Concat|8x8x128]
+# [W1_input(REMA)|100x100x1]-k30n32s10>[W1_inter|8x8x32],[W1_inter]->[Concat|8x8x128]
+# [X_input(BEDMAP2)|10x10x1]-k3n32s1>[X_inter|8x8x32],[X_inter]->[Concat|8x8x128]
+# [Concat|8x8x128]->[Generator-Network|Many-Residual-Blocks],[Generator-Network]->[Y_hat(High-Resolution_DEM)|32x32x1]-->
 
 # %%
 class GeneratorModel(chainer.Chain):
@@ -415,11 +434,12 @@ class GeneratorModel(chainer.Chain):
     ...     x=np.random.rand(1, 1, 10, 10).astype("float32"),
     ...     w1=np.random.rand(1, 1, 100, 100).astype("float32"),
     ...     w2=np.random.rand(1, 1, 20, 20).astype("float32"),
+    ...     w3=np.random.rand(1, 1, 10, 10).astype("float32"),
     ... )
     >>> y_pred.shape
     (1, 1, 32, 32)
     >>> generator_model.count_params()
-    9088641
+    9107393
     """
 
     def __init__(
@@ -495,7 +515,9 @@ class GeneratorModel(chainer.Chain):
                 initialW=init_weights,
             )
 
-    def forward(self, x: cupy.ndarray, w1: cupy.ndarray, w2: cupy.ndarray):
+    def forward(
+        self, x: cupy.ndarray, w1: cupy.ndarray, w2: cupy.ndarray, w3: cupy.ndarray
+    ):
         """
         Forward computation, i.e. evaluate based on input tensors
 
@@ -504,7 +526,7 @@ class GeneratorModel(chainer.Chain):
         # 0 part
         # Resize inputs o right scale using convolution (hardcoded kernel_size and strides)
         # Also concatenate all inputs
-        a0 = self.input_block(x=x, w1=w1, w2=w2)
+        a0 = self.input_block(x=x, w1=w1, w2=w2, w3=w3)
 
         # 1st part
         # Pre-residual k3n64s1
@@ -881,7 +903,7 @@ def calculate_discriminator_loss(
 def compile_srgan_model(
     num_residual_blocks: int = 12,
     residual_scaling: float = 0.2,
-    learning_rate: float = 6e-4,
+    learning_rate: float = 8e-5,
 ):
     """
     Instantiate our Super Resolution Generative Adversarial Network (SRGAN) model here.
@@ -968,6 +990,7 @@ def train_eval_discriminator(
     ...     "X": np.random.RandomState(seed=42).rand(2, 1, 10, 10).astype(np.float32),
     ...     "W1": np.random.RandomState(seed=42).rand(2, 1, 100, 100).astype(np.float32),
     ...     "W2": np.random.RandomState(seed=42).rand(2, 1, 20, 20).astype(np.float32),
+    ...     "W3": np.random.RandomState(seed=42).rand(2, 1, 10, 10).astype(np.float32),
     ...     "Y": np.random.RandomState(seed=42).rand(2, 1, 32, 32).astype(np.float32),
     ... }
     >>> discriminator_model = DiscriminatorModel()
@@ -995,7 +1018,10 @@ def train_eval_discriminator(
 
     # @given("fake generated images from a generator")
     fake_images = g_model.forward(
-        x=input_arrays["X"], w1=input_arrays["W1"], w2=input_arrays["W2"]
+        x=input_arrays["X"],
+        w1=input_arrays["W1"],
+        w2=input_arrays["W2"],
+        w3=input_arrays["W3"],
     ).array
     fake_labels = xp.zeros(shape=(len(fake_images), 1)).astype(xp.int32)
 
@@ -1053,6 +1079,7 @@ def train_eval_generator(
     ...     "X": np.random.RandomState(seed=42).rand(2, 1, 10, 10).astype(np.float32),
     ...     "W1": np.random.RandomState(seed=42).rand(2, 1, 100, 100).astype(np.float32),
     ...     "W2": np.random.RandomState(seed=42).rand(2, 1, 20, 20).astype(np.float32),
+    ...     "W3": np.random.RandomState(seed=42).rand(2, 1, 10, 10).astype(np.float32),
     ...     "Y": np.random.RandomState(seed=42).rand(2, 1, 32, 32).astype(np.float32),
     ... }
     >>> generator_model = GeneratorModel()
@@ -1081,7 +1108,10 @@ def train_eval_generator(
 
     # @given("fake generated images from a generator")
     fake_images = g_model.forward(
-        x=input_arrays["X"], w1=input_arrays["W1"], w2=input_arrays["W2"]
+        x=input_arrays["X"],
+        w1=input_arrays["W1"],
+        w2=input_arrays["W2"],
+        w3=input_arrays["W3"],
     )
     with chainer.using_config(name="train", value=False):  # Using non-train BatchNorm
         fake_labels = d_model.forward(x=fake_images).array.astype(xp.float32)
@@ -1212,6 +1242,7 @@ def save_model_weights_and_architecture(
             "x": trained_model.xp.random.rand(32, 1, 10, 10).astype("float32"),
             "w1": trained_model.xp.random.rand(32, 1, 100, 100).astype("float32"),
             "w2": trained_model.xp.random.rand(32, 1, 20, 20).astype("float32"),
+            "w3": trained_model.xp.random.rand(32, 1, 10, 10).astype("float32"),
         },
         filename=model_architecture_path,
         export_params=False,
@@ -1230,66 +1261,58 @@ def save_model_weights_and_architecture(
 
 # %%
 def get_deepbedmap_test_result(
-    test_filepath: str = "highres/2007tx",
     model=None,
+    test_filepath: str = "highres/2007tx",
+    indexers: dict = None,  # custom index-based crop e.g. {"x": slice(1, -1), "y": slice(1, -1)}
     model_weights_path: str = "model/weights/srgan_generator_model_weights.npz",
-    outfilesuffix: str = "",  # unique suffix (e.g. ID) for temporary files
-    redo_testtrack: bool = True,
-) -> float:
+) -> (float, xr.DataArray):
     """
-    Gets Root Mean Squared Error of elevation difference between
-    DeepBedMap topography and reference groundtruth xyz tracks
-    at a particular test region
+    Gets Root Mean Squared Error of elevation difference between DeepBedMap topography
+    and reference groundtruth xyz tracks at a particular test region.
+
+    If a trained model is passed in, the 'model_weights_path' parameter will be ignored
+    (i.e. the trained weights will not be reloaded). If instead there is no model passed
+    in, the default model will be loaded with trained weights from 'model_weights_path'.
     """
     deepbedmap = _load_ipynb_modules("deepbedmap.ipynb")
 
-    # Get groundtruth images, window_bounds and neural network input datasets
-    groundtruth, window_bound = deepbedmap.get_image_and_bounds(f"{test_filepath}.nc")
-    X_tile, W1_tile, W2_tile = deepbedmap.get_deepbedmap_model_inputs(
-        window_bound=window_bound
+    # Get neural network input datasets associated with groundtruth image bounds
+    groundtruth = deepbedmap.get_image_with_bounds(
+        filepaths=[f"{test_filepath}.nc"], indexers=indexers
+    )
+    X_tile, W1_tile, W2_tile, W3_tile = deepbedmap.get_deepbedmap_model_inputs(
+        window_bound=groundtruth.bounds
     )
 
     # Run input datasets through trained neural network model
-    model = deepbedmap.load_trained_model(
-        model=model, model_weights_path=model_weights_path
-    )
+    if model is None:
+        model = deepbedmap.load_trained_model(model_weights_path=model_weights_path)
     Y_hat = model.forward(
         x=model.xp.asarray(a=X_tile),
         w1=model.xp.asarray(a=W1_tile),
         w2=model.xp.asarray(a=W2_tile),
+        w3=model.xp.asarray(a=W3_tile),
     ).array
 
-    # Save infered deepbedmap to grid file(s)
-    outfilepath: str = f"model/deepbedmap3_{outfilesuffix}"
-    deepbedmap.save_array_to_grid(
-        window_bound=window_bound, array=cupy.asnumpy(a=Y_hat), outfilepath=outfilepath
+    # Create xarray grid from model prediction
+    grid = xr.DataArray(
+        data=np.flipud(cupy.asnumpy(Y_hat[0, 0, :, :])),
+        dims=["y", "x"],
+        coords={"y": groundtruth.y, "x": groundtruth.x},
     )
 
-    # Load xyz table for test region
-    if redo_testtrack:
-        data_prep = _load_ipynb_modules("data_prep.ipynb")
-        track_test = data_prep.ascii_to_xyz(pipeline_file=f"{test_filepath}.json")
-        track_test.to_csv("track_test.xyz", sep="\t", index=False)
+    # Load xyz points table for test region
+    data_prep = _load_ipynb_modules("data_prep.ipynb")
+    points = data_prep.ascii_to_xyz(pipeline_file=f"{test_filepath}.json")
 
     # Get the elevation (z) value at specified x, y points along the groundtruth track
-    outtrackpath: str = f"model/track_deepbedmap3_{outfilesuffix}"
-    !gmt grdtrack track_test.xyz -G{outfilepath}.nc -h1 -i0,1,2 > {outtrackpath}.xyzi
-    df_deepbedmap3 = pd.read_csv(
-        f"{outtrackpath}.xyzi",
-        sep="\t",
-        header=1,
-        names=["x", "y", "z", "z_interpolated"],
-    )
+    df_deepbedmap3 = gmt.grdtrack(points=points, grid=grid, newcolname="z_interpolated")
 
     # Calculate elevation error between groundtruth xyz tracks and deepbedmap
     df_deepbedmap3["error"] = df_deepbedmap3.z_interpolated - df_deepbedmap3.z
     rmse_deepbedmap3 = (df_deepbedmap3.error ** 2).mean() ** 0.5
 
-    os.remove(path=f"{outfilepath}.nc")
-    # os.remove(path=f"{outfilepath}.tif")
-    os.remove(path=f"{outtrackpath}.xyzi")
-
-    return float(rmse_deepbedmap3)
+    return float(rmse_deepbedmap3), grid
 
 
 # %% [markdown]
@@ -1308,8 +1331,8 @@ def objective(
             "batch_size_exponent": 7,
             "num_residual_blocks": 12,
             "residual_scaling": 0.2,
-            "learning_rate": 6e-4,
-            "num_epochs": 150,
+            "learning_rate": 8e-5,
+            "num_epochs": 90,
         }
     ),
     enable_livelossplot: bool = False,  # Default: False, no plots makes it go faster!
@@ -1324,6 +1347,7 @@ def objective(
     - Number of residual blocks
     - Batch Size
     - Number of training epochs
+    - Residual Scaling factor
     """
 
     # Start tracking experiment using Comet.ML
@@ -1334,9 +1358,9 @@ def objective(
     )
 
     # Don't use cached stuff if it's a FixedTrial or the first trial
-    if not hasattr(trial, "trial_id") or trial.trial_id == 1:
+    if not hasattr(trial, "number") or trial.number == 0:
         refresh_cache = True
-    elif trial.trial_id > 1:  # Use cache if trial.trial_id > 1
+    elif trial.number > 0:  # Use cache if this is not the first trial
         refresh_cache = False
 
     ## Load Dataset
@@ -1361,10 +1385,10 @@ def objective(
         name="num_residual_blocks", low=12, high=12
     )
     residual_scaling: float = trial.suggest_discrete_uniform(
-        name="residual_scaling", low=0.2, high=0.2, q=0.05
+        name="residual_scaling", low=0.15, high=0.30, q=0.05
     )
     learning_rate: float = trial.suggest_discrete_uniform(
-        name="learning_rate", high=8e-4, low=2e-4, q=5e-5
+        name="learning_rate", high=8.5e-5, low=6.5e-5, q=0.5e-5
     )
     g_model, g_optimizer, d_model, d_optimizer = compile_srgan_model(
         num_residual_blocks=num_residual_blocks,
@@ -1385,7 +1409,7 @@ def objective(
     )
 
     ## Run Trainer and save trained model
-    epochs: int = trial.suggest_int(name="num_epochs", low=120, high=150)
+    epochs: int = trial.suggest_int(name="num_epochs", low=60, high=90)
     experiment.log_parameter(name="num_epochs", value=epochs)
 
     metric_names = [
@@ -1440,38 +1464,52 @@ def objective(
             raise optuna.structs.TrialPruned()
 
     model_weights_path, model_architecture_path = save_model_weights_and_architecture(
-        trained_model=g_model
+        trained_model=g_model, save_path=f"model/weights/{experiment.get_key()}"
     )
     experiment.log_asset(
-        file_path=model_weights_path, file_name=os.path.basename(model_weights_path)
+        file_data=model_weights_path, file_name=os.path.basename(model_weights_path)
     )
     experiment.log_asset(
-        file_path=model_architecture_path,
+        file_data=model_architecture_path,
         file_name=os.path.basename(model_architecture_path),
     )
+    for f in glob.glob(f"model/weights/{experiment.get_key()}/*"):
+        shutil.copy2(src=f, dst="model/weights")
+    shutil.rmtree(path=f"model/weights/{experiment.get_key()}")
 
     ## Evaluate model and return metrics
-    rmse_test = get_deepbedmap_test_result(
-        model=g_model,
-        model_weights_path=model_weights_path,
-        outfilesuffix=f"{trial.trial_id if hasattr(trial, 'trial_id') else ''}",
-        redo_testtrack=True if refresh_cache else False,
-    )
+    rmse_test, predicted_test_grid = get_deepbedmap_test_result(model=g_model)
     print(f"Experiment yielded Root Mean Square Error of {rmse_test:.2f} on test set")
     experiment.log_metric(name="rmse_test", value=rmse_test)
+
+    ## Upload raw image output and figure with scalebar
+    experiment.log_image(
+        name="predicted_test_grid",
+        image_data=np.flipud(predicted_test_grid.data),
+        image_colormap="BrBG",
+    )
+    predicted_test_grid.plot.imshow(
+        cmap="BrBG",
+        size=14,
+        aspect=predicted_test_grid.shape[1] / predicted_test_grid.shape[0],
+    )
+    plt.tight_layout()
+    experiment.log_figure()
+    plt.close()
+
     experiment.end()
 
     return rmse_test
 
 
 # %%
-n_trials = 12
+n_trials = 25
 if n_trials == 1:  # run training once only, i.e. just test the objective function
-    objective(enable_livelossplot=True, enable_comet_logging=True)
+    objective(enable_livelossplot=True, enable_comet_logging=False)
 elif n_trials > 1:  # perform hyperparameter tuning with multiple experimental trials
-    tpe_seed = int(
-        os.environ["CUDA_VISIBLE_DEVICES"]
-    )  # different seed for different GPU
+    tpe_seed = len(os.uname().nodename) + int(
+        os.getenv(key="CUDA_VISIBLE_DEVICES", default="0")
+    )  # Set different seed using len($HOSTNAME) + GPU_ID
     sampler = optuna.samplers.TPESampler(
         seed=tpe_seed
     )  # Tree-structured Parzen Estimator
@@ -1486,7 +1524,7 @@ elif n_trials > 1:  # perform hyperparameter tuning with multiple experimental t
 
 # %%
 if n_trials > 1:
-    study = optuna.Study(
+    study = optuna.load_study(
         study_name="DeepBedMap_tuning", storage="sqlite:///model/logs/train.db"
     )
     IPython.display.display(study.trials_dataframe().nsmallest(n=10, columns="value"))

@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: hydrogen
 #       format_version: '1.2'
-#       jupytext_version: 1.0.3
+#       jupytext_version: 1.1.4-rc1
 #   kernelspec:
 #     display_name: deepbedmap
 #     language: python
@@ -30,11 +30,16 @@ import os
 import shutil
 import sys
 import tarfile
+import tempfile
 import urllib
-
-import tqdm
 import yaml
+import zipfile
 
+# need to import before rasterio
+import xarray as xr
+import salem
+
+import dask
 import geopandas as gpd
 import pygmt as gmt
 import IPython.display
@@ -48,7 +53,7 @@ import rasterio.mask
 import rasterio.plot
 import shapely.geometry
 import skimage.util.shape
-import xarray as xr
+import tqdm
 
 print("Python       :", sys.version.split("\n")[0])
 print("Geopandas    :", gpd.__version__)
@@ -91,6 +96,13 @@ def download_to_path(path: str, url: str):
         if downloaded_filename.endswith(("tgz", "tar.gz")):
             try:
                 archive = tarfile.open(name=f"{folder}/{downloaded_filename}")
+                archive.extract(member=filename, path=folder)
+            except:
+                raise
+        # Extract from .zip archive file
+        elif downloaded_filename.endswith((".zip")):
+            try:
+                archive = zipfile.ZipFile(file=f"{folder}/{downloaded_filename}")
                 archive.extract(member=filename, path=folder)
             except:
                 raise
@@ -215,7 +227,7 @@ with rasterio.open("lowres/bedmap2_bed.tif") as raster_source:
     rasterio.plot.show(source=raster_source, cmap="BrBG_r")
 
 # %% [markdown]
-# ### Download miscellaneous data (e.g. [REMA](https://doi.org/10.7910/DVN/SAIK8B), [MEaSUREs Ice Flow](https://doi.org/10.5067/D7GK8F5J8M8R), [LISA](https://doi.org/10.7265/nxpc-e997))
+# ### Download miscellaneous data (e.g. [REMA](https://doi.org/10.7910/DVN/SAIK8B), [MEaSUREs Ice Flow](https://doi.org/10.5067/D7GK8F5J8M8R), [LISA](https://doi.org/10.7265/nxpc-e997), [Arthern Accumulation](https://doi.org/10.1029/2004JD005667))
 
 # %%
 for dataset in dataframe.query(expr="folder == 'misc'").itertuples():
@@ -295,6 +307,7 @@ def ascii_to_xyz(pipeline_file: str) -> pd.DataFrame:
         )
         for f in files
     )
+    df.dropna(axis="index", inplace=True)  # drop rows with NaN values
     df.reset_index(drop=True, inplace=True)  # reset index after concatenation
 
     ## Advanced table read with conversions
@@ -315,11 +328,11 @@ def ascii_to_xyz(pipeline_file: str) -> pd.DataFrame:
     ## Reproject x and y coordinates if necessary
     try:
         reproject = jdf.loc["filters.reprojection"]
-        p1 = pyproj.Proj(init=reproject.in_srs)
-        p2 = pyproj.Proj(init=reproject.out_srs)
-        reproj_func = lambda x, y: pyproj.transform(p1=p1, p2=p2, x=x, y=y)
+        p1 = pyproj.CRS.from_string(in_crs_string=reproject.in_srs)
+        p2 = pyproj.CRS.from_string(in_crs_string=reproject.out_srs)
+        reprj_func = pyproj.Transformer.from_crs(crs_from=p1, crs_to=p2, always_xy=True)
 
-        x2, y2 = reproj_func(np.array(df["x"]), np.array(df["y"]))
+        x2, y2 = reprj_func.transform(xx=np.array(df["x"]), yy=np.array(df["y"]))
         df["x"] = pd.Series(x2)
         df["y"] = pd.Series(y2)
 
@@ -343,19 +356,32 @@ for pf in sorted(glob.glob("highres/*.json")):
 # ![Clean XYZ Table to Raster Grid via interpolation function](https://yuml.me/diagram/scruffy;dir:LR/class/[Clean-XYZ-Table|*.xyz]->[Interpolation-Function],[Interpolation-Function]->[Raster-Grid|*.tif/*.nc])
 
 # %%
-def get_region(xyz_data: pd.DataFrame) -> str:
+def get_region(xyz_data: pd.DataFrame, round_increment: int = 250) -> str:
     """
-    Gets the bounding box region of an xyz pandas.DataFrame in string
-    format xmin/xmax/ymin/ymax rounded to 5 decimal places.
-    Used for the -R 'region of interest' parameter in GMT.
+    Gets an extended bounding box region for points in an xyz pandas.DataFrame with
+    columns x, y, and z. The coordinates will be rounded to values specified by the
+    round_increment parameter. Implementation uses gmt.info with the -I (increment)
+    setting, see also https://gmt.soest.hawaii.edu/doc/latest/gmtinfo.html#i
 
-    >>> xyz_data = pd.DataFrame(np.random.RandomState(seed=42).rand(30).reshape(10, 3))
+    The output region is returned in a string format 'xmin/xmax/ymin/ymax' directly
+    usable as the -R 'region of interest' parameter in GMT. Indeed, the rounding is
+    specifically optimized to give grid dimensions for fastest results in programs like
+    GMT surface.
+
+    >>> xyz_data = pd.DataFrame(
+    ...     10000 * np.random.RandomState(seed=42).rand(30).reshape(10, 3),
+    ...     columns=["x", "y", "z"],
+    ... )
     >>> get_region(xyz_data=xyz_data)
-    '0.05808/0.83244/0.02058/0.95071'
+    '-250/9500/0/9750'
     """
-    xmin, ymin, _ = xyz_data.min(axis="rows")
-    xmax, ymax, _ = xyz_data.max(axis="rows")
-    return f"{xmin:.5f}/{xmax:.5f}/{ymin:.5f}/{ymax:.5f}"
+    assert (xyz_data.columns == pd.Index(data=["x", "y", "z"], dtype="object")).all()
+
+    with tempfile.NamedTemporaryFile(suffix=".csv") as tmpfile:
+        xyz_data.to_csv(tmpfile.name, header=False, index=False)
+        region = gmt.info(fname=tmpfile.name, I=f"s{round_increment}").strip()[2:]
+
+    return region
 
 
 # %%
@@ -370,18 +396,19 @@ def xyz_to_grid(
     """
     Performs interpolation of x, y, z point data to a raster grid.
 
-    >>> xyz_data = 1000*pd.DataFrame(np.random.RandomState(seed=42).rand(60).reshape(20, 3))
+    >>> xyz_data = pd.DataFrame(
+    ...     600 * np.random.RandomState(seed=42).rand(60).reshape(20, 3),
+    ...     columns=["x", "y", "z"],
+    ... )
     >>> region = get_region(xyz_data=xyz_data)
     >>> grid = xyz_to_grid(xyz_data=xyz_data, region=region, spacing=250)
     >>> grid.to_array().shape
-    (1, 5, 5)
+    (1, 4, 4)
     >>> grid.to_array().values
-    array([[[403.17618 , 544.92535 , 670.7824  , 980.75055 , 961.47723 ],
-            [379.0757  , 459.26407 , 314.38297 , 377.78555 , 546.0469  ],
-            [450.67664 , 343.26    ,  88.391594, 260.10492 , 452.3337  ],
-            [586.09906 , 469.74008 , 216.8168  , 486.9802  , 642.2116  ],
-            [451.4794  , 652.7244  , 325.77896 , 879.8973  , 916.7921  ]]],
-          dtype=float32)
+    array([[[135.95927, 294.8152 , 615.32513, 706.4135 ],
+            [224.46773, 191.75693, 298.87057, 521.85254],
+            [242.41916, 149.34332, 430.84137, 603.4236 ],
+            [154.60516, 194.24237, 447.6185 , 645.13574]]], dtype=float32)
     """
     ## Preprocessing with blockmedian
     with gmt.helpers.GMTTempFile(suffix=".txt") as tmpfile:
@@ -403,13 +430,14 @@ def xyz_to_grid(
         region=region,
         spacing=f"{spacing}+e",
         T=tension,
-        V="",
+        V="n",  # normal verbosity: produce only fatal error messages
         M=f"{mask_cell_radius}c",
     )
 
     ## Save grid to NetCDF with projection information
     if outfile is not None:
-        grid.to_netcdf(path=outfile)  ##TODO add CRS!!
+        # TODO add CRS!! See https://github.com/pydata/xarray/issues/2288
+        grid.to_netcdf(path=outfile)
 
     return grid
 
@@ -423,7 +451,7 @@ for name in xyz_dict.keys():
     grid_dict[name] = xyz_to_grid(
         xyz_data=xyz_data, region=region, outfile=f"highres/{name}.nc"
     )
-    print(f"done! {grid_dict[name].to_array().shape}")
+    print(f"done! {grid_dict[name].z.shape}")
 
 # %% [markdown]
 # ### 2.3 Plot raster grids
@@ -448,7 +476,11 @@ for i, grid in enumerate(grids):
 
 # %%
 def get_window_bounds(
-    filepath: str, height: int = 32, width: int = 32, step: int = 4
+    filepath: str,
+    pyproj_srs: str = "epsg:3031",
+    height: int = 32,
+    width: int = 32,
+    step: int = 4,
 ) -> list:
     """
     Reads in a raster and finds tiles for them according to a stepped moving window.
@@ -457,24 +489,31 @@ def get_window_bounds(
 
     >>> xr.DataArray(
     ...     data=np.zeros(shape=(36, 32)),
-    ...     coords={"x": np.arange(1, 37), "y": np.arange(1, 33)},
-    ...     dims=["x", "y"],
+    ...     coords={"y": np.arange(0.5, 36.5), "x": np.arange(0.5, 32.5)},
+    ...     dims=["y", "x"],
     ... ).to_netcdf(path="/tmp/tmp_wb.nc")
     >>> get_window_bounds(filepath="/tmp/tmp_wb.nc")
     Tiling: /tmp/tmp_wb.nc ... 2
-    [(0.5, 4.5, 32.5, 36.5), (0.5, 0.5, 32.5, 32.5)]
+    [(0.0, 4.0, 32.0, 36.0), (0.0, 0.0, 32.0, 32.0)]
     >>> os.remove("/tmp/tmp_wb.nc")
     """
     assert height == width  # make sure it's a square!
     assert height % 2 == 0  # make sure we are passing in an even number
 
-    with xr.open_rasterio(filepath) as dataset:
+    with xr.open_dataarray(filepath) as dataset:
         print(f"Tiling: {filepath} ... ", end="")
-        # Vectorized 'loop' along the raster image from top to bottom, and left to right
+
+        # Use salem to patch projection information into xarray.DataArray
+        # See also https://salem.readthedocs.io/en/latest/xarray_acc.html
+        dataset.attrs["pyproj_srs"] = pyproj_srs
+        sgrid = dataset.salem.grid.corner_grid
+        assert sgrid.origin == "lower-left"  # should be "lower-left", not "upper-left"
+
+        ## Vectorized 'loop' along raster image from top to bottom, and left to right
 
         # Get boolean true/false mask of where the data/nodata pixels lie
         mask = dataset.to_masked_array(copy=False).mask
-        mask = mask[0, :, :]  # change to shape (height, width)
+        mask = np.ascontiguousarray(a=np.flipud(m=mask))  # flip on y-axis
 
         # Sliding window view of the input geographical raster image
         window_views = skimage.util.shape.view_as_windows(
@@ -483,9 +522,11 @@ def get_window_bounds(
         filled_tiles = ~window_views.any(
             axis=(-2, -1)
         )  # find tiles which are fully filled, i.e. no blank/NODATA pixels
-        tile_indexes = np.argwhere(filled_tiles)  # get x and y index of filled tiles
+        tile_indexes = np.argwhere(a=filled_tiles)  # get x and y index of filled tiles
 
         # Convert x,y tile indexes to bounding box coordinates
+        # Complicated as xarray uses centre-based coordinates,
+        # while rasterio uses corner-based coordinates
         windows = [
             rasterio.windows.Window(
                 col_off=ulx * step, row_off=uly * step, width=width, height=height
@@ -495,7 +536,9 @@ def get_window_bounds(
         window_bounds = [
             rasterio.windows.bounds(
                 window=window,
-                transform=rasterio.Affine(*dataset.transform),
+                transform=rasterio.Affine(
+                    sgrid.dx, 0, sgrid.x0, 0, -sgrid.dy, sgrid.y_coord[-1] + sgrid.dy
+                ),
                 width=width,
                 height=height,
             )
@@ -513,10 +556,10 @@ window_bounds_concat = np.concatenate([w for w in window_bounds]).tolist()
 print(f"Total number of tiles: {len(window_bounds_concat)}")
 
 # %% [markdown]
-# ### Show and save tiles
+# ### Subset tiles to those within grounding line, plot to show, and save
 
 # %%
-gdf = pd.concat(
+tile_gdf = pd.concat(
     objs=[
         gpd.GeoDataFrame(
             pd.Series(
@@ -528,9 +571,22 @@ gdf = pd.concat(
         for filepath, window_bound in zip(filepaths, window_bounds)
     ]
 ).reset_index(drop=True)
+
+# %%
+# Load grounding line polygon and buffer by 10km
+gline = gpd.read_file("misc/GroundingLine_Antarctica_v2.shp")
+gline.crs = {"init": "epsg:3031"}
+gline.geometry = gline.geometry.buffer(distance=10000)
+
+# %%
+# Select tiles within the buffered grounding line
+gdf = gpd.sjoin(left_df=tile_gdf, op="within", right_df=gline, how="inner")
+gdf = gdf.reset_index()[["grid_name", "geometry"]]
 gdf.plot()
 
 # %%
+# Save subsetted tiles to file in both EPSG 3031 and 4326
+print(f"Saving only {len(gdf)} tiles out of {len(tile_gdf)}")
 gdf.to_file(filename="model/train/tiles_3031.geojson", driver="GeoJSON")
 gdf.to_crs(crs={"init": "epsg:4326"}).to_file(
     filename="model/train/tiles_4326.geojson", driver="GeoJSON"
@@ -543,7 +599,137 @@ gdf.to_crs(crs={"init": "epsg:4326"}).to_file(
 def selective_tile(
     filepath: str,
     window_bounds: list,
-    padding: int = 0,
+    padding: int = 0,  # in projected coordinate system units
+    out_shape: tuple = None,
+    gapfiller=None,
+) -> np.ndarray:
+    """
+    Reads in a raster and tiles them selectively according to
+    list of window_bounds in the form of (xmin, ymin, xmax, ymax).
+    Output shape can be set to e.g. (16,16) to resample input raster to
+    some desired shape/resolution.
+
+    Gaps in the main raster can be filled by passing in an argument to gapfiller which
+    can either a raster filepath (str) or a number (float).
+
+    >>> xr.DataArray(
+    ...     data=np.flipud(m=np.diag(v=np.arange(8))).astype(dtype=np.float32),
+    ...     coords={"y": np.linspace(7, 0, 8), "x": np.linspace(0, 7, 8)},
+    ...     dims=["y", "x"],
+    ... ).to_netcdf(path="/tmp/tmp_st.nc", mode="w")
+    >>> selective_tile(
+    ...    filepath="/tmp/tmp_st.nc",
+    ...    window_bounds=[(0.5, 0.5, 2.5, 2.5), (2.5, 1.5, 4.5, 3.5)],
+    ... )
+    Tiling: /tmp/tmp_st.nc ... done!
+    array([[[[0., 2.],
+             [1., 0.]]],
+    <BLANKLINE>
+    <BLANKLINE>
+           [[[3., 0.],
+             [0., 0.]]]], dtype=float32)
+    >>> os.remove("/tmp/tmp_st.nc")
+    """
+
+    # Convert list of bounding box tuples to nice rasterio.coords.BoundingBox class
+    window_bounds = [
+        rasterio.coords.BoundingBox(
+            left=x0 - padding, bottom=y0 - padding, right=x1 + padding, top=y1 + padding
+        )
+        for x0, y0, x1, y1 in window_bounds  # xmin, ymin, xmax, ymax
+    ]
+
+    # Retrieve tiles from the main raster
+    with xr.open_rasterio(
+        filepath, chunks=None if out_shape is None else {}
+    ) as dataset:
+        print(f"Tiling: {filepath} ... ", end="")
+
+        # Subset dataset according to window bound (wb)
+        daarray_list = [
+            dataset.sel(y=slice(wb.top, wb.bottom), x=slice(wb.left, wb.right))
+            for wb in window_bounds
+        ]
+        # Bilinear interpolate to new shape if out_shape is set
+        if out_shape is not None:
+            daarray_list = [
+                dataset.interp(
+                    y=np.linspace(da.y[0], da.y[-1], num=out_shape[0]),
+                    x=np.linspace(da.x[0], da.x[-1], num=out_shape[1]),
+                    method="linear",
+                )
+                for da in daarray_list
+            ]
+        daarray_stack = dask.array.ma.masked_values(
+            x=dask.array.stack(seq=daarray_list),
+            value=np.nan_to_num(-np.inf)
+            if dataset.dtype == np.int16 and dataset.nodatavals == (np.nan,)
+            else dataset.nodatavals,
+        )
+
+        assert daarray_stack.ndim == 4  # check that shape is like (m, 1, height, width)
+        assert daarray_stack.shape[1] == 1  # channel-first (assuming only 1 channel)
+        assert not 0 in daarray_stack.shape  # ensure no empty dimensions (bad window)
+
+    out_tiles = dask.array.ma.getdata(daarray_stack).compute().astype(dtype=np.float32)
+    mask = dask.array.ma.getmaskarray(daarray_stack).compute()
+
+    # Gapfill main raster if there are blank spaces
+    if mask.any():  # check that there are no NAN values
+        nan_grid_indexes = np.argwhere(mask.any(axis=(-3, -2, -1))).ravel()
+
+        # Replace pixels from another raster if available, else raise error
+        if gapfiller is not None:
+            print(f"gapfilling ... ", end="")
+
+            if isinstance(gapfiller, str):  # gapfill using another raster
+                with xr.open_rasterio(gapfiller, chunks={}) as dataset2:
+                    daarray_list2 = [
+                        dataset2.interp_like(
+                            daarray_list[idx].squeeze(), method="linear"
+                        )
+                        for idx in nan_grid_indexes
+                    ]
+                    daarray_stack2 = dask.array.ma.masked_values(
+                        x=dask.array.stack(seq=daarray_list2), value=dataset2.nodatavals
+                    )
+
+                fill_tiles = (
+                    dask.array.ma.getdata(daarray_stack2)
+                    .compute()
+                    .astype(dtype=np.float32)
+                )
+                # mask2 = dask.array.ma.getmaskarray(daarray_stack2).compute()
+
+                for i, array2 in enumerate(fill_tiles):
+                    idx = nan_grid_indexes[i]
+                    np.copyto(dst=out_tiles[idx], src=array2, where=mask[idx])
+                    # assert not (mask[idx] & mask2[i]).any()  # Ensure no NANs after gapfill
+
+            elif isinstance(gapfiller, float):  # gapfill using just a number
+                np.copyto(
+                    dst=out_tiles,
+                    src=np.full_like(a=out_tiles, fill_value=gapfiller),
+                    where=mask,
+                )
+
+        else:
+            for i in nan_grid_indexes:
+                daarray_list[i].plot()
+                plt.show()
+            print(
+                f"WARN: Tiles have missing data, try passing in an input to 'gapfiller'"
+            )
+
+    print("done!")
+    return out_tiles
+
+
+# %%
+def selective_tile_old(
+    filepath: str,
+    window_bounds: list,
+    padding: int = 0,  # in projected coordinate system units
     out_shape: tuple = None,
     gapfill_raster_filepath: str = None,
 ) -> np.ndarray:
@@ -554,21 +740,21 @@ def selective_tile(
     some desired shape/resolution.
 
     >>> xr.DataArray(
-    ...     data=np.random.RandomState(seed=42).rand(64).reshape(8, 8),
-    ...     coords={"x": np.arange(8), "y": np.arange(8)},
-    ...     dims=["x", "y"],
+    ...     data=np.flipud(m=np.diag(v=np.arange(8))).astype(dtype=np.float32),
+    ...     coords={"y": np.linspace(7, 0, 8), "x": np.linspace(0, 7, 8)},
+    ...     dims=["y", "x"],
     ... ).to_netcdf(path="/tmp/tmp_st.nc", mode="w")
-    >>> selective_tile(
+    >>> selective_tile_old(
     ...    filepath="/tmp/tmp_st.nc",
-    ...    window_bounds=[(1.0, 4.0, 3.0, 6.0), (2.0, 5.0, 4.0, 7.0)],
+    ...    window_bounds=[(0.5, 0.5, 2.5, 2.5), (2.5, 1.5, 4.5, 3.5)],
     ... )
     Tiling: /tmp/tmp_st.nc ... done!
-    array([[[[0.18485446, 0.96958464],
-             [0.4951769 , 0.03438852]]],
+    array([[[[0., 2.],
+             [1., 0.]]],
     <BLANKLINE>
     <BLANKLINE>
-           [[[0.04522729, 0.32533032],
-             [0.96958464, 0.77513283]]]], dtype=float32)
+           [[[3., 0.],
+             [0., 0.]]]], dtype=float32)
     >>> os.remove("/tmp/tmp_st.nc")
     """
     array_list = []
@@ -598,6 +784,7 @@ def selective_tile(
             )
             assert array.ndim == 3  # check that we have shape like (1, height, width)
             assert array.shape[0] == 1  # channel-first (assuming only 1 channel)
+            assert not 0 in array.shape  # ensure no empty dimensions (invalid window)
 
             try:
                 assert not array.mask.any()  # check that there are no NAN values
@@ -628,7 +815,7 @@ def selective_tile(
                         f"WARN: Tile has missing data, try passing in gapfill_raster_filepath"
                     )
 
-            # assert array.shape[0] == array.shape[1]  # check that height==width
+            # assert array.shape[1] == array.shape[2]  # check that height==width
             array_list.append(array.data.astype(dtype=np.float32))
         print("done!")
 
@@ -694,6 +881,14 @@ measuresiceflow = selective_tile(
 )
 print(measuresiceflow.shape, measuresiceflow.dtype)
 
+# %%
+accumulation = selective_tile(
+    filepath="misc/Arthern_accumulation_bedmap2_grid1.tif",
+    window_bounds=window_bounds_concat,
+    padding=1000,
+)
+print(accumulation.shape, accumulation.dtype)
+
 # %% [markdown]
 # ## 4. Save the arrays
 #
@@ -709,6 +904,7 @@ print(measuresiceflow.shape, measuresiceflow.dtype)
 os.makedirs(name="model/train", exist_ok=True)
 np.save(file="model/train/W1_data.npy", arr=rema)
 np.save(file="model/train/W2_data.npy", arr=measuresiceflow)
+np.save(file="model/train/W3_data.npy", arr=accumulation)
 np.save(file="model/train/X_data.npy", arr=lores)
 np.save(file="model/train/Y_data.npy", arr=hires)
 
@@ -724,6 +920,7 @@ quilt.login()
 # Tiled datasets for training neural network
 quilt.build(package="weiji14/deepbedmap/model/train/W1_data", path=rema)
 quilt.build(package="weiji14/deepbedmap/model/train/W2_data", path=measuresiceflow)
+quilt.build(package="weiji14/deepbedmap/model/train/W3_data", path=accumulation)
 quilt.build(package="weiji14/deepbedmap/model/train/X_data", path=lores)
 quilt.build(package="weiji14/deepbedmap/model/train/Y_data", path=hires)
 
@@ -741,6 +938,10 @@ quilt.build(
 quilt.build(
     package="weiji14/deepbedmap/misc/MEaSUREs_IceFlowSpeed_450m",
     path="misc/MEaSUREs_IceFlowSpeed_450m.tif",
+)
+quilt.build(
+    package="weiji14/deepbedmap/misc/Arthern_accumulation_bedmap2_grid1",
+    path="misc/Arthern_accumulation_bedmap2_grid1.tif",
 )
 
 # %%
