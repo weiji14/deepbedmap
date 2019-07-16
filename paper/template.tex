@@ -126,8 +126,8 @@ We show that DeepBedMap produces a more accurate digital elevation model than a 
 \introduction  %% \introduction[modified heading if necessary]
 
 In order to create a more detailed map of Antarctica's bed, we present a novel deep convolutional neural network that produces realistic terrain given multiple remote sensing data inputs.
-A higher resolution digital bed elevation model of Antarctica provides a clearer picture which will enable better understanding of glacier ice flow mechanics.
-This in turn allows for the development of more accurate ice sheet models useful for generating realistic estimates of how past and future sea level can change over time.
+A higher resolution digital bed elevation model of Antarctica enables us to better quantify glacier ice flow mechanics, particularly along fast flowing ice streams near the grounding line.
+This in turn allows for the development of more accurate ice sheet models estimating how past and future sea level can change over time.
 
 There are two techniques for mapping the subglacial terrain of Antarctica.
 The main way is via the use of ice-penetrating radar - a method that images the ice-bed interface along survey lines.
@@ -161,7 +161,7 @@ For our DeepBedMap model in this paper, we choose to adapt the Enhanced Super-Re
 
 \subsection{Network Conditioning}
 
-Network conditioning means having a neural network processes one source of information in the context of other sources \citep{DumoulinFeaturewisetransformations2018}.
+Network conditioning means having a neural network process one source of information in the context of other sources \citep{DumoulinFeaturewisetransformations2018}.
 In a geographical context, conditioning is akin to using not just one layer, but several overlapping and semantically meaningful layers so as to better solve the task at hand.
 It should be noted that many ways exist to insert extra conditional information into a network, such as concatenation-based conditioning, conditional biasing, conditional scaling, and conditional affine transformations \citep{DumoulinFeaturewisetransformations2018}.
 As all our contextual remote sensing datasets are raster grid images, we choose to use the concatenation-based conditioning approach which is more aligned with related work we highlight below.
@@ -180,7 +180,7 @@ Given a low resolution input $x$ alongside conditional inputs $w^1, w^2, \dots, 
 \end{equation}
 
 where $G$ is the generator function in a Generative Adversarial Network that produces high resolution image candidates.
-For brevity in the following equations, \eqref{eq:1} is simplified to hide conditional inputs $w^1, w^2, \dots, w^i$, i.e. $x$ represents all input images.
+For brevity in the following equations, \eqref{eq:1} is simplified to hide conditional inputs $w^1, w^2, \dots, w^i$, i.e. represent all input images using $x$.
 To train our generator, we update $\theta_G$ as follows:
 
 \begin{equation}\label{eq:2}
@@ -203,7 +203,7 @@ In the following sections, we will describe the loss functions and model archite
 
 \subsection{Loss functions}
 
-To bring the pixel values of our generated images closer to that of the groundtruth, we first define our Content Loss function.
+To bring the pixel values of our generated images closer to that of the groundtruth, we first define our Content Loss function $L_1$.
 Following ESRGAN \citep{WangESRGANEnhancedSuperResolution2018}, we have:
 
 \begin{equation}\label{eq:4}
@@ -212,7 +212,7 @@ Following ESRGAN \citep{WangESRGANEnhancedSuperResolution2018}, we have:
 
 where we take the mean absolute error between the Generator Network's predicted value $G(x_{i})$, and the groundtruth value $y_i$, respectively over every pixel $i$.
 
-Next, we define an adversarial loss to encourage the production of high resolution images $\hat{y}$ closer to the manifold of natural looking digital elevation model images.
+Next, we define an Adversarial Loss to encourage the production of high resolution images $\hat{y}$ closer to the manifold of natural looking digital elevation model images.
 To do so, we introduce the standard discriminator in the form of $D(y) = \sigma(C(y))$ where $\sigma$ is the sigmoid activation function and $C(y)$ is the raw, non-transformed output from a discriminator neural network acting on high resolution image $y$.
 The ESRGAN model \citep{WangESRGANEnhancedSuperResolution2018} however, employs an improved Relativistic-average Discriminator \citep{Jolicoeur-Martineaurelativisticdiscriminatorkey2018} denoted by $D_{Ra}$.
 It is defined as $D_{Ra}(y,\hat{y}) = \sigma(C(y) - \mathbb{E}_{\hat{y}}[C(\hat{y})])$, where $\mathbb{E}_{\hat{y}}[\cdot]$ is the arithmetic mean operation carried out over every generated image $\hat{y}$ in a mini-batch.
@@ -249,16 +249,16 @@ Following this, we now describe the model architecture of our Generator and Disc
 
 Our Generative Adversarial Network model architecture is adapted from the ESRGAN model by \citet{WangESRGANEnhancedSuperResolution2018}, with a few notable differences.
 Specifically, the Generator neural network model is modified to:
-1) Use a custom conditional input block (see Figure 1a, focusing on input block) consisting of three sub-networks, each one having a different sized convolution size and stride so as to create identical sized outputs which are then concatenated together channel-wise before being fed into the main body of the ESRGAN-based convolutional neural network.
+1) Use a custom conditional input block (see Figure 1a, focusing on input block) consisting of four sub-networks, each one having a different sized convolution size and stride so as to create identical sized outputs which are then concatenated together channel-wise before being fed into the main body of the ESRGAN-based convolutional neural network.
 2) Use a residual scaling factor \citep{SzegedyInceptionv4InceptionResNetImpact2016} of 0.3 instead of 0.2 for the Residual-in-Residual Dense Block (RRDB) connections.
 3) Use the PixelShuffle/Depth-to-Space upsampling function \citep{ShiRealTimeSingleImage2016} following SRGAN \citep{LedigPhotoRealisticSingleImage2016} instead of a Nearest Neighbour Upsample plus Convolutional Layer as in ESRGAN \citep{WangESRGANEnhancedSuperResolution2018}.
 
 The objective of our 4 times upsampling super-resolution model is to produce a high resolution (250m) grid of Antarctica's bed elevation given a low resolution (1000m) BEDMAP2 \citep{FretwellBedmap2improvedice2013} image.
-The information in BEDMAP2 however, is insufficient for this regular super-resolution task, hence why we provide the neural network with more context through network conditioning.
-Specifically, the model is conditioned at the input block stage with surface elevation and ice velocity raster grids, both of which are well resolved by satellite observations.
-The non-linear relationship between the low resolution bed elevation prior (BEDMAP2), surface elevation and ice velocity is then processed through $B$-layers of Residual-in-Residual Dense Blocks and upsampled at the end to produce a high resolution bed elevation prediction.
+However, the information contained in BEDMAP2 is insufficient for this regular super-resolution task, so we provide the neural network with more context through network conditioning.
+Specifically, the model is conditioned at the input block stage with these raster grids: 1) ice surface elevation, 2) ice surface velocity, and 3) snow accumulation, all of which are covered by satellite observations.
+The non-linear relationship between the low resolution bed elevation prior (BEDMAP2) and these conditioning inputs are then processed through $B$-layers of Residual-in-Residual Dense Blocks and upsampled at the end to produce a high resolution bed elevation prediction.
 
-This Generator model gradually improves by comparing the predicted output with the groundtruth image, specifically using the previously defined Content Loss \eqref{eq:4} and Adversarial Loss \eqref{eq:6}.
+This Generator model gradually improves its prediction by comparing the predicted output with the groundtruth image, specifically using the previously defined Content Loss \eqref{eq:4} and Adversarial Loss \eqref{eq:6}.
 Again, we follow ESRGAN's lead in the implementation of our adversarial Discriminator network.
 A VGG-style convolutional neural network \citep{SimonyanVeryDeepConvolutional2014} is used, consisting of 10 Convolutional-BatchNormalization-LeakyReLU blocks, followed by two fully connected layers with 100 and 1 neurons.
 For numerical stability, the sigmoid activation output is omitted from the Discriminator model's construction and is integrated instead into the binary cross entropy loss functions \eqref{eq:5} and \eqref{eq:6} via the log-sum-exp trick.
@@ -273,7 +273,7 @@ TEXT
 The neural networks were developed using the Chainer library (version 6.0.0), and trained using full precision (floating point 32) arithmetic.
 Initial experiments were carried out on a Tesla P100 Graphical Processing Unit (GPU), moving on to a Tesla V100 GPU when it became available.
 On our Tesla V100 GPU setup, one training run with about 100 epochs takes about 15 minutes.
-This is using a batch size of 128 on a total of 2374 training image tiles, with 125 tiles reserved for validation, i.e. a 95/5 training/validation split.
+This is using a batch size of 128 on a total of 2275 training image tiles, with 114 tiles reserved for validation, i.e. a 95/5 training/validation split.
 We next describe the method used to evaluate each DeepBedMap candidate model, as well as the high-level way in which we semi-automatically arrived at a good model via semi-automatic hyperparameter tuning.
 
 \begin{table*}[h]
@@ -283,10 +283,10 @@ We next describe the method used to evaluate each DeepBedMap candidate model, as
 \tophline
 Hyperparameter & Setting & Tuning Range \\
 \middlehline
-Learning rate (for both Generator and Discriminator) & 6e-5 & 2e-5 to 8e-4 \\
+Learning rate (for both Generator and Discriminator) & 8e-5 & 1e-5 to 1e-4 \\
 Number of Residual-in-Residual Blocks & 12 & 8 to 14 \\
 Mini-batch size & 128 & 64 or 128 \\
-Number of epochs & 120 & 80 to 150 \\
+Number of epochs & 120 & 50 to 150 \\
 Residual scaling & 0.3 & 0.1 to 0.5 \\
 Content Loss Weighting $\eta$ & 1e-2 & Fixed \\
 Adversarial Loss Weighting $\lambda$ & 5e-3 & Fixed \\
@@ -300,7 +300,7 @@ Adam optimizer beta2 & 0.99 & Fixed \\
 \end{table*}
 
 To check for overfitting, we evaluate the Generative Adversarial Network model on our validation dataset after each epoch using two performance metrics - a peak signal-to-noise ratio (PSNR) metric for the Generator, and an accuracy metric for the Discriminator.
-Training stops when these validation performance metrics show little improvement, roughly at 120 epochs.
+Training stops when these validation performance metrics show little improvement, roughly at 90 epochs.
 
 Next, we conduct a full evaluation on an independent test dataset, comparing the model's predicted grid output against actual groundtruth xyz points.
 Using gmt grdtrack \citep{WesselGenericMappingTools2013}, we obtain the grid elevation at each of our groundtruth point and use it to calculate the elevation error on a point-to-point basis.
