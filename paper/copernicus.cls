@@ -16,7 +16,7 @@
 %% -----------------------------------------------------------------
 \NeedsTeXFormat{LaTeX2e}[1995/12/01]
 \ProvidesClass{copernicus}
-    [2018/10/08 8.82 Copernicus papers]
+    [2019/05/24 8.92 Copernicus papers]
 \frenchspacing
 \clubpenalty10000
 \widowpenalty10000
@@ -1179,11 +1179,15 @@
 \let\@classoptionslist\old@classoptionslist
 \def\@tempa{french}\ifx\bbl@main@language\@tempa
   \StandardLayout
+  %% Switch to quotation marks with additional horizontal spacing
+  \bbl@frenchguillemets
+  \global\let\flqq\og \global\let\frqq\fg
   \ifx\xmltexversion\@undefined\else
     \begingroup
       \catcode`\!=\active\gdef!{\utfeightax!}%
       \catcode`\?=\active\gdef?{\utfeightax?}%
       \catcode`\:=\active\gdef:{\utfeightax:}%
+      \catcode`\;=\active\gdef;{\utfeightax;}%
     \endgroup
   \fi
 \fi
@@ -1205,9 +1209,12 @@
   \def\authorcontributionname{Author contributions}%
   \def\competinginterestsname{Competing interests}%
   \def\videosupplementname{Video supplement}%
+  \def\dosupplementname{Supplement}%
   \def\teamlistname{Team list}%
   \def\disclaimername{Disclaimer}%
   \def\sistatementname{Special issue statement}%
+  \def\financialsupportname{Financial support}%
+  \def\reviewstatementname{Review statement}%
   \def\acknowledgementname{Acknowledgement}%
   \def\acknowledgementsname{Acknowledgements}%
   \if@cop@home
@@ -1233,9 +1240,13 @@
   \def\authorcontributionname{Autorenmitwirkung}%
   \def\competinginterestsname{Interessenkonflikt}%
   \def\videosupplementname{Videoanhang}%
+  \def\dosupplementname{Supplement}%
   \def\teamlistname{Gruppenautorenschaft}%
   \def\disclaimername{Haftungsausschluss}%
   \def\sistatementname{Erklärung zum Sonderheft}%
+  %% TBD
+  \def\financialsupportname{Finanzierung}%
+  \def\reviewstatementname{Begutachtung}%
   \def\acknowledgementname{Danksagung}%
   \def\acknowledgementsname{Danksagung}%
   \if@cop@home
@@ -1258,9 +1269,13 @@
   \def\authorcontributionname{Collaborateurs}%
   \def\competinginterestsname{Intérêts concurrents}%
   \def\videosupplementname{Annexes vidéo}%
+  \def\dosupplementname{Supplement}%
   \def\teamlistname{Liste d'auteurs}%
   \def\disclaimername{Clause de non-responsabilité}%
   \def\sistatementname{Déclaration de la numéro special}%
+  %% TBD
+  \def\financialsupportname{Financement}%
+  \def\reviewstatementname{Contr\^{o}le par les pairs}%
   \def\acknowledgementname{Remerciements}%
   \def\acknowledgementsname{Remerciements}%
   \if@cop@home
@@ -1626,6 +1641,21 @@
    \def\theHalgorithm{\@arabic\c@algorithm}}
   {\CopernicusWarningNoLine{Cannot find algorithm.sty; proceeding without it}}
 \let\cop@makecaption\@makecaption
+\let\c@org@fig\c@figure
+\let\@orgfigurename\figurename
+\def\setfigures{\global\let\c@figure\c@org@fig\global\let\figurename\@orgfigurename}
+\@definecounter{scheme}
+\def\schemename{Scheme}
+\def\setschemes{\global\let\c@figure\c@scheme\global\let\figurename\schemename}
+\@definecounter{plates}
+\def\platesname{Plate}
+\def\setplates{\global\let\c@figure\c@plates\global\let\figurename\platesname}
+\@definecounter{listings}
+\def\listingsname{Listing}
+\def\setlistings{\global\let\c@figure\c@listings\global\let\figurename\listingsname}
+\@definecounter{boxes}
+\def\boxesname{Box}
+\def\setboxes{\global\let\c@figure\c@boxes\global\let\figurename\boxesname}
 \if@stage@final
   \IfFileExists{caption.sty}
     {\RequirePackage{caption}}
@@ -1694,7 +1724,7 @@
   {\RequirePackage[mathlines,modulo]{lineno}%
    \if@stage@final
      \if@manuscript
-       \linenumbers\setpagewiselinenumbers\renewcommand\linenumberfont{\normalfont\small\sffamily}%
+       \linenumbers\renewcommand\linenumberfont{\normalfont\small\sffamily}%
      \else
        \setpagewiselinenumbers\switchlinenumbers%cf. the switch option
        \linenumbersep3\p@
@@ -2286,19 +2316,21 @@
   {\section[#1]{#1\if@cop@home\ifonline\hypertarget{intro}{}\fi\fi}}
 \newcommand\conclusions[1][\conclusionname]
   {\section[#1]{#1\if@cop@home\ifonline\hypertarget{conclusions}{}\fi\fi}}
-\def\Supplementary#1{{%
+\newcommand\Supplementary[2][]{{%
   \advance\partopsep0.5\baselineskip
-  %2- und 3-zeilige Supplement-Blöcke sollen den gleichen vertikalen Raum in Anspruch nehmen
-  \setbox\longtwo@box\hbox{\supplement{#1}.}%
-  \begin{trivlist}\bfseries
+  % %2- und 3-zeilige Supplement-Blöcke sollen den gleichen vertikalen Raum in Anspruch nehmen;%% Nicht mehr seit 2018-11-07
+  % \setbox\longtwo@box\hbox{\supplement{#1}.}%
+  \begin{trivlist}%
   \if@stage@final
     \let\\\@centercr\@rightskip\z@\@plus\tw@ em
     \rightskip\@rightskip
     \parindent\z@
   \fi
-  \item The Supplement related to this article is available online at:
+  \let\do@skip\relax
+  \def\@argi{#1}\ifx\@argi\@empty\else\let\do@skip\space\fi%
+  \item \dosupplement{#1\do@skip The supplement related to this article is available online at:
     \if@stage@final\else\\\fi
-    \supplement{#1}\ifdim\wd\longtwo@box<220\p@\\~\fi
+    \supplement{#2}.}%
   \end{trivlist}%
   }}
 \def\generateCommand#1#2{%
@@ -2340,6 +2372,10 @@
 \generateCommand{videosupplement}   {\endlist\egroup}
 \generateCommand{disclaimer}        {\endlist\egroup}
 \generateCommand{sistatement}       {\endlist\egroup}
+\generateCommand{dosupplement}      {\endlist\egroup}
+\generateCommand{financialsupport}   {\endlist\egroup}
+\generateCommand{reviewstatement}   {\endlist\egroup}
+
 \generateCommand{acknowledgement}   {}        \def\endacknowledgement{\endlist\egroup}
 \generateCommand{acknowledgements}  {}        \def\endacknowledgements{\endlist\egroup}
 \iffalse %instead of \if@stage@final, to check what they want
