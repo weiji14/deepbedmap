@@ -286,7 +286,7 @@ def ascii_to_xyz(pipeline_file: str) -> pd.DataFrame:
 
     # Read json file first
     j = json.loads(open(pipeline_file).read())
-    jdf = pd.io.json.json_normalize(j, record_path="pipeline")
+    jdf = pd.io.json.json_normalize(data=j, record_path="pipeline", max_level=0)
     jdf = jdf.set_index(keys="type")
     reader = jdf.loc["readers.text"]  # check how to read the file(s)
 
