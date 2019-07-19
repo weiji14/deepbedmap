@@ -69,7 +69,9 @@ def get_image_with_bounds(filepaths: list, indexers: dict = None) -> xr.DataArra
     but the window_bound extents will be correct
     """
 
-    with xr.open_mfdataset(paths=filepaths, concat_dim=None) as dataset:
+    with xr.open_mfdataset(
+        paths=filepaths, combine="nested", concat_dim=None
+    ) as dataset:
         # Retrieve dataarray from NetCDF datasets
         dataarray = dataset.z.isel(indexers=indexers)
 
