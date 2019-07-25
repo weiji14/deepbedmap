@@ -1399,10 +1399,10 @@ def objective(
         name="num_residual_blocks", low=12, high=12
     )
     residual_scaling: float = trial.suggest_discrete_uniform(
-        name="residual_scaling", low=0.15, high=0.30, q=0.05
+        name="residual_scaling", low=0.1, high=0.5, q=0.05
     )
     learning_rate: float = trial.suggest_discrete_uniform(
-        name="learning_rate", high=8.5e-5, low=6.5e-5, q=0.5e-5
+        name="learning_rate", high=9.5e-5, low=5.5e-5, q=0.5e-5
     )
     g_model, g_optimizer, d_model, d_optimizer = compile_srgan_model(
         num_residual_blocks=num_residual_blocks,
@@ -1517,9 +1517,9 @@ def objective(
 
 
 # %%
-n_trials = 1
+n_trials = 12
 if n_trials == 1:  # run training once only, i.e. just test the objective function
-    objective(enable_livelossplot=True, enable_comet_logging=True)
+    objective(enable_livelossplot=True, enable_comet_logging=False)
 elif n_trials > 1:  # perform hyperparameter tuning with multiple experimental trials
     tpe_seed = len(os.uname().nodename) + int(
         os.getenv(key="CUDA_VISIBLE_DEVICES", default="0")
