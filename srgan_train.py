@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.2'
-#       jupytext_version: 1.1.4-rc1
+#       jupytext_version: 1.2.0
 #   kernelspec:
 #     display_name: deepbedmap
 #     language: python
@@ -32,6 +32,7 @@ import random
 import shutil
 import sys
 import typing
+import warnings
 
 try:  # check if CUDA_VISIBLE_DEVICES environment variable is set
     os.environ["CUDA_VISIBLE_DEVICES"]
@@ -439,7 +440,7 @@ class GeneratorModel(chainer.Chain):
     >>> y_pred.shape
     (1, 1, 32, 32)
     >>> generator_model.count_params()
-    9107393
+    8885825
     """
 
     def __init__(
@@ -480,24 +481,24 @@ class GeneratorModel(chainer.Chain):
             )
 
             # Upsampling Layers
-            self.pre_upsample_conv_layer_1 = L.Convolution2D(
+            self.post_upsample_conv_layer_1 = L.Convolution2D(
                 in_channels=None,
-                out_channels=256,
+                out_channels=64,
                 ksize=(3, 3),
                 stride=(1, 1),
                 pad=1,  # 'same' padding
                 initialW=init_weights,
             )
-            self.pre_upsample_conv_layer_2 = L.Convolution2D(
+            self.post_upsample_conv_layer_2 = L.Convolution2D(
                 in_channels=None,
-                out_channels=256,
+                out_channels=64,
                 ksize=(3, 3),
                 stride=(1, 1),
                 pad=1,  # 'same' padding
                 initialW=init_weights,
             )
 
-            # Final post-upsamle layers
+            # Final post-upsample convolution layers
             self.final_conv_layer1 = L.Convolution2D(
                 in_channels=None,
                 out_channels=64,
@@ -544,11 +545,19 @@ class GeneratorModel(chainer.Chain):
 
         # 4th part
         # Upsampling (if 4; run twice, if 8; run thrice, etc.) k3n256s1
-        a4_1 = self.pre_upsample_conv_layer_1(a3)
-        a4_1 = F.depth2space(X=a4_1, r=2)
+        # Uses Nearest Neighbour Interpolation followed by Convolution2D
+        a4_1 = F.resize_images(
+            x=a3, output_shape=(2 * a3.shape[-2], 2 * a3.shape[-1]), mode="nearest"
+        )
+        a4_1 = self.post_upsample_conv_layer_1(a4_1)
         a4_1 = F.leaky_relu(x=a4_1, slope=0.2)
-        a4_2 = self.pre_upsample_conv_layer_2(a4_1)
-        a4_2 = F.depth2space(X=a4_2, r=2)
+
+        a4_2 = F.resize_images(
+            x=a4_1,
+            output_shape=(2 * a4_1.shape[-2], 2 * a4_1.shape[-1]),
+            mode="nearest",
+        )
+        a4_2 = self.post_upsample_conv_layer_2(a4_2)
         a4_2 = F.leaky_relu(x=a4_2, slope=0.2)
 
         # 5th part
@@ -1236,18 +1245,23 @@ def save_model_weights_and_architecture(
     model_architecture_path: str = os.path.join(
         save_path, f"{model_basename}_architecture.onnx"
     )
-    _ = onnx_chainer.export(
-        model=trained_model,
-        args={
-            "x": trained_model.xp.random.rand(32, 1, 10, 10).astype("float32"),
-            "w1": trained_model.xp.random.rand(32, 1, 100, 100).astype("float32"),
-            "w2": trained_model.xp.random.rand(32, 1, 20, 20).astype("float32"),
-            "w3": trained_model.xp.random.rand(32, 1, 10, 10).astype("float32"),
-        },
-        filename=model_architecture_path,
-        export_params=False,
-        save_text=True,
-    )
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            action="ignore",
+            message="`resize_images` is mapped to `Upsampling` ONNX op with bilinear interpolation",
+        )
+        _ = onnx_chainer.export(
+            model=trained_model,
+            args={
+                "x": trained_model.xp.random.rand(32, 1, 10, 10).astype("float32"),
+                "w1": trained_model.xp.random.rand(32, 1, 100, 100).astype("float32"),
+                "w2": trained_model.xp.random.rand(32, 1, 20, 20).astype("float32"),
+                "w3": trained_model.xp.random.rand(32, 1, 10, 10).astype("float32"),
+            },
+            filename=model_architecture_path,
+            export_params=False,
+            save_text=True,
+        )
     assert os.path.exists(f"{model_architecture_path}.txt")
 
     return model_weights_path, model_architecture_path
@@ -1503,9 +1517,9 @@ def objective(
 
 
 # %%
-n_trials = 25
+n_trials = 1
 if n_trials == 1:  # run training once only, i.e. just test the objective function
-    objective(enable_livelossplot=True, enable_comet_logging=False)
+    objective(enable_livelossplot=True, enable_comet_logging=True)
 elif n_trials > 1:  # perform hyperparameter tuning with multiple experimental trials
     tpe_seed = len(os.uname().nodename) + int(
         os.getenv(key="CUDA_VISIBLE_DEVICES", default="0")

@@ -1,6 +1,6 @@
 ir_version: 4
 producer_name: "Chainer"
-producer_version: "6.0.0"
+producer_version: "7.0.0b2"
 graph {
   node {
     input: "Input_3"
@@ -11490,8 +11490,20 @@ graph {
   }
   node {
     input: "Add_48"
-    input: "param_pre_upsample_conv_layer_1_W"
-    input: "param_pre_upsample_conv_layer_1_b"
+    input: "v1440"
+    output: "ResizeImages_0"
+    name: "ResizeImages_0"
+    op_type: "Upsample"
+    attribute {
+      name: "mode"
+      s: "linear"
+      type: STRING
+    }
+  }
+  node {
+    input: "ResizeImages_0"
+    input: "param_post_upsample_conv_layer_1_W"
+    input: "param_post_upsample_conv_layer_1_b"
     output: "Convolution2DFunction_186"
     name: "Convolution2DFunction_186"
     op_type: "Conv"
@@ -11529,17 +11541,6 @@ graph {
   }
   node {
     input: "Convolution2DFunction_186"
-    output: "Depth2Space_0"
-    name: "Depth2Space_0"
-    op_type: "DepthToSpace"
-    attribute {
-      name: "blocksize"
-      i: 2
-      type: INT
-    }
-  }
-  node {
-    input: "Depth2Space_0"
     output: "LeakyReLU_145"
     name: "LeakyReLU_145"
     op_type: "LeakyRelu"
@@ -11551,8 +11552,20 @@ graph {
   }
   node {
     input: "LeakyReLU_145"
-    input: "param_pre_upsample_conv_layer_2_W"
-    input: "param_pre_upsample_conv_layer_2_b"
+    input: "v1445"
+    output: "ResizeImages_1"
+    name: "ResizeImages_1"
+    op_type: "Upsample"
+    attribute {
+      name: "mode"
+      s: "linear"
+      type: STRING
+    }
+  }
+  node {
+    input: "ResizeImages_1"
+    input: "param_post_upsample_conv_layer_2_W"
+    input: "param_post_upsample_conv_layer_2_b"
     output: "Convolution2DFunction_187"
     name: "Convolution2DFunction_187"
     op_type: "Conv"
@@ -11590,17 +11603,6 @@ graph {
   }
   node {
     input: "Convolution2DFunction_187"
-    output: "Depth2Space_1"
-    name: "Depth2Space_1"
-    op_type: "DepthToSpace"
-    attribute {
-      name: "blocksize"
-      i: 2
-      type: INT
-    }
-  }
-  node {
-    input: "Depth2Space_1"
     output: "LeakyReLU_146"
     name: "LeakyReLU_146"
     op_type: "LeakyRelu"
@@ -11946,6 +11948,76 @@ graph {
     }
   }
   input {
+    name: "param_post_upsample_conv_layer_1_W"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 64
+          }
+          dim {
+            dim_value: 64
+          }
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 3
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "param_post_upsample_conv_layer_1_b"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 64
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "param_post_upsample_conv_layer_2_W"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 64
+          }
+          dim {
+            dim_value: 64
+          }
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 3
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "param_post_upsample_conv_layer_2_b"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 64
+          }
+        }
+      }
+    }
+  }
+  input {
     name: "param_pre_residual_conv_layer_W"
     type {
       tensor_type {
@@ -11975,76 +12047,6 @@ graph {
         shape {
           dim {
             dim_value: 64
-          }
-        }
-      }
-    }
-  }
-  input {
-    name: "param_pre_upsample_conv_layer_1_W"
-    type {
-      tensor_type {
-        elem_type: 1
-        shape {
-          dim {
-            dim_value: 256
-          }
-          dim {
-            dim_value: 64
-          }
-          dim {
-            dim_value: 3
-          }
-          dim {
-            dim_value: 3
-          }
-        }
-      }
-    }
-  }
-  input {
-    name: "param_pre_upsample_conv_layer_1_b"
-    type {
-      tensor_type {
-        elem_type: 1
-        shape {
-          dim {
-            dim_value: 256
-          }
-        }
-      }
-    }
-  }
-  input {
-    name: "param_pre_upsample_conv_layer_2_W"
-    type {
-      tensor_type {
-        elem_type: 1
-        shape {
-          dim {
-            dim_value: 256
-          }
-          dim {
-            dim_value: 64
-          }
-          dim {
-            dim_value: 3
-          }
-          dim {
-            dim_value: 3
-          }
-        }
-      }
-    }
-  }
-  input {
-    name: "param_pre_upsample_conv_layer_2_b"
-    type {
-      tensor_type {
-        elem_type: 1
-        shape {
-          dim {
-            dim_value: 256
           }
         }
       }
@@ -18914,6 +18916,32 @@ graph {
       tensor_type {
         elem_type: 1
         shape {
+        }
+      }
+    }
+  }
+  input {
+    name: "v1440"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 4
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "v1445"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 4
+          }
         }
       }
     }
