@@ -7,7 +7,7 @@
 #       extension: .py
 #       format_name: hydrogen
 #       format_version: '1.2'
-#       jupytext_version: 1.1.4-rc1
+#       jupytext_version: 1.2.0
 #   kernelspec:
 #     display_name: deepbedmap
 #     language: python
@@ -322,7 +322,7 @@ print(synthetic250.shape)
 
 # %%
 def load_trained_model(
-    experiment_key: str = "abc3af8e9abc4080a6b5b44b33c537c2",  # or simply use "latest"
+    experiment_key: str = "0c4ffeaf16074a22a0430af8d4ef0788",  # or simply use "latest"
     model_weights_path: str = "model/weights/srgan_generator_model_weights.npz",
 ):
     """

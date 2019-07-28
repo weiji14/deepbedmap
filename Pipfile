@@ -5,9 +5,9 @@ name = "pypi"
 
 [packages]
 black = "==19.3b0"
-chainer = "==6.2.0"
+chainer = "==7.0.0b2"
 comet-ml = "==2.0.5"
-cupy-cuda100 = "==6.2.0"
+cupy-cuda100 = "==7.0.0b2"
 dask = {extras = ["array"],version = "==2.1.0"}
 descartes = "==1.1.0"
 geopandas = "==0.5.1"
