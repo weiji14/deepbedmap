@@ -1,9 +1,15 @@
 workflow "Build Docker Container" {
   on = "push"
-  resolves = ["Docker Build"]
+  resolves = ["Run Tests"]
 }
 
 action "Docker Build" {
-  uses = "actions/docker/cli@aea64bb1b97c42fa69b90523667fef56b90d7cff"
-  args = "build -f Dockerfile -t weiji14/deepbedmap ."
+  uses = "./"
+  args = "echo 'Build Done'"
+}
+
+action "Run Tests" {
+  uses = "./"
+  needs = ["Docker Build"]
+  args = "pipenv run python -m pytest --verbose --disable-warnings --nbval test_ipynb.ipynb"
 }
