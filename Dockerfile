@@ -14,7 +14,7 @@ RUN adduser --disabled-password \
     ${NB_USER}
 
 # Setup conda
-ENV CONDA_DIR /opt/conda
+ENV CONDA_DIR ${HOME}/.conda
 ENV NB_PYTHON_PREFIX ${CONDA_DIR}
 ENV MINICONDA_VERSION 4.6.14
 ENV PATH ${CONDA_DIR}/bin:$HOME/.local/bin:${PATH}
@@ -42,21 +42,29 @@ SHELL ["/bin/bash", "-c"]
 
 # Install dependencies in environment.yml file using conda
 COPY environment.yml ${HOME}
-RUN conda env create -n deepbedmap -f environment.yml && \
+RUN conda env update -n base -f environment.yml && \
     conda clean --all --yes && \
-    conda list -n deepbedmap
+    conda list -n base
 
 # Install dependencies in Pipfile.lock using pipenv
 COPY Pipfile* ${HOME}/
-RUN source activate deepbedmap && \
+RUN source activate base && \
     export LD_LIBRARY_PATH=$CONDA_PREFIX/lib && \
     pipenv install --python $CONDA_PREFIX/bin/python --dev --deploy && \
     rm --recursive ~/.cache/pipenv && \
     pipenv graph
+
+# Setup DeepBedMap virtual environment properly
+RUN source activate base && \
+    pipenv run python -m ipykernel install --user --name deepbedmap && \
+    pipenv run jupyter kernelspec list --json && \
+    echo ${CONDA_PREFIX}
+ENV CONDA_PREFIX ${CONDA_DIR}
+ENV PATH ${CONDA_PREFIX}/bin:$PATH
 
 # Copy remaining files to $HOME
 COPY --chown=1000:1000 . ${HOME}
 
 # Run Jupyter Lab via pipenv in conda environment
 EXPOSE 8888
-CMD source activate deepbedmap && pipenv run jupyter lab --ip 0.0.0.0
+CMD pipenv run jupyter lab --ip 0.0.0.0
