@@ -1,4 +1,4 @@
-FROM buildpack-deps:bionic@sha256:59661846ab0c581272f4b4688702617e6cc83ef1a9ae1cf918978126babbc858
+FROM buildpack-deps:bionic@sha256:59661846ab0c581272f4b4688702617e6cc83ef1a9ae1cf918978126babbc858 AS base
 LABEL maintainer "https://github.com/weiji14"
 ENV LANG C.UTF-8
 ENV LC_ALL C.UTF-8
@@ -62,9 +62,14 @@ RUN source activate base && \
 ENV CONDA_PREFIX ${CONDA_DIR}
 ENV PATH ${CONDA_PREFIX}/bin:$PATH
 
+FROM base AS app
+
 # Copy remaining files to $HOME
 COPY --chown=1000:1000 . ${HOME}
 
 # Run Jupyter Lab via pipenv in conda environment
 EXPOSE 8888
 CMD pipenv run jupyter lab --ip 0.0.0.0
+
+FROM app AS test
+RUN pipenv run python -m pytest --verbose --disable-warnings --nbval test_ipynb.ipynb
