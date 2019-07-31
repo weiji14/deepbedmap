@@ -4,7 +4,7 @@ channels:
   - nodefaults
 dependencies:
   - hcc::cuda_driver=410.73[md5=941787b750b372f4a240287634589d24]
-  - defaults::cudatoolkit=10.0[md5=4388ad6015992501b042eea5197eb447]
+  - anaconda::cudatoolkit=10.0[md5=4388ad6015992501b042eea5197eb447]
   - conda-forge/label/dev::gmt=6.0.0rc1[md5=983ab0490b3ea8789136267cd7e7ed02]
   - pip=18.1[md5=d68c7e5109ba0bf4b1cfe60f0f47870a]
   - conda-forge::python=3.6.7[md5=787937284685efaaa233453b49a9e719]
