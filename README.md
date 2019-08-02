@@ -54,9 +54,9 @@ Also a convenient [flat file](https://en.wikipedia.org/wiki/Flat-file_database) 
 
 ## Quickstart
 
-Launch Binder (Interactive jupyter notebook/lab environment in the cloud).
+Launch in [Pangeo Binder](https://pangeo-binder.readthedocs.io) (Interactive jupyter notebook/lab environment in the cloud).
 
-[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/weiji14/deepbedmap/master?urlpath=lab)
+[![Binder](https://binder.pangeo.io/badge_logo.svg)](https://binder.pangeo.io/v2/gh/weiji14/deepbedmap/master)
 
 ## Installation
 
@@ -66,7 +66,7 @@ Start by cloning this [repo-url](/../../)
 
     git clone <repo-url>
 
-Then I recommend [using conda](https://pdal.io/download.html#conda) to install the non-python binaries (e.g. GMT, CUDA, etc).
+Then I recommend [using conda](https://conda.io/projects/conda/en/latest/user-guide/install/index.html) to install the non-python binaries (e.g. GMT, CUDA, etc).
 The conda virtual environment will also be created with Python and [pipenv](https://pipenv.readthedocs.io) installed.
 
     cd deepbedmap
