@@ -10,6 +10,6 @@ action "Build DeepBedMap App" {
 
 action "Run Tests" {
   uses = "actions/docker/cli@86ff551d26008267bb89ac11198ba7f1d807b699"
-  args = "build --file Dockerfile --target test ."
+  args = "run weiji14/deepbedmap python -m pytest --verbose --disable-warnings --nbval test_ipynb.ipynb"
   needs = ["Build DeepBedMap App"]
 }

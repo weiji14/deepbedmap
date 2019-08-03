@@ -71,7 +71,3 @@ RUN echo -e '#!/bin/bash -i\nset -e\nconda activate\npipenv run "$@"' > .entrypo
     chmod +x .entrypoint.sh
 ENTRYPOINT ["./.entrypoint.sh"]
 CMD ["jupyter", "lab", "--ip", "0.0.0.0"]
-
-
-FROM app AS test
-RUN pipenv run python -m pytest --verbose --disable-warnings --nbval test_ipynb.ipynb
