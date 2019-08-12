@@ -1,0 +1,11 @@
+on: push
+name: Build and Test DeepBedMap
+jobs:
+  buildDeepBedMapApp:
+    runs-on: ubuntu-18.04
+    steps:
+    - uses: actions/checkout@master
+    - name: Build DeepBedMap App
+      run: docker build --file Dockerfile --tag weiji14/deepbedmap --target app .
+    - name: Run Tests
+      run: docker run weiji14/deepbedmap python -m pytest --verbose --disable-warnings --nbval test_ipynb.ipynb
