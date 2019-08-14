@@ -1,0 +1,12 @@
+{
+    "pipeline":[
+        {
+          "type":"readers.text",
+          "filename":"bed_depth_below_WGS84_datum.csv",
+          "separator":",",
+          "skip":1,
+          "header":"x,y,z",
+          "usecols":"x,y,z"
+        }
+    ]
+}
