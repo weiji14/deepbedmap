@@ -6,8 +6,8 @@ dependencies:
   - hcc::cuda_driver=410.73[md5=941787b750b372f4a240287634589d24]
   - anaconda::cudatoolkit=10.0[md5=4388ad6015992501b042eea5197eb447]
   - conda-forge/label/dev::gmt=6.0.0rc3[md5=5dd95d211fff2434e792dac514063721]
-  - conda-forge::pip=19.2.1[md5=95e1564d40edda4b98171de82ceba8ab]
-  - conda-forge::python=3.6.7[md5=787937284685efaaa233453b49a9e719]
+  - conda-forge::pip=19.2.1[md5=f607b2d79d7c31147699e57687c227c3]
+  - conda-forge::python=3.7.3[md5=e9385633516bf38da68e983b4f8b9e2a]
   - conda-forge::libspatialindex=1.9.0[md5=ef8f25a228de3a0dc716566b8d3de593]
   - pip:
     - pipenv==2018.11.26

@@ -22,9 +22,9 @@ Also a convenient [flat file](https://en.wikipedia.org/wiki/Flat-file_database) 
     │    ├── *.feature... (easily understandable specifications written using the Given-When-Then gherkin language)
     │    └── README.md (markdown information on the feature files)
     ├── highres/ (contains high resolution localized DEMs)
-    │    ├── *.grd/las/txt/csv... (input vector file containing the point-based data)
-    │    ├── *.json (the pdal pipeline file)
-    │    ├── *.tif (output raster geotiff file)
+    │    ├── *.txt/csv/grd/xyz... (input vector file containing the point-based bed elevation data)
+    │    ├── *.json (the pipeline file used to process the xyz point data)
+    │    ├── *.nc (output raster netcdf files)
     │    └── README.md (markdown information on highres data sources)
     ├── lowres/ (contains low resolution whole-continent DEMs)
     │    ├── bedmap2_bed.tif (the low resolution DEM!)
@@ -35,18 +35,20 @@ Also a convenient [flat file](https://en.wikipedia.org/wiki/Flat-file_database) 
     ├── model/ (*hidden in git, neural network model related files)
     │    ├── train/ (a place to store the raster tile bounds and model training data)
     │    └── weights/ (contains the neural network model's architecture and weights)
-    ├── .env (environment config file used by pipenv, supposedly)
+    ├── .env (environment variable config file used by pipenv)
     ├── .<something>ignore (files ignored by a particular piece of software)
-    ├── Dockerfile (set of commands to reproduce the software stack here into a docker image)
+    ├── .<something else> (stuff to make the code in this repo look and run nicely e.g. linters, CI/CD config files, etc)
+    ├── Dockerfile (set of commands to fully reproduce the software stack here into a docker image, used by binder)
     ├── LICENSE.md (the license covering this repository)
-    ├── Pipfile (what you want, the minimal core dependencies)
-    ├── Pipfile.lock (what you need, all the pinned dependencies for full reproducibility)
+    ├── Pipfile (what you want, the summary list of core python dependencies)
+    ├── Pipfile.lock (what you need, all the pinned python dependencies for full reproducibility)
     ├── README.md (the markdown file you're reading now)
     ├── data_list.yml (human and machine readable list of the datasets and their metadata)
-    ├── data_prep.ipynb (jupyter notebook that prepares the data)
-    ├── environment.yml (conda packages to install, used by binder)
-    ├── srgan_train.ipynb (jupyter notebook that trains the Super Resolution Generative Adversarial Network model)
-    └── test_ipynb.ipynb (jupyter notebook that runs doctests in the other jupyter notebooks!)
+    ├── data_prep.ipynb/py (paired jupyter notebook/python script that prepares the data)
+    ├── deepbedmap.ipynb/py (paired jupyter notebook/python script that predicts an Antarctic bed digital elevation model)
+    ├── environment.yml (conda binary packages to install)
+    ├── srgan_train.ipynb/py (paired jupyter notebook/python script that trains the ESRGAN neural network model)
+    └── test_ipynb.ipynb/py (paired jupyter notebook/python script that runs doctests in the other jupyter notebooks!)
 ```
 </details>
 
@@ -72,16 +74,19 @@ The conda virtual environment will also be created with Python and [pipenv](http
     cd deepbedmap
     conda env create -f environment.yml
 
-Activate the conda environment first, and then use pipenv to install the necessary python libraries.
-Note that `pipenv install` won't work directly (see Common problems below).
-You may want to check that `which pipenv` returns something similar to ~/.conda/envs/deepbedmap/bin/pipenv.
+Activate the conda environment first.
 
     conda activate deepbedmap
 
+Then set some environment variables **before** using pipenv to install the necessary python libraries,
+otherwise you may encounter some problems (see Common problems below).
+You may want to ensure that `which pipenv` returns something similar to ~/.conda/envs/deepbedmap/bin/pipenv.
+
+    export HDF5_DIR=$CONDA_PREFIX/
     export LD_LIBRARY_PATH=$CONDA_PREFIX/lib/
-    pipenv install --python $CONDA_PREFIX/bin/python
+    pipenv install --python $CONDA_PREFIX/bin/python --dev
     #or just
-    LD_LIBRARY_PATH=$CONDA_PREFIX/lib/ pipenv install --python $CONDA_PREFIX/bin/python
+    HDF5_DIR=$CONDA_PREFIX/ LD_LIBRARY_PATH=$CONDA_PREFIX/lib/ pipenv install --python $CONDA_PREFIX/bin/python --dev
 
 Finally, double-check that the libraries have been installed.
 
@@ -90,15 +95,23 @@ Finally, double-check that the libraries have been installed.
 ### Syncing/Updating to new dependencies
 
     conda env update -f environment.yml
-    pipenv sync
+    pipenv sync --dev
 
 ### Common problems
 
 Note that the [.env](https://pipenv.readthedocs.io/en/latest/advanced/#configuration-with-environment-variables) file stores some environment variables.
-However, it only works when running `pipenv shell` or `pipenv run <cmd>`.
-So after running `conda activate deepbedmap`, and you see an `...error while loading shared libraries: libpython3.6m.so.1.0...`, you may need to run this:
+So if you run `conda activate deepbedmap` followed by some other command and get an `...error while loading shared libraries: libpython3.7m.so.1.0...`,
+you may need to run `pipenv shell` or do `pipenv run <cmd>` to have those environment variables registered properly.
+Or just run this first:
 
     export LD_LIBRARY_PATH=$CONDA_PREFIX/lib/
+
+Also, if you get a problem when using `pipenv` to install [netcdf4](https://github.com/Unidata/netcdf4-python), make sure you have done:
+
+    export HDF5_DIR=$CONDA_PREFIX/
+
+and then you can try using `pipenv install` or `pipenv sync` again.
+See also this [issue](https://github.com/pydata/xarray/issues/3185#issuecomment-520693149) for more information.
 
 ## Running jupyter lab
 

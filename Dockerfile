@@ -49,6 +49,7 @@ RUN conda env update -n base -f environment.yml && \
 # Install dependencies in Pipfile.lock using pipenv
 COPY Pipfile* ${HOME}/
 RUN conda activate base && \
+    export HDF5_DIR=${CONDA_PREFIX} && \
     export LD_LIBRARY_PATH=${CONDA_PREFIX}/lib && \
     pipenv install --python ${CONDA_PREFIX}/bin/python --dev --deploy && \
     rm --recursive ${HOME}/.cache/pip* && \
