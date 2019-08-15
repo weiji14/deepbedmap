@@ -220,3 +220,16 @@
       filename: GroundingLine_Antarctica_v2.dbf
       url: http://data.pgc.umn.edu/gis/packages/quantarctica/Quantarctica3/Glaciology/MEaSUREs%20Antarctic%20Boundaries/GroundingLine_Antarctica_v2.dbf
       sha256: 1cfbe90b262a7fb81cbe61af4f75b23e03213a078ed866e66c6467ab422e017e
+-
+  citekey: King2011Carlson
+  folder: highres
+  location: Carlson Inlet
+  resolution: nan
+  doi:
+    dataset: nan
+    literature: "https://doi.org/10.5194/tc-5-907-2011"
+  files:
+    -
+      filename: bed_depth_below_WGS84_datum.csv
+      url: nan
+      sha256: f84332a824f984ed8dcf291fc64a6ec27177762d546c684d9bde72664bd8511d

@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: hydrogen
 #       format_version: '1.2'
-#       jupytext_version: 1.1.4-rc1
+#       jupytext_version: 1.2.0
 #   kernelspec:
 #     display_name: deepbedmap
 #     language: python
@@ -859,7 +859,7 @@ rema = selective_tile(
     filepath="misc/REMA_100m_dem.tif",
     window_bounds=window_bounds_concat,
     padding=1000,
-    gapfill_raster_filepath="misc/REMA_200m_dem_filled.tif",
+    gapfiller="misc/REMA_200m_dem_filled.tif",
 )
 print(rema.shape, rema.dtype)
 
@@ -877,7 +877,7 @@ measuresiceflow = selective_tile(
     window_bounds=window_bounds_concat,
     padding=1000,
     out_shape=(20, 20),
-    # gapfill_raster_filepath="misc/lisa750_2013182_2017120_0000_0400_vv_v1_myr.tif",
+    # gapfiller="misc/lisa750_2013182_2017120_0000_0400_vv_v1_myr.tif",
 )
 print(measuresiceflow.shape, measuresiceflow.dtype)
 
