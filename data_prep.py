@@ -847,7 +847,7 @@ print(hires.shape, hires.dtype)
 
 # %%
 lores = selective_tile(
-    filepath="lowres/bedmap2_bed.tif", window_bounds=window_bounds_concat, padding=1000
+    filepath="lowres/bedmap2_bed.tif", window_bounds=window_bounds_concat
 )
 print(lores.shape, lores.dtype)
 
@@ -858,7 +858,6 @@ print(lores.shape, lores.dtype)
 rema = selective_tile(
     filepath="misc/REMA_100m_dem.tif",
     window_bounds=window_bounds_concat,
-    padding=1000,
     gapfiller="misc/REMA_200m_dem_filled.tif",
 )
 print(rema.shape, rema.dtype)
@@ -866,15 +865,11 @@ print(rema.shape, rema.dtype)
 # %%
 measures_velocity_x = selective_tile(
     filepath="netcdf:misc/antarctic_ice_vel_phase_map_v01.nc:VX",
-    window_bounds=window_bounds_concat[:3],
-    padding=1000,
-    out_shape=(20, 20),
+    window_bounds=window_bounds_concat,
 )
 measures_velocity_y = selective_tile(
     filepath="netcdf:misc/antarctic_ice_vel_phase_map_v01.nc:VY",
-    window_bounds=window_bounds_concat[:3],
-    padding=1000,
-    out_shape=(20, 20),
+    window_bounds=window_bounds_concat,
 )
 assert measures_velocity_x.shape == measures_velocity_y.shape
 measuresvelocity = np.concatenate([measures_velocity_x, measures_velocity_y], axis=1)
@@ -884,7 +879,6 @@ print(measuresvelocity.shape, measuresvelocity.dtype)
 accumulation = selective_tile(
     filepath="misc/Arthern_accumulation_bedmap2_grid1.tif",
     window_bounds=window_bounds_concat,
-    padding=1000,
 )
 print(accumulation.shape, accumulation.dtype)
 
@@ -923,6 +917,7 @@ quilt.build(package="weiji14/deepbedmap/model/train/W3_data", path=accumulation)
 quilt.build(package="weiji14/deepbedmap/model/train/X_data", path=lores)
 quilt.build(package="weiji14/deepbedmap/model/train/Y_data", path=hires)
 
+# %%
 # Original datasets for neural network predictions on bigger area
 quilt.build(
     package="weiji14/deepbedmap/lowres/bedmap2_bed", path="lowres/bedmap2_bed.tif"
@@ -934,10 +929,13 @@ quilt.build(
     package="weiji14/deepbedmap/misc/REMA_200m_dem_filled",
     path="misc/REMA_200m_dem_filled.tif",
 )
-quilt.build(
-    package="weiji14/deepbedmap/misc/MEaSUREs_IceFlowSpeed_450m",
-    path="misc/MEaSUREs_IceFlowSpeed_450m.tif",
-)
+with xr.open_dataset("misc/antarctic_ice_vel_phase_map_v01.nc") as ds:
+    with tempfile.NamedTemporaryFile(suffix=".nc") as tmpfile:
+        ds[["VX", "VY"]].to_netcdf(path=tmpfile.name)  # save only VX, VY variables
+        quilt.build(
+            package="weiji14/deepbedmap/misc/antarctic_ice_vel_phase_map_v01_VX_VY",
+            path=tmpfile.name,
+        )
 quilt.build(
     package="weiji14/deepbedmap/misc/Arthern_accumulation_bedmap2_grid1",
     path="misc/Arthern_accumulation_bedmap2_grid1.tif",
