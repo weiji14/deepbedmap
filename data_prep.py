@@ -478,9 +478,9 @@ for i, grid in enumerate(grids):
 def get_window_bounds(
     filepath: str,
     pyproj_srs: str = "epsg:3031",
-    height: int = 32,
-    width: int = 32,
-    step: int = 4,
+    height: int = 36,  # 36 pixels * 250m resolution = 9000m height
+    width: int = 36,  # 36 pixels * 250m resolution = 9000m width
+    step: int = 3,  # 3 pixels * 250m resolution = 750m step size
 ) -> list:
     """
     Reads in a raster and finds tiles for them according to a stepped moving window.
@@ -488,13 +488,13 @@ def get_window_bounds(
     [(minx, miny, maxx, maxy), (minx, miny, maxx, maxy), ...]
 
     >>> xr.DataArray(
-    ...     data=np.zeros(shape=(36, 32)),
-    ...     coords={"y": np.arange(0.5, 36.5), "x": np.arange(0.5, 32.5)},
+    ...     data=np.zeros(shape=(40, 36)),
+    ...     coords={"y": np.arange(0.5, 40.5), "x": np.arange(0.5, 36.5)},
     ...     dims=["y", "x"],
     ... ).to_netcdf(path="/tmp/tmp_wb.nc")
     >>> get_window_bounds(filepath="/tmp/tmp_wb.nc")
     Tiling: /tmp/tmp_wb.nc ... 2
-    [(0.0, 4.0, 32.0, 36.0), (0.0, 0.0, 32.0, 32.0)]
+    [(0.0, 4.0, 36.0, 40.0), (0.0, 1.0, 36.0, 37.0)]
     >>> os.remove("/tmp/tmp_wb.nc")
     """
     assert height == width  # make sure it's a square!
