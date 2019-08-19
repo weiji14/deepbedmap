@@ -45,7 +45,7 @@ def _load_ipynb_modules(ipynb_path: str):
 
     # import modules from the parsed .py string
     module = types.ModuleType(basename)
-    code = compile(source=parsed_code, filename=f"{basename}.py", mode="exec")
+    code = compile(source=parsed_code, filename=f"{basename}_ipynb.py", mode="exec")
     exec(code, module.__dict__)
 
     return module

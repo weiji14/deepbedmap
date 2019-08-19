@@ -110,10 +110,11 @@ def get_image_with_bounds(filepaths: list, indexers: dict = None) -> xr.DataArra
 
 
 # %%
-test_filepaths = ["highres/2007tx", "highres/2010tr", "highres/istarxx"]
+test_filepaths = ["highres/2007tx"]  # , "highres/2010tr", "highres/istarxx"]
 groundtruth = get_image_with_bounds(
     filepaths=[f"{t}.nc" for t in test_filepaths],
-    indexers={"y": slice(0, -1)},  # for 2007tx, 2010tr and istarxx
+    indexers=None,  # for 2007tx
+    # indexers={"y": slice(0, -1)},  # for 2007tx, 2010tr and istarxx
 )
 
 # %% [markdown]
@@ -124,7 +125,7 @@ groundtruth = get_image_with_bounds(
 
 # %%
 def get_deepbedmap_model_inputs(
-    window_bound: rasterio.coords.BoundingBox, padding=1000
+    window_bound: rasterio.coords.BoundingBox, padding=0
 ) -> (np.ndarray, np.ndarray, np.ndarray, np.ndarray):
     """
     Outputs one large tile for each of:
@@ -147,17 +148,27 @@ def get_deepbedmap_model_inputs(
         padding=padding,
         gapfiller=0.0,
     )
-    W2_tile = data_prep.selective_tile(
-        filepath="misc/MEaSUREs_IceFlowSpeed_450m.tif",
-        window_bounds=[[*window_bound]],
-        out_shape=(2 * X_tile.shape[2], 2 * X_tile.shape[3]),  # 500m spatial resolution
-        padding=padding,
-        gapfiller="misc/lisa750_2013182_2017120_0000_0400_vv_v1_myr.tif",
+    W2_tile = np.concatenate(
+        [
+            data_prep.selective_tile(
+                filepath="netcdf:misc/antarctic_ice_vel_phase_map_v01.nc:VX",
+                window_bounds=[[*window_bound]],
+                # out_shape=None,  # 450m spatial resolution
+                padding=padding,
+            ),
+            data_prep.selective_tile(
+                filepath="netcdf:misc/antarctic_ice_vel_phase_map_v01.nc:VY",
+                window_bounds=[[*window_bound]],
+                # out_shape=None,  # 450m spatial resolution
+                padding=padding,
+            ),
+        ],
+        axis=1,
     )
     W1_tile = data_prep.selective_tile_old(
         filepath="misc/REMA_100m_dem.tif",
         window_bounds=[[*window_bound]],
-        # out_shape=(5 * W2_tile.shape[2], 5 * W2_tile.shape[3]),  # 100m spatial resolution
+        # out_shape=(X_tile.shape[2] / 10, X_tile.shape[3] / 10),  # 100m spatial resolution
         padding=padding,
         gapfill_raster_filepath="misc/REMA_200m_dem_filled.tif",
     )
@@ -166,13 +177,14 @@ def get_deepbedmap_model_inputs(
 
 
 # %%
+window_bound = groundtruth.bounds
 X_tile, W1_tile, W2_tile, W3_tile = get_deepbedmap_model_inputs(
-    window_bound=groundtruth.bounds
+    window_bound=window_bound
 )
 print(X_tile.shape, W1_tile.shape, W2_tile.shape, W3_tile.shape)
 
 # Build quilt package for datasets covering our test region
-reupload = False
+reupload = True
 if reupload == True:
     quilt.build(package="weiji14/deepbedmap/model/test/W1_tile", path=W1_tile)
     quilt.build(package="weiji14/deepbedmap/model/test/W2_tile", path=W2_tile)
@@ -231,8 +243,8 @@ axarr[0, 0].imshow(X_tile[0, 0, :, :], cmap="BrBG")
 axarr[0, 0].set_title("BEDMAP2\n(1000m resolution)")
 axarr[0, 1].imshow(W1_tile[0, 0, :, :], cmap="BrBG")
 axarr[0, 1].set_title("Reference Elevation Model of Antarctica\n(100m resolution)")
-axarr[0, 2].imshow(W2_tile[0, 0, :, :], cmap="BrBG")
-axarr[0, 2].set_title("MEaSUREs Ice Velocity\n(450m, resampled to 500m)")
+axarr[0, 2].imshow(np.linalg.norm(W2_tile, axis=(0, 1)), cmap="BrBG")
+axarr[0, 2].set_title("MEaSUREs Ice Speed\n(450m resolution)")
 axarr[0, 3].imshow(W3_tile[0, 0, :, :], cmap="BrBG")
 axarr[0, 3].set_title("Antarctic Snow Accumulation\n(1000m resolution)")
 plt.show()
@@ -254,10 +266,10 @@ plot_3d_view(
     zlabel="Elevation (metres)",
 )
 plot_3d_view(
-    img=W2_tile,
+    img=np.expand_dims(np.linalg.norm(W2_tile, axis=1), axis=0),
     ax=axarr[2],
-    title="MEaSUREs Surface Ice Velocity\n(450m, resampled to 500m)",
-    zlabel="Surface Ice Velocity (metres/year)",
+    title="MEaSUREs Surface Ice Speed\n(450m resolution)",
+    zlabel="Surface Ice Speed (metres/year)",
 )
 plot_3d_view(
     img=W3_tile,
@@ -280,7 +292,7 @@ plt.show()
 
 # %%
 cubicbedmap2 = skimage.transform.rescale(
-    image=X_tile[0, 0, 1:-1, 1:-1].astype(np.int32),
+    image=X_tile[0, 0, :, :].astype(np.int32),
     scale=4,  # 4x upscaling
     order=3,  # cubic interpolation
     mode="reflect",
@@ -293,7 +305,7 @@ print(cubicbedmap2.shape)
 
 # %%
 S_tile = data_prep.selective_tile(
-    filepath="model/hres.tif", window_bounds=[[*groundtruth.bounds]]
+    filepath="model/hres.tif", window_bounds=[[*window_bound]]
 )
 print(S_tile.shape)
 synthetic250 = skimage.transform.rescale(
@@ -322,7 +334,7 @@ print(synthetic250.shape)
 
 # %%
 def load_trained_model(
-    experiment_key: str = "0c4ffeaf16074a22a0430af8d4ef0788",  # or simply use "latest"
+    experiment_key: str = "cf156ecbac43467fbb014d1964041066",  # or simply use "latest"
     model_weights_path: str = "model/weights/srgan_generator_model_weights.npz",
 ):
     """
@@ -464,7 +476,7 @@ def save_array_to_grid(
 # %%
 # Save BEDMAP3 to GeoTiff and NetCDF format
 deepbedmap3_grid = save_array_to_grid(
-    window_bound=groundtruth.bounds, array=Y_hat, outfilepath="model/deepbedmap3"
+    window_bound=window_bound, array=Y_hat, outfilepath="model/deepbedmap3"
 )
 deepbedmap3_grid = xr.DataArray(
     data=np.flipud(cupy.asnumpy(Y_hat[0, 0, :, :])),
@@ -476,11 +488,11 @@ deepbedmap3_grid = xr.DataArray(
 # %%
 # Save Bicubic Resampled BEDMAP2 to GeoTiff and NetCDF format
 _ = save_array_to_grid(
-    window_bound=groundtruth.bounds, array=cubicbedmap2, outfilepath="model/cubicbedmap"
+    window_bound=window_bound, array=cubicbedmap2, outfilepath="model/cubicbedmap"
 )
 # Save Billinear Resampled Synthetic High Resolution grid to GeoTiff and NetCDF format
 _ = save_array_to_grid(
-    window_bound=groundtruth.bounds, array=synthetic250, outfilepath="model/synthetichr"
+    window_bound=window_bound, array=synthetic250, outfilepath="model/synthetichr"
 )
 
 # %% [markdown]
