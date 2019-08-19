@@ -227,7 +227,7 @@ with rasterio.open("lowres/bedmap2_bed.tif") as raster_source:
     rasterio.plot.show(source=raster_source, cmap="BrBG_r")
 
 # %% [markdown]
-# ### Download miscellaneous data (e.g. [REMA](https://doi.org/10.7910/DVN/SAIK8B), [MEaSUREs Ice Flow](https://doi.org/10.5067/D7GK8F5J8M8R), [LISA](https://doi.org/10.7265/nxpc-e997), [Arthern Accumulation](https://doi.org/10.1029/2004JD005667))
+# ### Download miscellaneous data (e.g. [REMA](https://doi.org/10.7910/DVN/SAIK8B), [MEaSUREs phase-based Ice Velocity](https://doi.org/10.5067/PZ3NJ5RXRH10), [Arthern Accumulation](https://doi.org/10.1029/2004JD005667))
 
 # %%
 for dataset in dataframe.query(expr="folder == 'misc'").itertuples():
@@ -847,7 +847,7 @@ print(hires.shape, hires.dtype)
 
 # %%
 lores = selective_tile(
-    filepath="lowres/bedmap2_bed.tif", window_bounds=window_bounds_concat, padding=1000
+    filepath="lowres/bedmap2_bed.tif", window_bounds=window_bounds_concat
 )
 print(lores.shape, lores.dtype)
 
@@ -858,34 +858,27 @@ print(lores.shape, lores.dtype)
 rema = selective_tile(
     filepath="misc/REMA_100m_dem.tif",
     window_bounds=window_bounds_concat,
-    padding=1000,
     gapfiller="misc/REMA_200m_dem_filled.tif",
 )
 print(rema.shape, rema.dtype)
 
 # %%
-## Custom processing for LISA to standardize units with MEASURES Ice Velocity
-# Convert units from metres/day to metres/year by multiplying 1st band by 365.25
-!rio calc "(* 365.25 (read 1))" misc/lisa750_2013182_2017120_0000_0400_vv_v1.tif misc/lisa750_2013182_2017120_0000_0400_vv_v1_myr.tif
-# Set NODATA mask where pixels are 36159.75 = 99 * 365.25
-!rio edit-info misc/lisa750_2013182_2017120_0000_0400_vv_v1_myr.tif --nodata 36159.75
-!rio info misc/lisa750_2013182_2017120_0000_0400_vv_v1_myr.tif
-
-# %%
-measuresiceflow = selective_tile(
-    filepath="misc/MEaSUREs_IceFlowSpeed_450m.tif",
+measures_velocity_x = selective_tile(
+    filepath="netcdf:misc/antarctic_ice_vel_phase_map_v01.nc:VX",
     window_bounds=window_bounds_concat,
-    padding=1000,
-    out_shape=(20, 20),
-    # gapfiller="misc/lisa750_2013182_2017120_0000_0400_vv_v1_myr.tif",
 )
-print(measuresiceflow.shape, measuresiceflow.dtype)
+measures_velocity_y = selective_tile(
+    filepath="netcdf:misc/antarctic_ice_vel_phase_map_v01.nc:VY",
+    window_bounds=window_bounds_concat,
+)
+assert measures_velocity_x.shape == measures_velocity_y.shape
+measuresvelocity = np.concatenate([measures_velocity_x, measures_velocity_y], axis=1)
+print(measuresvelocity.shape, measuresvelocity.dtype)
 
 # %%
 accumulation = selective_tile(
     filepath="misc/Arthern_accumulation_bedmap2_grid1.tif",
     window_bounds=window_bounds_concat,
-    padding=1000,
 )
 print(accumulation.shape, accumulation.dtype)
 
@@ -903,7 +896,7 @@ print(accumulation.shape, accumulation.dtype)
 # %%
 os.makedirs(name="model/train", exist_ok=True)
 np.save(file="model/train/W1_data.npy", arr=rema)
-np.save(file="model/train/W2_data.npy", arr=measuresiceflow)
+np.save(file="model/train/W2_data.npy", arr=measuresvelocity)
 np.save(file="model/train/W3_data.npy", arr=accumulation)
 np.save(file="model/train/X_data.npy", arr=lores)
 np.save(file="model/train/Y_data.npy", arr=hires)
@@ -919,11 +912,12 @@ quilt.login()
 # %%
 # Tiled datasets for training neural network
 quilt.build(package="weiji14/deepbedmap/model/train/W1_data", path=rema)
-quilt.build(package="weiji14/deepbedmap/model/train/W2_data", path=measuresiceflow)
+quilt.build(package="weiji14/deepbedmap/model/train/W2_data", path=measuresvelocity)
 quilt.build(package="weiji14/deepbedmap/model/train/W3_data", path=accumulation)
 quilt.build(package="weiji14/deepbedmap/model/train/X_data", path=lores)
 quilt.build(package="weiji14/deepbedmap/model/train/Y_data", path=hires)
 
+# %%
 # Original datasets for neural network predictions on bigger area
 quilt.build(
     package="weiji14/deepbedmap/lowres/bedmap2_bed", path="lowres/bedmap2_bed.tif"
@@ -935,10 +929,13 @@ quilt.build(
     package="weiji14/deepbedmap/misc/REMA_200m_dem_filled",
     path="misc/REMA_200m_dem_filled.tif",
 )
-quilt.build(
-    package="weiji14/deepbedmap/misc/MEaSUREs_IceFlowSpeed_450m",
-    path="misc/MEaSUREs_IceFlowSpeed_450m.tif",
-)
+with xr.open_dataset("misc/antarctic_ice_vel_phase_map_v01.nc") as ds:
+    with tempfile.NamedTemporaryFile(suffix=".nc") as tmpfile:
+        ds[["VX", "VY"]].to_netcdf(path=tmpfile.name)  # save only VX, VY variables
+        quilt.build(
+            package="weiji14/deepbedmap/misc/antarctic_ice_vel_phase_map_v01_VX_VY",
+            path=tmpfile.name,
+        )
 quilt.build(
     package="weiji14/deepbedmap/misc/Arthern_accumulation_bedmap2_grid1",
     path="misc/Arthern_accumulation_bedmap2_grid1.tif",

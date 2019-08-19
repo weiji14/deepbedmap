@@ -29,18 +29,18 @@
       url: "http://data.pgc.umn.edu/elev/dem/setsm/REMA/mosaic/v1.1/200m/REMA_200m_dem_filled.tif"
       sha256: f750893861a1a268c8ffe0ba7db36c933223bbf5fcbb786ecef3f052b20f9b8a
 -
-  citekey: Rignot2011MEASURES
+  citekey: Mouginot2019MEASURES
   folder: misc
   location: Antarctica
   resolution: 450m
   doi:
-    dataset: "https://doi.org/10.5067/D7GK8F5J8M8R"
-    literature: "https://doi.org/10.1126/science.1208336"
+    dataset: "https://doi.org/10.5067/PZ3NJ5RXRH10"
+    literature: "https://doi.org/10.1029/2019GL083826"
   files:
     -
-      filename: MEaSUREs_IceFlowSpeed_450m.tif
-      url: "http://data.pgc.umn.edu/gis/packages/quantarctica/Quantarctica3/Glaciology/MEaSUREs%20Ice%20Flow%20Velocity/MEaSUREs_IceFlowSpeed_450m.tif"
-      sha256: 4a4efc3a84204c3d67887e8d7fa1186467b51e696451f2832ebbea3ca491c8a8
+      filename: antarctic_ice_vel_phase_map_v01.nc
+      url: "ftp://ftp.nsidc.org/pub/DATASETS/nsidc0754_MEASURES_antarctic_ice_vel_phase_map_v01/antarctic_ice_vel_phase_map_v01.nc"
+      sha256: fa0957618b8bd98099f4a419d7dc0e3a2c562d89e9791b4d0ed55e6017f52416
 -
   citekey: King2016Rutford
   folder: highres
@@ -173,19 +173,6 @@
        filename: WISE_ISODYN_RadarByFlight_ASCII.zip
        url: https://ramadda.data.bas.ac.uk/repository/entry/get/WISE_ISODYN_RadarByFlight_ASCII.zip?entryid=synth%3A59e5a6f5-e67d-4a05-99af-30f656569401%3AL1dJU0VfSVNPRFlOX1JhZGFyQnlGbGlnaHRfQVNDSUkuemlw
        sha256: dfb20a4ff133f361f64b5730e7593a46cb3d599ae62b0dc874685794990c8d91
--
-  citekey: Fahnestock2019LISA
-  folder: misc
-  location: Antarctica
-  resolution: 750m
-  doi:
-    dataset: "https://doi.org/10.7265/nxpc-e997"
-    literature: "https://doi.org/10.1016/j.rse.2015.11.023"
-  files:
-    -
-      filename: lisa750_2013182_2017120_0000_0400_vv_v1.tif
-      url: ftp://ftp.nsidc.org/pub/DATASETS/nsidc0733_landsat_ice_speed_v01/LISA750/lisa750_2013182_2017120_0000_0400_v1.tgz
-      sha256: 99eb934702305e2d27afa20dfc211c1d45ed762727bda29e0f251976a1877a92
 -
   citekey: Arthern2006Accumulation
   folder: misc
