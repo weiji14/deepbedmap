@@ -184,7 +184,7 @@ X_tile, W1_tile, W2_tile, W3_tile = get_deepbedmap_model_inputs(
 print(X_tile.shape, W1_tile.shape, W2_tile.shape, W3_tile.shape)
 
 # Build quilt package for datasets covering our test region
-reupload = True
+reupload = False
 if reupload == True:
     quilt.build(package="weiji14/deepbedmap/model/test/W1_tile", path=W1_tile)
     quilt.build(package="weiji14/deepbedmap/model/test/W2_tile", path=W2_tile)
@@ -334,7 +334,7 @@ print(synthetic250.shape)
 
 # %%
 def load_trained_model(
-    experiment_key: str = "cf156ecbac43467fbb014d1964041066",  # or simply use "latest"
+    experiment_key: str = "ac0e3aba2c6a457fa0a717bb4844621e",  # or simply use "latest"
     model_weights_path: str = "model/weights/srgan_generator_model_weights.npz",
 ):
     """
