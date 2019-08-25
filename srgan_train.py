@@ -1450,7 +1450,7 @@ def objective(
     experiment.log_parameter(name="dataset_hash", value=quilt_hash)
     experiment.log_parameter(name="use_gpu", value=cupy.is_available())
     batch_size: int = int(
-        2 ** trial.suggest_int(name="batch_size_exponent", low=7, high=7)
+        2 ** trial.suggest_int(name="batch_size_exponent", low=6, high=7)
     )
     experiment.log_parameter(name="batch_size", value=batch_size)
     train_iter, train_len, dev_iter, dev_len = get_train_dev_iterators(
@@ -1462,13 +1462,13 @@ def objective(
 
     ## Compile Model
     num_residual_blocks: int = trial.suggest_int(
-        name="num_residual_blocks", low=12, high=12
+        name="num_residual_blocks", low=12, high=14
     )
     residual_scaling: float = trial.suggest_discrete_uniform(
-        name="residual_scaling", low=0.1, high=0.5, q=0.05
+        name="residual_scaling", low=0.45, high=0.6, q=0.05
     )
     learning_rate: float = trial.suggest_discrete_uniform(
-        name="learning_rate", high=9.5e-5, low=5.5e-5, q=0.5e-5
+        name="learning_rate", high=1.4e-4, low=9.0e-5, q=0.5e-5
     )
     g_model, g_optimizer, d_model, d_optimizer = compile_srgan_model(
         num_residual_blocks=num_residual_blocks,
@@ -1489,7 +1489,7 @@ def objective(
     )
 
     ## Run Trainer and save trained model
-    epochs: int = trial.suggest_int(name="num_epochs", low=60, high=90)
+    epochs: int = trial.suggest_int(name="num_epochs", low=40, high=90)
     experiment.log_parameter(name="num_epochs", value=epochs)
 
     metric_names = [
@@ -1583,16 +1583,18 @@ def objective(
 
 
 # %%
-n_trials = 1
+n_trials = 30
 if n_trials == 1:  # run training once only, i.e. just test the objective function
-    objective(enable_livelossplot=True, enable_comet_logging=True)
+    objective(enable_livelossplot=True, enable_comet_logging=False)
 elif n_trials > 1:  # perform hyperparameter tuning with multiple experimental trials
+    # Set different seed using len($HOSTNAME) + GPU_ID
     tpe_seed = len(os.uname().nodename) + int(
         os.getenv(key="CUDA_VISIBLE_DEVICES", default="0")
-    )  # Set different seed using len($HOSTNAME) + GPU_ID
+    )
+    # Tree-structured Parzen Estimator using HyperOpt defaults
     sampler = optuna.samplers.TPESampler(
-        seed=tpe_seed
-    )  # Tree-structured Parzen Estimator
+        seed=tpe_seed, **optuna.samplers.TPESampler.hyperopt_parameters()
+    )
     study = optuna.create_study(
         storage="sqlite:///model/logs/train.db",
         study_name="DeepBedMap_tuning",
