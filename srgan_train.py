@@ -625,7 +625,7 @@ class DiscriminatorModel(chainer.Chain):
     >>> y_pred.shape
     (2, 1)
     >>> discriminator_model.count_params()
-    10205129
+    10370761
     """
 
     def __init__(self):
@@ -637,31 +637,31 @@ class DiscriminatorModel(chainer.Chain):
             self.conv_layer0 = L.Convolution2D(
                 in_channels=None,
                 out_channels=64,
-                ksize=(3, 3),
-                stride=(1, 1),
+                ksize=3,
+                stride=1,
                 pad=1,  # 'same' padding
-                nobias=False,  # default, have bias
+                nobias=False,  # only first Conv2D layer uses bias
                 initialW=init_weights,
             )
-            self.conv_layer1 = L.Convolution2D(None, 64, 4, 1, 1, False, init_weights)
-            self.conv_layer2 = L.Convolution2D(None, 64, 3, 2, 1, False, init_weights)
-            self.conv_layer3 = L.Convolution2D(None, 128, 4, 1, 1, False, init_weights)
-            self.conv_layer4 = L.Convolution2D(None, 128, 3, 2, 1, False, init_weights)
-            self.conv_layer5 = L.Convolution2D(None, 256, 4, 1, 1, False, init_weights)
-            self.conv_layer6 = L.Convolution2D(None, 256, 3, 2, 1, False, init_weights)
-            self.conv_layer7 = L.Convolution2D(None, 512, 4, 1, 1, False, init_weights)
-            self.conv_layer8 = L.Convolution2D(None, 512, 3, 2, 1, False, init_weights)
-            self.conv_layer9 = L.Convolution2D(None, 512, 4, 1, 1, False, init_weights)
+            self.conv_layer1 = L.Convolution2D(None, 64, 4, 2, 1, True, init_weights)
+            self.conv_layer2 = L.Convolution2D(None, 128, 3, 1, 1, True, init_weights)
+            self.conv_layer3 = L.Convolution2D(None, 128, 4, 2, 1, True, init_weights)
+            self.conv_layer4 = L.Convolution2D(None, 128, 3, 1, 1, True, init_weights)
+            self.conv_layer5 = L.Convolution2D(None, 256, 4, 2, 1, True, init_weights)
+            self.conv_layer6 = L.Convolution2D(None, 256, 3, 1, 1, True, init_weights)
+            self.conv_layer7 = L.Convolution2D(None, 512, 4, 2, 1, True, init_weights)
+            self.conv_layer8 = L.Convolution2D(None, 512, 3, 1, 1, True, init_weights)
+            self.conv_layer9 = L.Convolution2D(None, 512, 4, 2, 1, True, init_weights)
 
-            self.batch_norm1 = L.BatchNormalization(axis=(0, 2, 3), eps=0.001)
-            self.batch_norm2 = L.BatchNormalization(axis=(0, 2, 3), eps=0.001)
-            self.batch_norm3 = L.BatchNormalization(axis=(0, 2, 3), eps=0.001)
-            self.batch_norm4 = L.BatchNormalization(axis=(0, 2, 3), eps=0.001)
-            self.batch_norm5 = L.BatchNormalization(axis=(0, 2, 3), eps=0.001)
-            self.batch_norm6 = L.BatchNormalization(axis=(0, 2, 3), eps=0.001)
-            self.batch_norm7 = L.BatchNormalization(axis=(0, 2, 3), eps=0.001)
-            self.batch_norm8 = L.BatchNormalization(axis=(0, 2, 3), eps=0.001)
-            self.batch_norm9 = L.BatchNormalization(axis=(0, 2, 3), eps=0.001)
+            self.batch_norm1 = L.BatchNormalization(axis=(0, 2, 3), eps=1e-5)
+            self.batch_norm2 = L.BatchNormalization(axis=(0, 2, 3), eps=1e-5)
+            self.batch_norm3 = L.BatchNormalization(axis=(0, 2, 3), eps=1e-5)
+            self.batch_norm4 = L.BatchNormalization(axis=(0, 2, 3), eps=1e-5)
+            self.batch_norm5 = L.BatchNormalization(axis=(0, 2, 3), eps=1e-5)
+            self.batch_norm6 = L.BatchNormalization(axis=(0, 2, 3), eps=1e-5)
+            self.batch_norm7 = L.BatchNormalization(axis=(0, 2, 3), eps=1e-5)
+            self.batch_norm8 = L.BatchNormalization(axis=(0, 2, 3), eps=1e-5)
+            self.batch_norm9 = L.BatchNormalization(axis=(0, 2, 3), eps=1e-5)
 
             self.linear_1 = L.Linear(in_size=None, out_size=100, initialW=init_weights)
             self.linear_2 = L.Linear(in_size=None, out_size=1, initialW=init_weights)
