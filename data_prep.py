@@ -601,16 +601,14 @@ def selective_tile(
     window_bounds: list,
     padding: int = 0,  # in projected coordinate system units
     out_shape: tuple = None,
-    gapfiller=None,
+    gapfiller: float = None,
 ) -> np.ndarray:
     """
     Reads in a raster and tiles them selectively according to
     list of window_bounds in the form of (xmin, ymin, xmax, ymax).
     Output shape can be set to e.g. (16,16) to resample input raster to
     some desired shape/resolution.
-
-    Gaps in the main raster can be filled by passing in an argument to gapfiller which
-    can either a raster filepath (str) or a number (float).
+    Gaps in the main raster can be filled by passing in a number to gapfiller.
 
     >>> xr.DataArray(
     ...     data=np.flipud(m=np.diag(v=np.arange(8))).astype(dtype=np.float32),
@@ -678,40 +676,15 @@ def selective_tile(
     if mask.any():  # check that there are no NAN values
         nan_grid_indexes = np.argwhere(mask.any(axis=(-3, -2, -1))).ravel()
 
-        # Replace pixels from another raster if available, else raise error
+        # Replace NaN values with some number, else raise error
         if gapfiller is not None:
             print(f"gapfilling ... ", end="")
 
-            if isinstance(gapfiller, str):  # gapfill using another raster
-                with xr.open_rasterio(gapfiller, chunks={}) as dataset2:
-                    daarray_list2 = [
-                        dataset2.interp_like(
-                            daarray_list[idx].squeeze(), method="linear"
-                        )
-                        for idx in nan_grid_indexes
-                    ]
-                    daarray_stack2 = dask.array.ma.masked_values(
-                        x=dask.array.stack(seq=daarray_list2), value=dataset2.nodatavals
-                    )
-
-                fill_tiles = (
-                    dask.array.ma.getdata(daarray_stack2)
-                    .compute()
-                    .astype(dtype=np.float32)
-                )
-                # mask2 = dask.array.ma.getmaskarray(daarray_stack2).compute()
-
-                for i, array2 in enumerate(fill_tiles):
-                    idx = nan_grid_indexes[i]
-                    np.copyto(dst=out_tiles[idx], src=array2, where=mask[idx])
-                    # assert not (mask[idx] & mask2[i]).any()  # Ensure no NANs after gapfill
-
-            elif isinstance(gapfiller, float):  # gapfill using just a number
-                np.copyto(
-                    dst=out_tiles,
-                    src=np.full_like(a=out_tiles, fill_value=gapfiller),
-                    where=mask,
-                )
+            np.copyto(
+                dst=out_tiles,
+                src=np.full_like(a=out_tiles, fill_value=gapfiller),
+                where=mask,
+            )
 
         else:
             for i in nan_grid_indexes:
@@ -723,103 +696,6 @@ def selective_tile(
 
     print("done!")
     return out_tiles
-
-
-# %%
-def selective_tile_old(
-    filepath: str,
-    window_bounds: list,
-    padding: int = 0,  # in projected coordinate system units
-    out_shape: tuple = None,
-    gapfill_raster_filepath: str = None,
-) -> np.ndarray:
-    """
-    Reads in raster and tiles them selectively.
-    Tiles will go according to list of window_bounds.
-    Output shape can be set to e.g. (16,16) to resample input raster to
-    some desired shape/resolution.
-
-    >>> xr.DataArray(
-    ...     data=np.flipud(m=np.diag(v=np.arange(8))).astype(dtype=np.float32),
-    ...     coords={"y": np.linspace(7, 0, 8), "x": np.linspace(0, 7, 8)},
-    ...     dims=["y", "x"],
-    ... ).to_netcdf(path="/tmp/tmp_st.nc", mode="w")
-    >>> selective_tile_old(
-    ...    filepath="/tmp/tmp_st.nc",
-    ...    window_bounds=[(0.5, 0.5, 2.5, 2.5), (2.5, 1.5, 4.5, 3.5)],
-    ... )
-    Tiling: /tmp/tmp_st.nc ... done!
-    array([[[[0., 2.],
-             [1., 0.]]],
-    <BLANKLINE>
-    <BLANKLINE>
-           [[[3., 0.],
-             [0., 0.]]]], dtype=float32)
-    >>> os.remove("/tmp/tmp_st.nc")
-    """
-    array_list = []
-
-    with rasterio.open(filepath) as dataset:
-        print(f"Tiling: {filepath} ... ", end="")
-        for window_bound in window_bounds:
-
-            if padding > 0:
-                window_bound = (
-                    window_bound[0] - padding,  # minx
-                    window_bound[1] - padding,  # miny
-                    window_bound[2] + padding,  # maxx
-                    window_bound[3] + padding,  # maxy
-                )
-
-            window = rasterio.windows.from_bounds(
-                *window_bound, transform=dataset.transform, precision=None
-            ).round_offsets()
-
-            # Read the raster according to the crop window
-            array = dataset.read(
-                indexes=list(range(1, dataset.count + 1)),
-                masked=True,
-                window=window,
-                out_shape=out_shape,
-            )
-            assert array.ndim == 3  # check that we have shape like (1, height, width)
-            assert array.shape[0] == 1  # channel-first (assuming only 1 channel)
-            assert not 0 in array.shape  # ensure no empty dimensions (invalid window)
-
-            try:
-                assert not array.mask.any()  # check that there are no NAN values
-            except AssertionError:
-                # Replace pixels from another raster if available, else raise error
-                if gapfill_raster_filepath is not None:
-                    with rasterio.open(gapfill_raster_filepath) as dataset2:
-                        window2 = rasterio.windows.from_bounds(
-                            *window_bound, transform=dataset2.transform, precision=None
-                        ).round_offsets()
-
-                        array2 = dataset2.read(
-                            indexes=list(range(1, dataset2.count + 1)),
-                            masked=True,
-                            window=window2,
-                            out_shape=array.shape[1:],
-                        )
-
-                    np.copyto(
-                        dst=array, src=array2, where=array.mask
-                    )  # fill in gaps where mask is True
-
-                    # assert not array.mask.any()  # ensure no NAN values after gapfill
-                else:
-                    plt.imshow(array.data[0, :, :])
-                    plt.show()
-                    print(
-                        f"WARN: Tile has missing data, try passing in gapfill_raster_filepath"
-                    )
-
-            # assert array.shape[1] == array.shape[2]  # check that height==width
-            array_list.append(array.data.astype(dtype=np.float32))
-        print("done!")
-
-    return np.stack(arrays=array_list)
 
 
 # %%
