@@ -737,12 +737,58 @@ print(lores.shape, lores.dtype)
 
 # %% [markdown]
 # ### Tile miscellaneous data
+#
+# - REMA (100m) is gapfilled with a 200m_filled version (bilinear interpolated to 100m)
+
+# %%
+# Gapfill REMA_100m_dem.tif with REMA_200m_dem_filled.tif
+if not os.path.exists("misc/REMA_100m_dem_filled.tif"):
+    window_bound_big = rasterio.coords.BoundingBox(
+        left=-2_700_000.0, bottom=-2_200_000.0, right=2_800_000.0, top=2_300_000.0
+    )
+
+    # Read in 100m spatial resolution REMA which has data gaps in some areas
+    with rasterio.open("misc/REMA_100m_dem.tif") as REMA100:
+        window = rasterio.windows.from_bounds(
+            *window_bound_big, transform=REMA100.transform, precision=None
+        ).round_offsets()
+        array100 = REMA100.read(indexes=1, masked=True, window=window)
+
+        # Read in 200m spatial resolution REMA which has complete coverage
+        # Resample it using bilinear interpolation to match the REMA 100m dataset
+        with rasterio.open("misc/REMA_200m_dem_filled.tif") as REMA200_filled:
+            window2 = rasterio.windows.from_bounds(
+                *window_bound_big, transform=REMA200_filled.transform, precision=None
+            ).round_offsets()
+            array200 = REMA200_filled.read(
+                indexes=1,
+                masked=True,
+                window=window2,
+                out_shape=array100.shape,
+                resampling=rasterio.enums.Resampling.bilinear,
+            )
+
+    assert array100.shape == array200.shape == (45000, 55000)
+    # fill in data gaps, i.e. where mask is True
+    np.copyto(dst=array100, src=array200, where=array100.mask)
+
+    with rasterio.open(
+        "misc/REMA_100m_dem_filled.tif",
+        mode="w",
+        driver="GTiff",
+        height=array100.shape[0],
+        width=array100.shape[1],
+        count=1,
+        crs="EPSG:3031",
+        transform=rasterio.Affine(100, 0, -2700000, 0, -100, 2300000),
+        dtype=array100.dtype,
+        nodata=REMA200_filled.nodata,
+    ) as REMA100_filled:
+        REMA100_filled.write(array100, 1)
 
 # %%
 rema = selective_tile(
-    filepath="misc/REMA_100m_dem.tif",
-    window_bounds=window_bounds_concat,
-    gapfiller="misc/REMA_200m_dem_filled.tif",
+    filepath="misc/REMA_100m_dem_filled.tif", window_bounds=window_bounds_concat
 )
 print(rema.shape, rema.dtype)
 

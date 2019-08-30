@@ -166,12 +166,9 @@ def get_deepbedmap_model_inputs(
         axis=1,
     )
     W1_tile = data_prep.selective_tile(
-        filepath="misc/REMA_200m_dem_filled.tif",
+        filepath="misc/REMA_100m_dem_filled.tif",
         window_bounds=[[*window_bound]],
-        out_shape=(
-            X_tile.shape[2] * 10,
-            X_tile.shape[3] * 10,
-        ),  # 100m spatial resolution
+        # out_shape=(X_tile.shape[2] * 10, X_tile.shape[3] * 10),  # 100m spatial resolution
         padding=padding,
     )
 
