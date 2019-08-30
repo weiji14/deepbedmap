@@ -599,15 +599,16 @@ gdf.to_crs(crs={"init": "epsg:4326"}).to_file(
 def selective_tile(
     filepath: str,
     window_bounds: list,
-    padding: int = 0,  # in projected coordinate system units
-    out_shape: tuple = None,
-    gapfiller: float = None,
+    padding: int = 0,  # in projected coordinate system units, e.g. 1000 for 1km
+    resolution: float = None,  # spatial resolution, e.g. 500 for 500m
+    gapfiller: float = None,  # number to fill in NaNs, e.g. 0
 ) -> np.ndarray:
     """
-    Reads in a raster and tiles them selectively according to
-    list of window_bounds in the form of (xmin, ymin, xmax, ymax).
-    Output shape can be set to e.g. (16,16) to resample input raster to
-    some desired shape/resolution.
+    Reads in a raster and tiles them selectively according to list of window_bounds in
+    the form of (xmin, ymin, xmax, ymax), optionally extended by some padding length.
+    The images will be bilinearly interpolated/geo-registered to match the exact bounds.
+    A resolution can be optionally set to e.g. 500 to resample the raster tiles to some
+    desired spatial resolution/shape.
     Gaps in the main raster can be filled by passing in a number to gapfiller.
 
     >>> xr.DataArray(
@@ -638,39 +639,46 @@ def selective_tile(
     ]
 
     # Retrieve tiles from the main raster
-    with xr.open_rasterio(
-        filepath, chunks=None if out_shape is None else {}
-    ) as dataset:
+    with xr.open_rasterio(filepath, chunks={}) as dataset:
         print(f"Tiling: {filepath} ... ", end="")
 
+        assert dataset.res[0] == dataset.res[1]  # ensure our pixels are square
+
+        if resolution is None:
+            resolution = dataset.res[0]
+        halfpix = resolution / 2  # half pixel width used as offset during interpolation
+
+        # Use first window_bound to determine size of output tile
+        assert dataset.y[0] > dataset.y[-1]  # check that y runs from top to bottom
+        y_length = int((window_bounds[0].top - window_bounds[0].bottom) / resolution)
+        x_length = int((window_bounds[0].right - window_bounds[0].left) / resolution)
+
         # Subset dataset according to window bound (wb)
-        daarray_list = [
-            dataset.sel(y=slice(wb.top, wb.bottom), x=slice(wb.left, wb.right))
-            for wb in window_bounds
-        ]
-        # Bilinear interpolate to new shape if out_shape is set
-        if out_shape is not None:
-            daarray_list = [
-                dataset.interp(
-                    y=np.linspace(da.y[0], da.y[-1], num=out_shape[0]),
-                    x=np.linspace(da.x[0], da.x[-1], num=out_shape[1]),
-                    method="linear",
-                )
-                for da in daarray_list
-            ]
-        daarray_stack = dask.array.ma.masked_values(
-            x=dask.array.stack(seq=daarray_list),
-            value=np.nan_to_num(-np.inf)
-            if dataset.dtype == np.int16 and dataset.nodatavals == (np.nan,)
-            else dataset.nodatavals,
-        )
+        daarray_list = []
+        for wb in window_bounds:
+            # Interpolation (billinear)
+            new_y = np.linspace(wb.top - halfpix, wb.bottom + halfpix, num=y_length)
+            new_x = np.linspace(wb.left + halfpix, wb.right - halfpix, num=x_length)
+            da_interpolated = dask.delayed(dataset.interp)({"y": new_y, "x": new_x})
+
+            # Mask NaN values, if the NaN value is 'nan' itself, we convert to small num
+            da_masked = dask.delayed(dask.array.ma.masked_values)(
+                x=da_interpolated,
+                value=np.nan_to_num(dataset.nodatavals[0], nan=np.nan_to_num(-np.inf)),
+            )
+            daarray_list.append(da_masked)
+
+        # Run actual heavy computation
+        daarray_stack = dask.delayed(dask.array.stack)(daarray_list)
+        # Stack interpolated grids together, and retrieve the data and mask
+        daarray_stack = daarray_stack.compute()
 
         assert daarray_stack.ndim == 4  # check that shape is like (m, 1, height, width)
         assert daarray_stack.shape[1] == 1  # channel-first (assuming only 1 channel)
         assert not 0 in daarray_stack.shape  # ensure no empty dimensions (bad window)
 
-    out_tiles = dask.array.ma.getdata(daarray_stack).compute().astype(dtype=np.float32)
-    mask = dask.array.ma.getmaskarray(daarray_stack).compute()
+        out_tiles = np.asarray(a=dask.array.ma.getdata(daarray_stack), dtype=np.float32)
+        mask = np.asanyarray(a=dask.array.ma.getmaskarray(daarray_stack))
 
     # Gapfill main raster if there are blank spaces
     if mask.any():  # check that there are no NAN values
@@ -691,7 +699,7 @@ def selective_tile(
                 daarray_list[i].plot()
                 plt.show()
             print(
-                f"WARN: Tiles have missing data, try passing in an input to 'gapfiller'"
+                f"WARN: Tiles have missing data, try passing in a number to 'gapfiller'"
             )
 
     print("done!")
