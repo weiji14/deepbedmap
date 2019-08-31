@@ -741,6 +741,64 @@ print(lores.shape, lores.dtype)
 # - REMA (100m) is gapfilled with a 200m_filled version (bilinear interpolated to 100m)
 
 # %%
+def save_array_to_grid(
+    outfilepath: str,  # without any extension! Will append .tif and .nc to this name
+    window_bound: tuple,  # bounding box in format (minx, miny, maxx, maxy)
+    array: np.ndarray,  # must be in CHW format (channel, height, width)
+    save_netcdf: bool = False,  # whether to also save a NetCDF file
+    crs: str = "EPSG:3031",  # projected coordinate system to use
+    dtype: str = None,  # data type to use e.g. np.float32, default inferred from array
+    nodataval: float = -2000,  # what to use as NaN, hardcoded default to -2000m
+    tiled: bool = False,  # store data arranged in square tiles, default is False
+    compression: rasterio.enums.Compression = rasterio.enums.Compression.none.value,
+) -> xr.DataArray:
+    """
+    Saves a numpy array to geotiff and netcdf format according to
+    some bounding box window given as (minx, miny, maxx, maxy).
+    Script will append ".tif" and ".nc" file extension to the outfilepath
+    for geotiff and netcdf outputs respectively. If save_netcdf=True,
+    will also return an xarray.DataArray version of the resulting grid.
+
+    Optionally set a compression algorithm to compact the geotiff
+    into a smaller filesize e.g. rasterio.enums.Compression.lzw or zstd.
+    """
+
+    assert array.ndim == 3
+    assert array.shape[0] == 1  # check that there is only one band/channel
+
+    transform = rasterio.transform.from_bounds(
+        *window_bound, height=array.shape[1], width=array.shape[2]
+    )
+
+    # Save array as a GeoTiff first
+    with rasterio.open(
+        f"{outfilepath}.tif",
+        mode="w",
+        driver="GTiff",
+        height=array.shape[1],
+        width=array.shape[2],
+        count=1,
+        crs=crs,
+        transform=transform,
+        dtype=array.dtype if dtype is None else dtype,
+        nodata=nodataval,
+        compress=compression,
+        tiled=tiled,
+        bigtiff="YES",
+    ) as new_geotiff:
+        new_geotiff.write(array[0, :, :], 1)
+
+    # Convert deepbedmap3 and cubicbedmap2 from geotiff to netcdf format
+    if save_netcdf is True:
+        with xr.open_rasterio(f"{outfilepath}.tif") as dataset:
+            dataset.to_netcdf(f"{outfilepath}.nc")
+    else:
+        dataset = None
+
+    return dataset
+
+
+# %%
 # Gapfill REMA_100m_dem.tif with REMA_200m_dem_filled.tif
 if not os.path.exists("misc/REMA_100m_dem_filled.tif"):
     window_bound_big = rasterio.coords.BoundingBox(
@@ -772,19 +830,15 @@ if not os.path.exists("misc/REMA_100m_dem_filled.tif"):
     # fill in data gaps, i.e. where mask is True
     np.copyto(dst=array100, src=array200, where=array100.mask)
 
-    with rasterio.open(
-        "misc/REMA_100m_dem_filled.tif",
-        mode="w",
-        driver="GTiff",
-        height=array100.shape[0],
-        width=array100.shape[1],
-        count=1,
-        crs="EPSG:3031",
-        transform=rasterio.Affine(100, 0, -2700000, 0, -100, 2300000),
+    save_array_to_grid(
+        outfilepath="misc/REMA_100m_dem_filled",
+        window_bound=window_bound_big,
+        array=np.expand_dims(array100, axis=0),
         dtype=array100.dtype,
-        nodata=REMA200_filled.nodata,
-    ) as REMA100_filled:
-        REMA100_filled.write(array100, 1)
+        nodataval=REMA200_filled.nodata,
+        tiled=True,  # store data arranged as tiles instead of strips for easier tiling
+        compression=rasterio.enums.Compression.lzw.value,  # Lempel-Ziv-Welch, lossless
+    )
 
 # %%
 rema = selective_tile(

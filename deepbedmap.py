@@ -432,50 +432,12 @@ plt.show()
 # - Bilinear interpolated Synthetic High Res (originally 100m)
 
 # %%
-def save_array_to_grid(
-    window_bound: tuple, array: np.ndarray, outfilepath: str, dtype: str = None
-) -> xr.DataArray:
-    """
-    Saves a numpy array to geotiff and netcdf format according to
-    some bounding box window given as (minx, miny, maxx, maxy).
-    Appends ".tif" and ".nc" file extension to the outfilepath
-    for geotiff and netcdf outputs respectively.
-    Also returns an xarray.DataArray version of the resulting grid.
-    """
-
-    assert array.ndim == 4
-    assert array.shape[1] == 1  # check that there is only one channel
-
-    transform = rasterio.transform.from_bounds(
-        *window_bound, height=array.shape[2], width=array.shape[3]
-    )
-
-    # Save array as a GeoTiff first
-    with rasterio.open(
-        f"{outfilepath}.tif",
-        mode="w",
-        driver="GTiff",
-        height=array.shape[2],
-        width=array.shape[3],
-        count=1,
-        crs="EPSG:3031",
-        transform=transform,
-        dtype=array.dtype if dtype is None else dtype,
-        nodata=-2000,
-    ) as new_geotiff:
-        new_geotiff.write(array[0, 0, :, :], 1)
-
-    # Convert deepbedmap3 and cubicbedmap2 from geotiff to netcdf format
-    with xr.open_rasterio(f"{outfilepath}.tif") as dataset:
-        dataset.to_netcdf(f"{outfilepath}.nc")
-
-    return dataset
-
-
-# %%
 # Save BEDMAP3 to GeoTiff and NetCDF format
-deepbedmap3_grid = save_array_to_grid(
-    window_bound=window_bound, array=Y_hat, outfilepath="model/deepbedmap3"
+deepbedmap3_grid = data_prep.save_array_to_grid(
+    outfilepath="model/deepbedmap3",
+    window_bound=window_bound,
+    array=Y_hat[0, :, :, :],
+    save_netcdf=True,
 )
 deepbedmap3_grid = xr.DataArray(
     data=np.flipud(cupy.asnumpy(Y_hat[0, 0, :, :])),
@@ -486,12 +448,16 @@ deepbedmap3_grid = xr.DataArray(
 
 # %%
 # Save Bicubic Resampled BEDMAP2 to GeoTiff and NetCDF format
-_ = save_array_to_grid(
-    window_bound=window_bound, array=cubicbedmap2, outfilepath="model/cubicbedmap"
+_ = data_prep.save_array_to_grid(
+    outfilepath="model/cubicbedmap",
+    window_bound=window_bound,
+    array=cubicbedmap2[0, :, :, :],
 )
 # Save Billinear Resampled Synthetic High Resolution grid to GeoTiff and NetCDF format
-_ = save_array_to_grid(
-    window_bound=window_bound, array=synthetic250, outfilepath="model/synthetichr"
+_ = data_prep.save_array_to_grid(
+    outfilepath="model/synthetichr",
+    window_bound=window_bound,
+    array=synthetic250[0, :, :, :],
 )
 
 # %% [markdown]
@@ -714,12 +680,14 @@ if 1 == 1:
 
 # %%
 # Save BEDMAP3 to GeoTiff and NetCDF format
-# Using int16 instead of float32 to keep things smaller
-_ = save_array_to_grid(
+# Using LZW compression and int16 instead of float32 to keep things smaller
+_ = data_prep.save_array_to_grid(
     window_bound=window_bound_big,
-    array=np.expand_dims(Y_hat.astype(dtype=np.int16), axis=0),
+    array=Y_hat.astype(dtype=np.int16),
     outfilepath="model/deepbedmap3_big_int16",
     dtype=np.int16,
+    tiled=True,
+    compression=rasterio.enums.Compression.lzw.value,  # Lempel-Ziv-Welch, lossless
 )
 
 # %% [markdown]
