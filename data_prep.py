@@ -404,12 +404,11 @@ def xyz_to_grid(
     >>> region = get_region(xyz_data=xyz_data)
     >>> grid = xyz_to_grid(xyz_data=xyz_data, region=region, spacing=250)
     >>> grid.to_array().shape
-    (1, 4, 4)
+    (1, 3, 3)
     >>> grid.to_array().values
-    array([[[135.95927, 294.8152 , 615.32513, 706.4135 ],
-            [224.46773, 191.75693, 298.87057, 521.85254],
-            [242.41916, 149.34332, 430.84137, 603.4236 ],
-            [154.60516, 194.24237, 447.6185 , 645.13574]]], dtype=float32)
+    array([[[208.90086, 324.8038 , 515.93726],
+            [180.06642, 234.68915, 452.8586 ],
+            [170.60728, 298.23764, 537.49774]]], dtype=float32)
     """
     ## Preprocessing with blockmedian
     with gmt.helpers.GMTTempFile(suffix=".txt") as tmpfile:
@@ -439,6 +438,21 @@ def xyz_to_grid(
     if outfile is not None:
         # TODO add CRS!! See https://github.com/pydata/xarray/issues/2288
         grid.to_netcdf(path=outfile)
+
+    ## Resample grid from gridline to pixel registration
+    with gmt.helpers.GMTTempFile(suffix=".nc") as tmpfile:
+        with gmt.clib.Session() as lib:
+            if outfile is not None:  # kind == "file"
+                file_context = gmt.helpers.dummy_context(outfile)
+            else:  # kind == "grid"
+                file_context = lib.virtualfile_from_grid(grid.z)
+                outfile = tmpfile.name
+            with file_context as infile:
+                kwargs = {"T": "", "G": f"{outfile}"}
+                arg_str = " ".join([infile, gmt.helpers.build_arg_string(kwargs)])
+                lib.call_module(module="grdsample", args=arg_str)
+            with xr.open_dataset(outfile) as dataset:
+                grid = dataset.load()
 
     return grid
 
@@ -603,11 +617,14 @@ def selective_tile(
     padding: int = 0,  # in projected coordinate system units, e.g. 1000 for 1km
     resolution: float = None,  # spatial resolution, e.g. 500 for 500m
     gapfiller: float = None,  # number to fill in NaNs, e.g. 0
+    interpolate: bool = True,  # resample grid correct bounds, else just use slicing
 ) -> np.ndarray:
     """
     Reads in a raster and tiles them selectively according to list of window_bounds in
     the form of (xmin, ymin, xmax, ymax), optionally extended by some padding length.
-    The images will be bilinearly interpolated/geo-registered to match the exact bounds.
+    The images will be bilinearly interpolated/geo-registered to match the exact bounds
+    by default, else set interpolate=False to simply use direct slicing, recommended
+    only if you are confident that the bounding boxes will cut the grid directly.
     A resolution can be optionally set to e.g. 500 to resample the raster tiles to some
     desired spatial resolution/shape.
     Gaps in the main raster can be filled by passing in a number to gapfiller.
@@ -655,16 +672,25 @@ def selective_tile(
         x_length = int((window_bounds[0].right - window_bounds[0].left) / resolution)
 
         # Subset dataset according to window bound (wb)
+        if interpolate:
+            subset_func = dask.delayed(
+                lambda y, x: dataset.interp(y=y, x=x, method="linear")
+            )
+        else:
+            subset_func = dask.delayed(
+                lambda y, x: dataset.sel(y=y, x=x, method="nearest", tolerance=0)
+            )
+
         daarray_list = []
         for wb in window_bounds:
             # Interpolation (billinear)
             new_y = np.linspace(wb.top - halfpix, wb.bottom + halfpix, num=y_length)
             new_x = np.linspace(wb.left + halfpix, wb.right - halfpix, num=x_length)
-            da_interpolated = dask.delayed(dataset.interp)({"y": new_y, "x": new_x})
+            da_subset = subset_func(y=new_y, x=new_x)
 
             # Mask NaN values, if the NaN value is 'nan' itself, we convert to small num
             da_masked = dask.delayed(dask.array.ma.masked_values)(
-                x=da_interpolated,
+                x=da_subset,
                 value=np.nan_to_num(dataset.nodatavals[0], nan=np.nan_to_num(-np.inf)),
             )
             daarray_list.append(da_masked)
@@ -721,7 +747,7 @@ window_bounds_concat = np.concatenate([w for w in window_bounds]).tolist()
 
 # %%
 hireses = [
-    selective_tile(filepath=f"highres/{f}", window_bounds=w)
+    selective_tile(filepath=f"highres/{f}", window_bounds=w, interpolate=False)
     for f, w in zip(filepaths, window_bounds)
 ]
 hires = np.concatenate(hireses)
