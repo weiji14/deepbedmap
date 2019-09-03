@@ -42,6 +42,7 @@ def step_impl(context):
     assert context.Y_hat.ndim == 4
 
     # Check that High Resolution output shape (DeepBedMap) divided by
-    # Low Resolution input shape (BEDMAP2) is exactly equal to 4
-    assert context.Y_hat.shape[2] / context.X_tile.shape[2] == 4.0
-    assert context.Y_hat.shape[3] / context.X_tile.shape[3] == 4.0
+    # Low Resolution input shape (BEDMAP2) minus 2 pixels (1km on each side)
+    # of padding is exactly equal to 4
+    assert context.Y_hat.shape[2] / (context.X_tile.shape[2] - 2) == 4.0
+    assert context.Y_hat.shape[3] / (context.X_tile.shape[3] - 2) == 4.0

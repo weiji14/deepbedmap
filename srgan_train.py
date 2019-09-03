@@ -86,7 +86,7 @@ if cupy.is_available():
 # %%
 def load_data_into_memory(
     redownload: bool = True,
-    quilt_hash: str = "c7d55c1c971f9c2975236de38555bc9524b442c3c03586698668159b6464e6ef",
+    quilt_hash: str = "e11988479975a091dd52e44b142370c37a03409f41cb6fec54fd7382ee1f99bc",
 ) -> (chainer.datasets.dict_dataset.DictDataset, str):
     """
     Downloads the prepackaged tiled data from quilt based on a hash,
@@ -183,19 +183,19 @@ def get_train_dev_iterators(
 # %% [markdown]
 # ### 2.1.1 Input block, specially customized for DeepBedMap to take in 3 different inputs
 #
-# Details of the first convolutional layer for each input *:
+# Details of the first convolutional layer for each input:
 #
-# - Input tiles are 9000m by 9000m.
+# - Input tiles are 11000m by 11000m.
 # - Convolution filter kernels are 4000m by 4000m.
 # - Strides are 1000m by 1000m.
 #
 # Example: for a 100m spatial resolution tile:
 #
-# - Input tile is 90pixels by 90pixels
+# - Input tile is 110pixels by 110pixels
 # - Convolution filter kernels are 40pixels by 40pixels
 # - Strides are 10pixels by 10pixels
 #
-# \* Note: The MEaSUREs Ice Velocity layer has a slightly different setup due to its awkward 450m spatial resolution.
+# Note that the first convolutional layers uses **valid** padding, see https://github.com/weiji14/deepbedmap/pull/65.
 
 # %%
 class DeepbedmapInputBlock(chainer.Chain):
@@ -205,17 +205,14 @@ class DeepbedmapInputBlock(chainer.Chain):
     MEaSUREs Ice Surface Velocity x and y components (W2) and Snow Accumulation (W3).
     Passes them through custom-sized convolutions, with the results being concatenated.
 
-    Each filter kernel is 4km by 4km in size, with a 1km stride and 1km padding.
+    Each filter kernel is 4km by 4km in size, with a 1km stride and no padding.
     So for a 1km resolution image, (i.e. 1km pixel size):
-    kernel size is (4, 4), stride is (1, 1), and pad is (1, 1)
+    kernel size is (4, 4), stride is (1, 1), and pad is (0, 0)
 
-    Note that the W2 MEaSUREs Ice Velocity dataset has an awkward resolution of 450m,
-    so we resize it to a resolution of 500m first before doing the convolution.
-
-    X  (?,1,9,9)  --Conv2D-- (?,32,8,8)  \
-    W1 (?,1,90,90) --Conv2D-- (?,32,8,8) --Concat-- (?,128,8,8)
-    W2 (?,2,20,20) --Conv2D-- (?,32,8,8) /
-    W3 (?,1,9,9)  --Conv2D-- (?,32,8,8) /
+    X  (?,1,11,11)  --Conv2D-- (?,32,8,8) \
+    W1 (?,1,110,110) --Conv2D-- (?,32,8,8) --Concat-- (?,128,8,8)
+    W2 (?,2,22,22)  --Conv2D-- (?,32,8,8) /
+    W3 (?,1,11,11) --Conv2D-- (?,32,8,8) /
     """
 
     def __init__(self, out_channels=32):
@@ -228,7 +225,7 @@ class DeepbedmapInputBlock(chainer.Chain):
                 out_channels=out_channels,
                 ksize=(4, 4),
                 stride=(1, 1),
-                pad=(1, 1),  # 'same-ish' padding
+                pad=(0, 0),  # 'valid' padding
                 initialW=init_weights,
             )
             self.conv_on_W1 = L.Convolution2D(
@@ -236,7 +233,7 @@ class DeepbedmapInputBlock(chainer.Chain):
                 out_channels=out_channels,
                 ksize=(40, 40),
                 stride=(10, 10),
-                pad=(10, 10),  # 'same-ish' padding
+                pad=(0, 0),  # 'valid' padding
                 initialW=init_weights,
             )
             self.conv_on_W2 = L.Convolution2D(
@@ -244,7 +241,7 @@ class DeepbedmapInputBlock(chainer.Chain):
                 out_channels=out_channels,
                 ksize=(8, 8),
                 stride=(2, 2),
-                pad=(2, 2),  # 'same-ish' padding
+                pad=(0, 0),  # 'valid' padding
                 initialW=init_weights,
             )
             self.conv_on_W3 = L.Convolution2D(
@@ -252,7 +249,7 @@ class DeepbedmapInputBlock(chainer.Chain):
                 out_channels=out_channels,
                 ksize=(4, 4),
                 stride=(1, 1),
-                pad=(1, 1),  # 'same-ish' padding
+                pad=(0, 0),  # 'valid' padding
                 initialW=init_weights,
             )
 
@@ -262,10 +259,7 @@ class DeepbedmapInputBlock(chainer.Chain):
         """
         x_ = self.conv_on_X(x)
         w1_ = self.conv_on_W1(w1)
-        w2_resized = F.resize_images(
-            x=w2, output_shape=(0.9 * w2.shape[-2], 0.9 * w2.shape[-1]), mode="bilinear"
-        )
-        w2_ = self.conv_on_W2(w2_resized)
+        w2_ = self.conv_on_W2(w2)
         w3_ = self.conv_on_W3(w3)
 
         a = F.concat(xs=(x_, w1_, w2_, w3_))
@@ -340,7 +334,6 @@ class ResidualDenseBlock(chainer.Chain):
         """
         Forward computation, i.e. evaluate based on input x
         """
-
         a0 = x
 
         a1 = self.conv_layer1(a0)
@@ -381,10 +374,7 @@ class ResInResDenseBlock(chainer.Chain):
     """
 
     def __init__(
-        self,
-        denseblock_class=ResidualDenseBlock,
-        out_channels: int = 64,
-        residual_scaling: float = 0.2,
+        self, denseblock_class=ResidualDenseBlock, residual_scaling: float = 0.2
     ):
         super().__init__()
         self.residual_scaling = residual_scaling
@@ -417,13 +407,13 @@ class ResInResDenseBlock(chainer.Chain):
 # %% [markdown]
 # ### 2.1.3 Build the Generator Network, with upsampling layers!
 #
-# ![4 inputs feeding into the Generator Network, producing a high resolution prediction output](https://yuml.me/df9919c6.png)
+# ![4 inputs feeding into the Generator Network, producing a high resolution prediction output](https://yuml.me/23101656.png)
 #
 # <!--
-# [W3_input(ACCUMULATION)|1x9x9]-k4n32s1>[W3_inter|32x8x8],[W3_inter]->[Concat|128x8x8]
-# [W2_input(MEASURES)|2x20x20]-bilinear_resize>[W2_resized|2x18x18],[W2_resized]-k8n32s2>[W2_inter|32x8x8],[W2_inter]->[Concat|128x8x8]
-# [W1_input(REMA)|1x90x90]-k40n32s10>[W1_inter|32x8x8],[W1_inter]->[Concat|128x8x8]
-# [X_input(BEDMAP2)|1x9x9]-k4n32s1>[X_inter|32x8x8],[X_inter]->[Concat|128x8x8]
+# [W3_input(ACCUMULATION)|1x11x11]-k4n32s1>[W3_inter|32x8x8],[W3_inter]->[Concat|128x8x8]
+# [W2_input(MEASURES)|2x22x22]-k8n32s2>[W2_inter|32x8x8],[W2_inter]->[Concat|128x8x8]
+# [W1_input(REMA)|1x110x110]-k40n32s10>[W1_inter|32x8x8],[W1_inter]->[Concat|128x8x8]
+# [X_input(BEDMAP2)|1x11x11]-k4n32s1>[X_inter|32x8x8],[X_inter]->[Concat|128x8x8]
 # [Concat|8x8x128]->[Generator-Network|Many-Residual-Blocks],[Generator-Network]->[Y_hat(High-Resolution_DEM)|1x36x36]
 # -->
 
@@ -441,15 +431,15 @@ class GeneratorModel(chainer.Chain):
       out_channels -- integer representing number of output channels/filters/kernels
 
     Example:
-      An input_shape of (9,9,1) passing through 12 residual blocks with a scaling of 4
-      and output_channels 1 will result in an image of shape (36,36,1)
+      A convolved input_shape of (9,9,1) passing through b residual blocks with
+      a scaling of 4 and out_channels 1 will result in an image of shape (36,36,1)
 
     >>> generator_model = GeneratorModel()
     >>> y_pred = generator_model.forward(
-    ...     x=np.random.rand(1, 1, 9, 9).astype("float32"),
-    ...     w1=np.random.rand(1, 1, 90, 90).astype("float32"),
-    ...     w2=np.random.rand(1, 2, 20, 20).astype("float32"),
-    ...     w3=np.random.rand(1, 1, 9, 9).astype("float32"),
+    ...     x=np.random.rand(1, 1, 11, 11).astype("float32"),
+    ...     w1=np.random.rand(1, 1, 110, 110).astype("float32"),
+    ...     w2=np.random.rand(1, 2, 22, 22).astype("float32"),
+    ...     w3=np.random.rand(1, 1, 11, 11).astype("float32"),
     ... )
     >>> y_pred.shape
     (1, 1, 36, 36)
@@ -1060,10 +1050,10 @@ def train_eval_discriminator(
     - Discriminator trained with these images and their Fake(0)/Real(1) labels
 
     >>> train_arrays = {
-    ...     "X": np.random.RandomState(seed=42).rand(2, 1, 9, 9).astype(np.float32),
-    ...     "W1": np.random.RandomState(seed=42).rand(2, 1, 90, 90).astype(np.float32),
-    ...     "W2": np.random.RandomState(seed=42).rand(2, 2, 20, 20).astype(np.float32),
-    ...     "W3": np.random.RandomState(seed=42).rand(2, 1, 9, 9).astype(np.float32),
+    ...     "X": np.random.RandomState(seed=42).rand(2, 1, 11, 11).astype(np.float32),
+    ...     "W1": np.random.RandomState(seed=42).rand(2, 1, 110, 110).astype(np.float32),
+    ...     "W2": np.random.RandomState(seed=42).rand(2, 2, 22, 22).astype(np.float32),
+    ...     "W3": np.random.RandomState(seed=42).rand(2, 1, 11, 11).astype(np.float32),
     ...     "Y": np.random.RandomState(seed=42).rand(2, 1, 36, 36).astype(np.float32),
     ... }
     >>> discriminator_model = DiscriminatorModel()
@@ -1149,10 +1139,10 @@ def train_eval_generator(
     - Generator is trained to be more like real image
 
     >>> train_arrays = {
-    ...     "X": np.random.RandomState(seed=42).rand(2, 1, 9, 9).astype(np.float32),
-    ...     "W1": np.random.RandomState(seed=42).rand(2, 1, 90, 90).astype(np.float32),
-    ...     "W2": np.random.RandomState(seed=42).rand(2, 2, 20, 20).astype(np.float32),
-    ...     "W3": np.random.RandomState(seed=42).rand(2, 1, 9, 9).astype(np.float32),
+    ...     "X": np.random.RandomState(seed=42).rand(2, 1, 11, 11).astype(np.float32),
+    ...     "W1": np.random.RandomState(seed=42).rand(2, 1, 110, 110).astype(np.float32),
+    ...     "W2": np.random.RandomState(seed=42).rand(2, 2, 22, 22).astype(np.float32),
+    ...     "W3": np.random.RandomState(seed=42).rand(2, 1, 11, 11).astype(np.float32),
     ...     "Y": np.random.RandomState(seed=42).rand(2, 1, 36, 36).astype(np.float32),
     ... }
     >>> generator_model = GeneratorModel()
@@ -1206,7 +1196,7 @@ def train_eval_generator(
         fake_minus_real_target=fake_minus_real_target,  # where 1 (fake) - 0 (real) = 1 (target)
         real_minus_fake_target=real_minus_fake_target,  # where 0 (real) - 1 (fake) = 0 (target)?
         # topographic loss inputs, 2D image of low resolution input
-        x_topo=input_arrays["X"],
+        x_topo=input_arrays["X"][:, :, 1:-1, 1:-1],  # sliced to remove 1km borders
     )
     g_psnr = psnr(y_pred=fake_images.array, y_true=real_images)
 
@@ -1319,10 +1309,10 @@ def save_model_weights_and_architecture(
         _ = onnx_chainer.export(
             model=trained_model,
             args={
-                "x": trained_model.xp.random.rand(128, 1, 9, 9).astype("float32"),
-                "w1": trained_model.xp.random.rand(128, 1, 90, 90).astype("float32"),
-                "w2": trained_model.xp.random.rand(128, 2, 20, 20).astype("float32"),
-                "w3": trained_model.xp.random.rand(128, 1, 9, 9).astype("float32"),
+                "x": trained_model.xp.random.rand(128, 1, 11, 11).astype("float32"),
+                "w1": trained_model.xp.random.rand(128, 1, 110, 110).astype("float32"),
+                "w2": trained_model.xp.random.rand(128, 2, 22, 22).astype("float32"),
+                "w3": trained_model.xp.random.rand(128, 1, 11, 11).astype("float32"),
             },
             filename=model_architecture_path,
             export_params=False,
@@ -1343,7 +1333,7 @@ def save_model_weights_and_architecture(
 def get_deepbedmap_test_result(
     model=None,
     test_filepath: str = "highres/2007tx",
-    indexers: dict = None,  # custom index-based crop e.g. {"x": slice(1, -1), "y": slice(1, -1)}
+    indexers: dict = {"y": slice(1, -2), "x": slice(1, -2)},  # custom index-based crop
     model_weights_path: str = "model/weights/srgan_generator_model_weights.npz",
 ) -> (float, xr.DataArray):
     """
@@ -1411,8 +1401,8 @@ def objective(
             "batch_size_exponent": 7,
             "num_residual_blocks": 12,
             "residual_scaling": 0.2,
-            "learning_rate": 8e-5,
-            "num_epochs": 90,
+            "learning_rate": 9e-5,
+            "num_epochs": 45,
         }
     ),
     enable_livelossplot: bool = False,  # Default: False, no plots makes it go faster!
@@ -1465,7 +1455,7 @@ def objective(
         name="num_residual_blocks", low=12, high=14
     )
     residual_scaling: float = trial.suggest_discrete_uniform(
-        name="residual_scaling", low=0.45, high=0.6, q=0.05
+        name="residual_scaling", low=0.1, high=0.6, q=0.05
     )
     learning_rate: float = trial.suggest_discrete_uniform(
         name="learning_rate", high=1.4e-4, low=9.0e-5, q=0.5e-5
@@ -1583,9 +1573,9 @@ def objective(
 
 
 # %%
-n_trials = 30
+n_trials = 1
 if n_trials == 1:  # run training once only, i.e. just test the objective function
-    objective(enable_livelossplot=True, enable_comet_logging=False)
+    objective(enable_livelossplot=True, enable_comet_logging=True)
 elif n_trials > 1:  # perform hyperparameter tuning with multiple experimental trials
     # Set different seed using len($HOSTNAME) + GPU_ID
     tpe_seed = len(os.uname().nodename) + int(

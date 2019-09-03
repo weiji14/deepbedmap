@@ -3,36 +3,6 @@ producer_name: "Chainer"
 producer_version: "7.0.0b2"
 graph {
   node {
-    output: "ResizeImages_0_const_scales"
-    name: "ResizeImages_0"
-    op_type: "Constant"
-    attribute {
-      name: "value"
-      t {
-        dims: 4
-        data_type: 1
-        float_data: 1.0
-        float_data: 1.0
-        float_data: 0.8999999761581421
-        float_data: 0.8999999761581421
-        name: "ResizeImages_0_const_scales"
-      }
-      type: TENSOR
-    }
-  }
-  node {
-    input: "Input_2"
-    input: "ResizeImages_0_const_scales"
-    output: "ResizeImages_0"
-    name: "ResizeImages_0"
-    op_type: "Resize"
-    attribute {
-      name: "mode"
-      s: "linear"
-      type: STRING
-    }
-  }
-  node {
     input: "Input_3"
     input: "param_input_block_conv_on_W3_W"
     input: "param_input_block_conv_on_W3_b"
@@ -58,10 +28,10 @@ graph {
     }
     attribute {
       name: "pads"
-      ints: 1
-      ints: 1
-      ints: 1
-      ints: 1
+      ints: 0
+      ints: 0
+      ints: 0
+      ints: 0
       type: INTS
     }
     attribute {
@@ -72,9 +42,9 @@ graph {
     }
   }
   node {
-    input: "Input_1"
-    input: "param_input_block_conv_on_W1_W"
-    input: "param_input_block_conv_on_W1_b"
+    input: "Input_2"
+    input: "param_input_block_conv_on_W2_W"
+    input: "param_input_block_conv_on_W2_b"
     output: "Convolution2DFunction_1"
     name: "Convolution2DFunction_1"
     op_type: "Conv"
@@ -91,29 +61,29 @@ graph {
     }
     attribute {
       name: "kernel_shape"
-      ints: 40
-      ints: 40
+      ints: 8
+      ints: 8
       type: INTS
     }
     attribute {
       name: "pads"
-      ints: 10
-      ints: 10
-      ints: 10
-      ints: 10
+      ints: 0
+      ints: 0
+      ints: 0
+      ints: 0
       type: INTS
     }
     attribute {
       name: "strides"
-      ints: 10
-      ints: 10
+      ints: 2
+      ints: 2
       type: INTS
     }
   }
   node {
-    input: "Input_0"
-    input: "param_input_block_conv_on_X_W"
-    input: "param_input_block_conv_on_X_b"
+    input: "Input_1"
+    input: "param_input_block_conv_on_W1_W"
+    input: "param_input_block_conv_on_W1_b"
     output: "Convolution2DFunction_2"
     name: "Convolution2DFunction_2"
     op_type: "Conv"
@@ -130,29 +100,29 @@ graph {
     }
     attribute {
       name: "kernel_shape"
-      ints: 4
-      ints: 4
+      ints: 40
+      ints: 40
       type: INTS
     }
     attribute {
       name: "pads"
-      ints: 1
-      ints: 1
-      ints: 1
-      ints: 1
+      ints: 0
+      ints: 0
+      ints: 0
+      ints: 0
       type: INTS
     }
     attribute {
       name: "strides"
-      ints: 1
-      ints: 1
+      ints: 10
+      ints: 10
       type: INTS
     }
   }
   node {
-    input: "ResizeImages_0"
-    input: "param_input_block_conv_on_W2_W"
-    input: "param_input_block_conv_on_W2_b"
+    input: "Input_0"
+    input: "param_input_block_conv_on_X_W"
+    input: "param_input_block_conv_on_X_b"
     output: "Convolution2DFunction_3"
     name: "Convolution2DFunction_3"
     op_type: "Conv"
@@ -169,29 +139,29 @@ graph {
     }
     attribute {
       name: "kernel_shape"
-      ints: 8
-      ints: 8
+      ints: 4
+      ints: 4
       type: INTS
     }
     attribute {
       name: "pads"
-      ints: 2
-      ints: 2
-      ints: 2
-      ints: 2
+      ints: 0
+      ints: 0
+      ints: 0
+      ints: 0
       type: INTS
     }
     attribute {
       name: "strides"
-      ints: 2
-      ints: 2
+      ints: 1
+      ints: 1
       type: INTS
     }
   }
   node {
+    input: "Convolution2DFunction_3"
     input: "Convolution2DFunction_2"
     input: "Convolution2DFunction_1"
-    input: "Convolution2DFunction_3"
     input: "Convolution2DFunction_0"
     output: "Concat_0"
     name: "Concat_0"
@@ -12230,8 +12200,8 @@ graph {
     }
   }
   node {
-    output: "ResizeImages_1_const_scales"
-    name: "ResizeImages_1"
+    output: "ResizeImages_0_const_scales"
+    name: "ResizeImages_0"
     op_type: "Constant"
     attribute {
       name: "value"
@@ -12242,16 +12212,16 @@ graph {
         float_data: 1.0
         float_data: 2.0
         float_data: 2.0
-        name: "ResizeImages_1_const_scales"
+        name: "ResizeImages_0_const_scales"
       }
       type: TENSOR
     }
   }
   node {
     input: "Convolution2DFunction_186"
-    input: "ResizeImages_1_const_scales"
-    output: "ResizeImages_1"
-    name: "ResizeImages_1"
+    input: "ResizeImages_0_const_scales"
+    output: "ResizeImages_0"
+    name: "ResizeImages_0"
     op_type: "Resize"
     attribute {
       name: "mode"
@@ -12260,7 +12230,7 @@ graph {
     }
   }
   node {
-    input: "ResizeImages_1"
+    input: "ResizeImages_0"
     input: "param_post_upsample_conv_layer_1_W"
     input: "param_post_upsample_conv_layer_1_b"
     output: "Convolution2DFunction_187"
@@ -12310,8 +12280,8 @@ graph {
     }
   }
   node {
-    output: "ResizeImages_2_const_scales"
-    name: "ResizeImages_2"
+    output: "ResizeImages_1_const_scales"
+    name: "ResizeImages_1"
     op_type: "Constant"
     attribute {
       name: "value"
@@ -12322,16 +12292,16 @@ graph {
         float_data: 1.0
         float_data: 2.0
         float_data: 2.0
-        name: "ResizeImages_2_const_scales"
+        name: "ResizeImages_1_const_scales"
       }
       type: TENSOR
     }
   }
   node {
     input: "LeakyReLU_145"
-    input: "ResizeImages_2_const_scales"
-    output: "ResizeImages_2"
-    name: "ResizeImages_2"
+    input: "ResizeImages_1_const_scales"
+    output: "ResizeImages_1"
+    name: "ResizeImages_1"
     op_type: "Resize"
     attribute {
       name: "mode"
@@ -12340,7 +12310,7 @@ graph {
     }
   }
   node {
-    input: "ResizeImages_2"
+    input: "ResizeImages_1"
     input: "param_post_upsample_conv_layer_2_W"
     input: "param_post_upsample_conv_layer_2_b"
     output: "Convolution2DFunction_188"
@@ -19177,10 +19147,10 @@ graph {
             dim_value: 1
           }
           dim {
-            dim_value: 9
+            dim_value: 11
           }
           dim {
-            dim_value: 9
+            dim_value: 11
           }
         }
       }
@@ -19199,10 +19169,10 @@ graph {
             dim_value: 1
           }
           dim {
-            dim_value: 90
+            dim_value: 110
           }
           dim {
-            dim_value: 90
+            dim_value: 110
           }
         }
       }
@@ -19221,10 +19191,10 @@ graph {
             dim_value: 2
           }
           dim {
-            dim_value: 20
+            dim_value: 22
           }
           dim {
-            dim_value: 20
+            dim_value: 22
           }
         }
       }
@@ -19243,10 +19213,10 @@ graph {
             dim_value: 1
           }
           dim {
-            dim_value: 9
+            dim_value: 11
           }
           dim {
-            dim_value: 9
+            dim_value: 11
           }
         }
       }
