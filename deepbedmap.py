@@ -113,9 +113,11 @@ def get_image_with_bounds(filepaths: list, indexers: dict = None) -> xr.DataArra
 test_filepaths = ["highres/2007tx"]  # , "highres/2010tr", "highres/istarxx"]
 groundtruth = get_image_with_bounds(
     filepaths=[f"{t}.nc" for t in test_filepaths],
-    indexers=None,  # for 2007tx
-    # indexers={"y": slice(0, -1)},  # for 2007tx, 2010tr and istarxx
+    indexers={"y": slice(1, -2), "x": slice(1, -2)},  # for 2007tx
+    # indexers={"x": slice(1, -2)},  # for 2007tx, 2010tr and istarxx
 )
+window_bound = groundtruth.bounds
+print(window_bound)
 
 # %% [markdown]
 # ## 1.2 Get neural network input datasets
@@ -125,7 +127,7 @@ groundtruth = get_image_with_bounds(
 
 # %%
 def get_deepbedmap_model_inputs(
-    window_bound: rasterio.coords.BoundingBox, padding=0
+    window_bound: rasterio.coords.BoundingBox, padding=1000
 ) -> (np.ndarray, np.ndarray, np.ndarray, np.ndarray):
     """
     Outputs one large tile for each of:
@@ -137,14 +139,12 @@ def get_deepbedmap_model_inputs(
     X_tile = data_prep.selective_tile(
         filepath="lowres/bedmap2_bed.tif",
         window_bounds=[[*window_bound]],
-        # out_shape=None,  # 1000m spatial resolution
         padding=padding,
         gapfiller=-5000.0,
     )
     W3_tile = data_prep.selective_tile(
         filepath="misc/Arthern_accumulation_bedmap2_grid1.tif",
         window_bounds=[[*window_bound]],
-        # out_shape=None,  # 1000m spatial resolution
         padding=padding,
         gapfiller=0.0,
     )
@@ -153,38 +153,35 @@ def get_deepbedmap_model_inputs(
             data_prep.selective_tile(
                 filepath="netcdf:misc/antarctic_ice_vel_phase_map_v01.nc:VX",
                 window_bounds=[[*window_bound]],
-                # out_shape=None,  # 450m spatial resolution
+                resolution=500,
                 padding=padding,
             ),
             data_prep.selective_tile(
                 filepath="netcdf:misc/antarctic_ice_vel_phase_map_v01.nc:VY",
                 window_bounds=[[*window_bound]],
-                # out_shape=None,  # 450m spatial resolution
+                resolution=500,
                 padding=padding,
             ),
         ],
         axis=1,
     )
-    W1_tile = data_prep.selective_tile_old(
-        filepath="misc/REMA_100m_dem.tif",
+    W1_tile = data_prep.selective_tile(
+        filepath="misc/REMA_100m_dem_filled.tif",
         window_bounds=[[*window_bound]],
-        # out_shape=(X_tile.shape[2] / 10, X_tile.shape[3] / 10),  # 100m spatial resolution
         padding=padding,
-        gapfill_raster_filepath="misc/REMA_200m_dem_filled.tif",
     )
 
     return X_tile, W1_tile, W2_tile, W3_tile
 
 
 # %%
-window_bound = groundtruth.bounds
 X_tile, W1_tile, W2_tile, W3_tile = get_deepbedmap_model_inputs(
     window_bound=window_bound
 )
 print(X_tile.shape, W1_tile.shape, W2_tile.shape, W3_tile.shape)
 
 # Build quilt package for datasets covering our test region
-reupload = False
+reupload = True
 if reupload == True:
     quilt.build(package="weiji14/deepbedmap/model/test/W1_tile", path=W1_tile)
     quilt.build(package="weiji14/deepbedmap/model/test/W2_tile", path=W2_tile)
@@ -292,7 +289,7 @@ plt.show()
 
 # %%
 cubicbedmap2 = skimage.transform.rescale(
-    image=X_tile[0, 0, :, :].astype(np.int32),
+    image=X_tile[0, 0, 1:-1, 1:-1].astype(np.int32),
     scale=4,  # 4x upscaling
     order=3,  # cubic interpolation
     mode="reflect",
@@ -305,7 +302,7 @@ print(cubicbedmap2.shape)
 
 # %%
 S_tile = data_prep.selective_tile(
-    filepath="model/hres.tif", window_bounds=[[*window_bound]]
+    filepath="model/hres.tif", window_bounds=[[*window_bound]], interpolate=False
 )
 print(S_tile.shape)
 synthetic250 = skimage.transform.rescale(
@@ -334,7 +331,7 @@ print(synthetic250.shape)
 
 # %%
 def load_trained_model(
-    experiment_key: str = "13ce79f397214197a331488db41ebf7c",  # or simply use "latest"
+    experiment_key: str = "6b6343ce1b9e4ae08486d8ea0260c1ec",  # or simply use "latest"
     model_weights_path: str = "model/weights/srgan_generator_model_weights.npz",
 ):
     """
@@ -433,50 +430,12 @@ plt.show()
 # - Bilinear interpolated Synthetic High Res (originally 100m)
 
 # %%
-def save_array_to_grid(
-    window_bound: tuple, array: np.ndarray, outfilepath: str, dtype: str = None
-) -> xr.DataArray:
-    """
-    Saves a numpy array to geotiff and netcdf format according to
-    some bounding box window given as (minx, miny, maxx, maxy).
-    Appends ".tif" and ".nc" file extension to the outfilepath
-    for geotiff and netcdf outputs respectively.
-    Also returns an xarray.DataArray version of the resulting grid.
-    """
-
-    assert array.ndim == 4
-    assert array.shape[1] == 1  # check that there is only one channel
-
-    transform = rasterio.transform.from_bounds(
-        *window_bound, height=array.shape[2], width=array.shape[3]
-    )
-
-    # Save array as a GeoTiff first
-    with rasterio.open(
-        f"{outfilepath}.tif",
-        mode="w",
-        driver="GTiff",
-        height=array.shape[2],
-        width=array.shape[3],
-        count=1,
-        crs="EPSG:3031",
-        transform=transform,
-        dtype=array.dtype if dtype is None else dtype,
-        nodata=-2000,
-    ) as new_geotiff:
-        new_geotiff.write(array[0, 0, :, :], 1)
-
-    # Convert deepbedmap3 and cubicbedmap2 from geotiff to netcdf format
-    with xr.open_rasterio(f"{outfilepath}.tif") as dataset:
-        dataset.to_netcdf(f"{outfilepath}.nc")
-
-    return dataset
-
-
-# %%
 # Save BEDMAP3 to GeoTiff and NetCDF format
-deepbedmap3_grid = save_array_to_grid(
-    window_bound=window_bound, array=Y_hat, outfilepath="model/deepbedmap3"
+deepbedmap3_grid = data_prep.save_array_to_grid(
+    outfilepath="model/deepbedmap3",
+    window_bound=window_bound,
+    array=Y_hat[0, :, :, :],
+    save_netcdf=True,
 )
 deepbedmap3_grid = xr.DataArray(
     data=np.flipud(cupy.asnumpy(Y_hat[0, 0, :, :])),
@@ -487,12 +446,16 @@ deepbedmap3_grid = xr.DataArray(
 
 # %%
 # Save Bicubic Resampled BEDMAP2 to GeoTiff and NetCDF format
-_ = save_array_to_grid(
-    window_bound=window_bound, array=cubicbedmap2, outfilepath="model/cubicbedmap"
+_ = data_prep.save_array_to_grid(
+    outfilepath="model/cubicbedmap",
+    window_bound=window_bound,
+    array=cubicbedmap2[0, :, :, :],
 )
 # Save Billinear Resampled Synthetic High Resolution grid to GeoTiff and NetCDF format
-_ = save_array_to_grid(
-    window_bound=window_bound, array=synthetic250, outfilepath="model/synthetichr"
+_ = data_prep.save_array_to_grid(
+    outfilepath="model/synthetichr",
+    window_bound=window_bound,
+    array=synthetic250[0, :, :, :],
 )
 
 # %% [markdown]
@@ -715,12 +678,14 @@ if 1 == 1:
 
 # %%
 # Save BEDMAP3 to GeoTiff and NetCDF format
-# Using int16 instead of float32 to keep things smaller
-_ = save_array_to_grid(
+# Using LZW compression and int16 instead of float32 to keep things smaller
+_ = data_prep.save_array_to_grid(
     window_bound=window_bound_big,
-    array=np.expand_dims(Y_hat.astype(dtype=np.int16), axis=0),
+    array=Y_hat.astype(dtype=np.int16),
     outfilepath="model/deepbedmap3_big_int16",
     dtype=np.int16,
+    tiled=True,
+    compression=rasterio.enums.Compression.lzw.value,  # Lempel-Ziv-Welch, lossless
 )
 
 # %% [markdown]
