@@ -1,5 +1,4 @@
 from behave import given, when, then
-import quilt
 import rasterio
 
 
@@ -13,17 +12,9 @@ def window_view_of_Antarctica(context, bounding_box):
 
 @when("we gather low and high resolution images related to that view")
 def get_model_input_raster_images(context):
-    # TODO refactor code below that is hardcoded for a particular test region
-    if context.window_bound == rasterio.coords.BoundingBox(
-        left=-1_594_375.0, bottom=-166_875.0, right=-1_574_375.0, top=-94_875.0
-    ):
-        quilt.install(package="weiji14/deepbedmap/model/test", force=True)
-        pkg = quilt.load(pkginfo="weiji14/deepbedmap/model/test")
-        input_tiles = pkg.X_tile(), pkg.W1_tile(), pkg.W2_tile(), pkg.W3_tile()
-    else:
-        input_tiles = context.deepbedmap.get_deepbedmap_model_inputs(
-            window_bound=context.window_bound
-        )
+    input_tiles = context.deepbedmap.get_deepbedmap_model_inputs(
+        window_bound=context.window_bound
+    )
     context.X_tile, context.W1_tile, context.W2_tile, context.W3_tile = input_tiles
 
 

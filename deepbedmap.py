@@ -116,7 +116,7 @@ groundtruth = get_image_with_bounds(
     indexers={"y": slice(1, -2), "x": slice(1, -2)},  # for 2007tx
     # indexers={"x": slice(1, -2)},  # for 2007tx, 2010tr and istarxx
 )
-window_bound = groundtruth.bounds
+window_bound = rasterio.coords.BoundingBox(*groundtruth.bounds)
 print(window_bound)
 
 # %% [markdown]
@@ -127,7 +127,7 @@ print(window_bound)
 
 # %%
 def get_deepbedmap_model_inputs(
-    window_bound: rasterio.coords.BoundingBox, padding=1000
+    window_bound: rasterio.coords.BoundingBox, padding: int = 1000
 ) -> (np.ndarray, np.ndarray, np.ndarray, np.ndarray):
     """
     Outputs one large tile for each of:
@@ -136,40 +136,51 @@ def get_deepbedmap_model_inputs(
     """
     data_prep = _load_ipynb_modules("data_prep.ipynb")
 
-    X_tile = data_prep.selective_tile(
-        filepath="lowres/bedmap2_bed.tif",
-        window_bounds=[[*window_bound]],
-        padding=padding,
-        gapfiller=-5000.0,
-    )
-    W3_tile = data_prep.selective_tile(
-        filepath="misc/Arthern_accumulation_bedmap2_grid1.tif",
-        window_bounds=[[*window_bound]],
-        padding=padding,
-        gapfiller=0.0,
-    )
-    W2_tile = np.concatenate(
-        [
-            data_prep.selective_tile(
-                filepath="netcdf:misc/antarctic_ice_vel_phase_map_v01.nc:VX",
-                window_bounds=[[*window_bound]],
-                resolution=500,
-                padding=padding,
-            ),
-            data_prep.selective_tile(
-                filepath="netcdf:misc/antarctic_ice_vel_phase_map_v01.nc:VY",
-                window_bounds=[[*window_bound]],
-                resolution=500,
-                padding=padding,
-            ),
-        ],
-        axis=1,
-    )
-    W1_tile = data_prep.selective_tile(
-        filepath="misc/REMA_100m_dem_filled.tif",
-        window_bounds=[[*window_bound]],
-        padding=padding,
-    )
+    if window_bound == rasterio.coords.BoundingBox(
+        left=-1_594_000.0, bottom=-166_500.0, right=-1_575_000.0, top=-95_500.0
+    ):
+        # Quickly pull from cached quilt storage if using (hardcoded) test region
+        quilt.install(package="weiji14/deepbedmap/model/test", force=True)
+        pkg = quilt.load(pkginfo="weiji14/deepbedmap/model/test")
+        X_tile = pkg.X_tile()
+        W1_tile = pkg.W1_tile()
+        W2_tile = pkg.W2_tile()
+        W3_tile = pkg.W3_tile()
+    else:
+        X_tile = data_prep.selective_tile(
+            filepath="lowres/bedmap2_bed.tif",
+            window_bounds=[[*window_bound]],
+            padding=padding,
+            gapfiller=-5000.0,
+        )
+        W3_tile = data_prep.selective_tile(
+            filepath="misc/Arthern_accumulation_bedmap2_grid1.tif",
+            window_bounds=[[*window_bound]],
+            padding=padding,
+            gapfiller=0.0,
+        )
+        W2_tile = np.concatenate(
+            [
+                data_prep.selective_tile(
+                    filepath="netcdf:misc/antarctic_ice_vel_phase_map_v01.nc:VX",
+                    window_bounds=[[*window_bound]],
+                    resolution=500,
+                    padding=padding,
+                ),
+                data_prep.selective_tile(
+                    filepath="netcdf:misc/antarctic_ice_vel_phase_map_v01.nc:VY",
+                    window_bounds=[[*window_bound]],
+                    resolution=500,
+                    padding=padding,
+                ),
+            ],
+            axis=1,
+        )
+        W1_tile = data_prep.selective_tile(
+            filepath="misc/REMA_100m_dem_filled.tif",
+            window_bounds=[[*window_bound]],
+            padding=padding,
+        )
 
     return X_tile, W1_tile, W2_tile, W3_tile
 
@@ -181,7 +192,7 @@ X_tile, W1_tile, W2_tile, W3_tile = get_deepbedmap_model_inputs(
 print(X_tile.shape, W1_tile.shape, W2_tile.shape, W3_tile.shape)
 
 # Build quilt package for datasets covering our test region
-reupload = True
+reupload = False
 if reupload == True:
     quilt.build(package="weiji14/deepbedmap/model/test/W1_tile", path=W1_tile)
     quilt.build(package="weiji14/deepbedmap/model/test/W2_tile", path=W2_tile)

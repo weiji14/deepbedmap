@@ -46,7 +46,7 @@ import numpy as np
 import pandas as pd
 import pygmt as gmt
 import quilt
-import skimage.transform
+import rasterio
 import tqdm
 import xarray as xr
 
@@ -1351,7 +1351,7 @@ def get_deepbedmap_test_result(
         filepaths=[f"{test_filepath}.nc"], indexers=indexers
     )
     X_tile, W1_tile, W2_tile, W3_tile = deepbedmap.get_deepbedmap_model_inputs(
-        window_bound=groundtruth.bounds
+        window_bound=rasterio.coords.BoundingBox(*groundtruth.bounds)
     )
 
     # Run input datasets through trained neural network model
