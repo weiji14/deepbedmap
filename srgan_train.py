@@ -1280,14 +1280,14 @@ def save_model_weights_and_architecture(
     save_path: str = "model/weights",
 ) -> (str, str):
     """
-    Save the trained neural network's parameter weights and architecture,
-    respectively to zipped Numpy (.npz) and ONNX (.onnx, .onnx.txt) format.
+    Save the trained neural network's parameter weights and architecture (computational
+    graph) respectively to zipped Numpy (.npz) and Graphviz DOT (.dot) format.
 
     >>> model = GeneratorModel()
     >>> _, _ = save_model_weights_and_architecture(
     ...     trained_model=model, save_path="/tmp/weights"
     ... )
-    >>> os.path.exists(path="/tmp/weights/srgan_generator_model_architecture.onnx.txt")
+    >>> os.path.exists(path="/tmp/weights/srgan_generator_model_architecture.dot")
     True
     """
 
@@ -1297,28 +1297,21 @@ def save_model_weights_and_architecture(
     model_weights_path: str = os.path.join(save_path, f"{model_basename}_weights.npz")
     chainer.serializers.save_npz(file=model_weights_path, obj=trained_model)
 
-    # Save generator model's architecture in ONNX format
+    # Save generator model's architecture in Graphviz DOT format
     model_architecture_path: str = os.path.join(
-        save_path, f"{model_basename}_architecture.onnx"
+        save_path, f"{model_basename}_architecture.dot"
     )
-    with warnings.catch_warnings():
-        warnings.filterwarnings(
-            action="ignore",
-            message="`resize_images` is mapped to `Upsampling` ONNX op with bilinear interpolation",
-        )
-        _ = onnx_chainer.export(
-            model=trained_model,
-            args={
-                "x": trained_model.xp.random.rand(128, 1, 11, 11).astype("float32"),
-                "w1": trained_model.xp.random.rand(128, 1, 110, 110).astype("float32"),
-                "w2": trained_model.xp.random.rand(128, 2, 22, 22).astype("float32"),
-                "w3": trained_model.xp.random.rand(128, 1, 11, 11).astype("float32"),
-            },
-            filename=model_architecture_path,
-            export_params=False,
-            save_text=True,
-        )
-    assert os.path.exists(f"{model_architecture_path}.txt")
+    args = {
+        "x": trained_model.xp.random.rand(128, 1, 11, 11).astype("float32"),
+        "w1": trained_model.xp.random.rand(128, 1, 110, 110).astype("float32"),
+        "w2": trained_model.xp.random.rand(128, 2, 22, 22).astype("float32"),
+        "w3": trained_model.xp.random.rand(128, 1, 11, 11).astype("float32"),
+    }
+    graph = chainer.computational_graph.build_computational_graph(
+        outputs=trained_model.forward(**args)
+    )
+    with open(file=model_architecture_path, mode="w") as outgraph:
+        outgraph.writelines([f"{line};\n" for line in graph.dump().split(";")])
 
     return model_weights_path, model_architecture_path
 
@@ -1536,6 +1529,8 @@ def objective(
     model_weights_path, model_architecture_path = save_model_weights_and_architecture(
         trained_model=g_model, save_path=f"model/weights/{experiment.get_key()}"
     )
+    with open(file=model_architecture_path) as outgraph:
+        experiment.set_model_graph(graph=outgraph.read())
     experiment.log_asset(
         file_data=model_weights_path, file_name=os.path.basename(model_weights_path)
     )
