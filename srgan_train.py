@@ -185,13 +185,13 @@ def get_train_dev_iterators(
 # Details of the first convolutional layer for each input:
 #
 # - Input tiles are 11000m by 11000m.
-# - Convolution filter kernels are 4000m by 4000m.
+# - Convolution filter kernels are 3000m by 3000m.
 # - Strides are 1000m by 1000m.
 #
 # Example: for a 100m spatial resolution tile:
 #
 # - Input tile is 110pixels by 110pixels
-# - Convolution filter kernels are 40pixels by 40pixels
+# - Convolution filter kernels are 30pixels by 30pixels
 # - Strides are 10pixels by 10pixels
 #
 # Note that the first convolutional layers uses **valid** padding, see https://github.com/weiji14/deepbedmap/pull/65.
@@ -204,14 +204,14 @@ class DeepbedmapInputBlock(chainer.Chain):
     MEaSUREs Ice Surface Velocity x and y components (W2) and Snow Accumulation (W3).
     Passes them through custom-sized convolutions, with the results being concatenated.
 
-    Each filter kernel is 4km by 4km in size, with a 1km stride and no padding.
+    Each filter kernel is 3km by 3km in size, with a 1km stride and no padding.
     So for a 1km resolution image, (i.e. 1km pixel size):
-    kernel size is (4, 4), stride is (1, 1), and pad is (0, 0)
+    kernel size is (3, 3), stride is (1, 1), and pad is (0, 0)
 
-    X  (?,1,11,11)  --Conv2D-- (?,32,8,8) \
-    W1 (?,1,110,110) --Conv2D-- (?,32,8,8) --Concat-- (?,128,8,8)
-    W2 (?,2,22,22)  --Conv2D-- (?,32,8,8) /
-    W3 (?,1,11,11) --Conv2D-- (?,32,8,8) /
+    X  (?,1,11,11)  --Conv2D-- (?,32,9,9) \
+    W1 (?,1,110,110) --Conv2D-- (?,32,9,9) --Concat-- (?,128,9,9)
+    W2 (?,2,22,22)  --Conv2D-- (?,32,9,9) /
+    W3 (?,1,11,11) --Conv2D-- (?,32,9,9) /
     """
 
     def __init__(self, out_channels=32):
@@ -222,7 +222,7 @@ class DeepbedmapInputBlock(chainer.Chain):
             self.conv_on_X = L.Convolution2D(
                 in_channels=1,
                 out_channels=out_channels,
-                ksize=(4, 4),
+                ksize=(3, 3),
                 stride=(1, 1),
                 pad=(0, 0),  # 'valid' padding
                 initialW=init_weights,
@@ -230,7 +230,7 @@ class DeepbedmapInputBlock(chainer.Chain):
             self.conv_on_W1 = L.Convolution2D(
                 in_channels=1,
                 out_channels=out_channels,
-                ksize=(40, 40),
+                ksize=(30, 30),
                 stride=(10, 10),
                 pad=(0, 0),  # 'valid' padding
                 initialW=init_weights,
@@ -238,7 +238,7 @@ class DeepbedmapInputBlock(chainer.Chain):
             self.conv_on_W2 = L.Convolution2D(
                 in_channels=2,
                 out_channels=out_channels,
-                ksize=(8, 8),
+                ksize=(6, 6),
                 stride=(2, 2),
                 pad=(0, 0),  # 'valid' padding
                 initialW=init_weights,
@@ -246,7 +246,7 @@ class DeepbedmapInputBlock(chainer.Chain):
             self.conv_on_W3 = L.Convolution2D(
                 in_channels=1,
                 out_channels=out_channels,
-                ksize=(4, 4),
+                ksize=(3, 3),
                 stride=(1, 1),
                 pad=(0, 0),  # 'valid' padding
                 initialW=init_weights,
@@ -406,14 +406,14 @@ class ResInResDenseBlock(chainer.Chain):
 # %% [markdown]
 # ### 2.1.3 Build the Generator Network, with upsampling layers!
 #
-# ![4 inputs feeding into the Generator Network, producing a high resolution prediction output](https://yuml.me/23101656.png)
+# ![4 inputs feeding into the Generator Network, producing a high resolution prediction output](https://yuml.me/dfd301a2.png)
 #
 # <!--
-# [W3_input(ACCUMULATION)|1x11x11]-k4n32s1>[W3_inter|32x8x8],[W3_inter]->[Concat|128x8x8]
-# [W2_input(MEASURES)|2x22x22]-k8n32s2>[W2_inter|32x8x8],[W2_inter]->[Concat|128x8x8]
-# [W1_input(REMA)|1x110x110]-k40n32s10>[W1_inter|32x8x8],[W1_inter]->[Concat|128x8x8]
-# [X_input(BEDMAP2)|1x11x11]-k4n32s1>[X_inter|32x8x8],[X_inter]->[Concat|128x8x8]
-# [Concat|8x8x128]->[Generator-Network|Many-Residual-Blocks],[Generator-Network]->[Y_hat(High-Resolution_DEM)|1x36x36]
+# [W3_input(ACCUMULATION)|1x11x11]-k3n32s1>[W3_inter|32x9x9],[W3_inter]->[Concat|128x9x9]
+# [W2_input(MEASURES)|2x22x22]-k6n32s2>[W2_inter|32x9x9],[W2_inter]->[Concat|128x9x9]
+# [W1_input(REMA)|1x110x110]-k30n32s10>[W1_inter|32x9x9],[W1_inter]->[Concat|128x9x9]
+# [X_input(BEDMAP2)|1x11x11]-k3n32s1>[X_inter|32x9x9],[X_inter]->[Concat|128x9x9]
+# [Concat|128x9x9]->[Generator-Network|Many-Residual-Blocks],[Generator-Network]->[Y_hat(High-Resolution_DEM)|1x36x36]
 # -->
 
 # %%
@@ -443,7 +443,7 @@ class GeneratorModel(chainer.Chain):
     >>> y_pred.shape
     (1, 1, 36, 36)
     >>> generator_model.count_params()
-    8928065
+    8886977
     """
 
     def __init__(
@@ -484,14 +484,6 @@ class GeneratorModel(chainer.Chain):
             )
 
             # Upsampling Layers
-            self.pre_upsample_conv_layer = L.Convolution2D(
-                in_channels=None,
-                out_channels=64,
-                ksize=(2, 2),
-                stride=(1, 1),
-                pad=1,  #'same' padding
-                initialW=init_weights,
-            )
             self.post_upsample_conv_layer_1 = L.Convolution2D(
                 in_channels=None,
                 out_channels=64,
@@ -557,13 +549,9 @@ class GeneratorModel(chainer.Chain):
 
         # 4th part
         # Upsampling (hardcoded to be 4x, actually 2x run twice)
-        # Convert shape from 8x8 to 9x9 using Convolution2D k2n64s1
-        a4_0 = self.pre_upsample_conv_layer(a3)
         # Uses Nearest Neighbour Interpolation followed by Convolution2D k3n64s1
         a4_1 = F.resize_images(
-            x=a4_0,
-            output_shape=(2 * a4_0.shape[-2], 2 * a4_0.shape[-1]),
-            mode="nearest",
+            x=a3, output_shape=(2 * a3.shape[-2], 2 * a3.shape[-1]), mode="nearest"
         )
         a4_1 = self.post_upsample_conv_layer_1(a4_1)
         a4_1 = F.leaky_relu(x=a4_1, slope=0.2)
