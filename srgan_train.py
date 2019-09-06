@@ -26,13 +26,13 @@
 # # 0. Setup libraries
 
 # %%
+import functools
 import glob
 import os
 import random
 import shutil
 import sys
 import typing
-import warnings
 
 try:  # check if CUDA_VISIBLE_DEVICES environment variable is set
     os.environ["CUDA_VISIBLE_DEVICES"]
@@ -55,7 +55,6 @@ import chainer.functions as F
 import chainer.links as L
 import cupy
 import livelossplot
-import onnx_chainer
 import optuna
 
 from features.environment import _load_ipynb_modules
@@ -1323,6 +1322,35 @@ def save_model_weights_and_architecture(
 # ## Evaluation on independent test set
 
 # %%
+@functools.lru_cache()
+def get_fixed_test_inputs(
+    test_filepath: str = "highres/2007tx",
+    indexers: dict = {"y": slice(1, -2), "x": slice(1, -2)},  # custom index-based crop
+) -> (xr.DataArray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, pd.DataFrame):
+    """
+    Cached way of getting the fixed (non-model) data array inputs for our hardcoded
+    DeepBedMap test area along the main trunk of Pine Island Glacier. Use it by simply
+    calling get_fixed_test_inputs(), which works arounds functools.lru_cache not
+    accepting unhashable inputs like Python list, dict, and slice objects.
+    """
+    deepbedmap = _load_ipynb_modules("deepbedmap.ipynb")
+
+    # Get neural network input datasets associated with groundtruth image bounds
+    groundtruth = deepbedmap.get_image_with_bounds(
+        filepaths=[f"{test_filepath}.nc"], indexers=indexers
+    )
+    X_tile, W1_tile, W2_tile, W3_tile = deepbedmap.get_deepbedmap_model_inputs(
+        window_bound=rasterio.coords.BoundingBox(*groundtruth.bounds)
+    )
+
+    # Load xyz points table for test region
+    data_prep = _load_ipynb_modules("data_prep.ipynb")
+    points = data_prep.ascii_to_xyz(pipeline_file=f"{test_filepath}.json")
+
+    return groundtruth, X_tile, W1_tile, W2_tile, W3_tile, points
+
+
+# %%
 def get_deepbedmap_test_result(
     model=None,
     test_filepath: str = "highres/2007tx",
@@ -1337,18 +1365,13 @@ def get_deepbedmap_test_result(
     (i.e. the trained weights will not be reloaded). If instead there is no model passed
     in, the default model will be loaded with trained weights from 'model_weights_path'.
     """
-    deepbedmap = _load_ipynb_modules("deepbedmap.ipynb")
-
     # Get neural network input datasets associated with groundtruth image bounds
-    groundtruth = deepbedmap.get_image_with_bounds(
-        filepaths=[f"{test_filepath}.nc"], indexers=indexers
-    )
-    X_tile, W1_tile, W2_tile, W3_tile = deepbedmap.get_deepbedmap_model_inputs(
-        window_bound=rasterio.coords.BoundingBox(*groundtruth.bounds)
-    )
+    # Load xyz points table for test region
+    groundtruth, X_tile, W1_tile, W2_tile, W3_tile, points = get_fixed_test_inputs()
 
     # Run input datasets through trained neural network model
     if model is None:
+        deepbedmap = _load_ipynb_modules("deepbedmap.ipynb")
         model = deepbedmap.load_trained_model(model_weights_path=model_weights_path)
     Y_hat = model.forward(
         x=model.xp.asarray(a=X_tile),
@@ -1363,10 +1386,6 @@ def get_deepbedmap_test_result(
         dims=["y", "x"],
         coords={"y": groundtruth.y, "x": groundtruth.x},
     )
-
-    # Load xyz points table for test region
-    data_prep = _load_ipynb_modules("data_prep.ipynb")
-    points = data_prep.ascii_to_xyz(pipeline_file=f"{test_filepath}.json")
 
     # Get the elevation (z) value at specified x, y points along the groundtruth track
     df_deepbedmap3 = gmt.grdtrack(points=points, grid=grid, newcolname="z_interpolated")
@@ -1500,7 +1519,7 @@ def objective(
             d_optimizer=d_optimizer,
         )
 
-        ## Record loss and metric information, and plot using livelossplot if enabled
+        ## Record training loss and metric info, and plot using livelossplot if enabled
         dataframe.loc[i] = [
             np.mean(metrics_dict[metric]) for metric in dataframe.keys()
         ]
@@ -1517,6 +1536,15 @@ def objective(
         progressbar.update(n=1)
         experiment.log_metrics(dic=epoch_metrics, step=i)
 
+        ## Evaluate model and produce image of test area
+        rmse_test, predicted_test_grid = get_deepbedmap_test_result(model=g_model)
+        experiment.log_metric(name="rmse_test", value=rmse_test)
+        experiment.log_image(
+            name="predicted_test_grid",
+            image_data=np.flipud(predicted_test_grid.data),
+            image_colormap="BrBG",
+        )
+
         ## Pruning unpromising trials with vanishing/exploding gradients
         if (
             epoch_metrics["generator_psnr"] < 0
@@ -1526,6 +1554,7 @@ def objective(
             experiment.end()
             raise optuna.structs.TrialPruned()
 
+    # Save neural network model weights and generator model architecture
     model_weights_path, model_architecture_path = save_model_weights_and_architecture(
         trained_model=g_model, save_path=f"model/weights/{experiment.get_key()}"
     )
@@ -1542,26 +1571,17 @@ def objective(
         shutil.copy2(src=f, dst="model/weights")
     shutil.rmtree(path=f"model/weights/{experiment.get_key()}")
 
-    ## Evaluate model and return metrics
-    rmse_test, predicted_test_grid = get_deepbedmap_test_result(model=g_model)
-    print(f"Experiment yielded Root Mean Square Error of {rmse_test:.2f} on test set")
-    experiment.log_metric(name="rmse_test", value=rmse_test)
-
-    ## Upload raw image output and figure with scalebar
-    experiment.log_image(
-        name="predicted_test_grid",
-        image_data=np.flipud(predicted_test_grid.data),
-        image_colormap="BrBG",
-    )
+    ## Upload final predicted figure with scalebar
     predicted_test_grid.plot.imshow(
         cmap="BrBG",
         size=14,
         aspect=predicted_test_grid.shape[1] / predicted_test_grid.shape[0],
     )
     plt.tight_layout()
-    experiment.log_figure()
+    experiment.log_figure(figure_name="final_figure_of_predicted_test_area")
     plt.close()
 
+    print(f"Experiment yielded Root Mean Square Error of {rmse_test:.2f} on test set")
     experiment.end()
 
     return rmse_test
