@@ -121,7 +121,9 @@ def _download_model_weights_from_comet(
             break
 
     # Download the neural network weight file (npz format) to the right place!
-    open(download_path, mode="wb").write(experiment.get_asset(asset_id=asset_id))
+    os.makedirs(name=os.path.dirname(download_path), exist_ok=True)
+    with open(download_path, mode="wb") as model_weight_file:
+        model_weight_file.write(experiment.get_asset(asset_id=asset_id))
 
     # Get hyperparameters needed to recreate DeepBedMap model architecture properly
     parameters: dict = (
