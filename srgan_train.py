@@ -1532,10 +1532,12 @@ def objective(
             image_data=np.flipud(predicted_test_grid.data),
             image_colormap="BrBG",
         )
+        trial.report(value=rmse_test, step=i)
 
         ## Pruning unpromising trials with vanishing/exploding gradients
         if (
-            epoch_metrics["generator_psnr"] < 0
+            trial.should_prune()
+            or epoch_metrics["generator_psnr"] < 0
             or np.isnan(epoch_metrics["generator_loss"])
             or np.isnan(epoch_metrics["discriminator_loss"])
         ):
@@ -1593,6 +1595,7 @@ elif n_trials > 1:  # perform hyperparameter tuning with multiple experimental t
         study_name="DeepBedMap_tuning",
         load_if_exists=True,
         sampler=sampler,
+        pruner=optuna.pruners.MedianPruner(n_warmup_steps=15),
     )
     study.optimize(func=objective, n_trials=n_trials, n_jobs=1)
 
