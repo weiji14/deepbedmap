@@ -219,37 +219,41 @@ class DeepbedmapInputBlock(chainer.Chain):
         init_weights = chainer.initializers.HeNormal(scale=0.1, fan_option="fan_in")
 
         with self.init_scope():
-            self.conv_on_X = L.Convolution2D(
+            self.conv_on_X = L.DeformableConvolution2D(
                 in_channels=1,
                 out_channels=out_channels,
                 ksize=(3, 3),
                 stride=(1, 1),
                 pad=(0, 0),  # 'valid' padding
-                initialW=init_weights,
+                offset_initialW=init_weights,
+                deform_initialW=init_weights,
             )
-            self.conv_on_W1 = L.Convolution2D(
+            self.conv_on_W1 = L.DeformableConvolution2D(
                 in_channels=1,
                 out_channels=out_channels,
                 ksize=(30, 30),
                 stride=(10, 10),
                 pad=(0, 0),  # 'valid' padding
-                initialW=init_weights,
+                offset_initialW=init_weights,
+                deform_initialW=init_weights,
             )
-            self.conv_on_W2 = L.Convolution2D(
+            self.conv_on_W2 = L.DeformableConvolution2D(
                 in_channels=2,
                 out_channels=out_channels,
                 ksize=(6, 6),
                 stride=(2, 2),
                 pad=(0, 0),  # 'valid' padding
-                initialW=init_weights,
+                offset_initialW=init_weights,
+                deform_initialW=init_weights,
             )
-            self.conv_on_W3 = L.Convolution2D(
+            self.conv_on_W3 = L.DeformableConvolution2D(
                 in_channels=1,
                 out_channels=out_channels,
                 ksize=(3, 3),
                 stride=(1, 1),
                 pad=(0, 0),  # 'valid' padding
-                initialW=init_weights,
+                offset_initialW=init_weights,
+                deform_initialW=init_weights,
             )
 
     def forward(self, x, w1, w2, w3):
@@ -443,7 +447,7 @@ class GeneratorModel(chainer.Chain):
     >>> y_pred.shape
     (1, 1, 36, 36)
     >>> generator_model.count_params()
-    8886977
+    10535165
     """
 
     def __init__(
@@ -502,21 +506,23 @@ class GeneratorModel(chainer.Chain):
             )
 
             # Final post-upsample convolution layers
-            self.final_conv_layer1 = L.Convolution2D(
+            self.final_conv_layer1 = L.DeformableConvolution2D(
                 in_channels=None,
                 out_channels=64,
                 ksize=(3, 3),
                 stride=(1, 1),
                 pad=1,  # 'same' padding
-                initialW=init_weights,
+                offset_initialW=init_weights,
+                deform_initialW=init_weights,
             )
-            self.final_conv_layer2 = L.Convolution2D(
+            self.final_conv_layer2 = L.DeformableConvolution2D(
                 in_channels=None,
                 out_channels=out_channels,
                 ksize=(3, 3),
                 stride=(1, 1),
                 pad=1,  # 'same' padding
-                initialW=init_weights,
+                offset_initialW=init_weights,
+                deform_initialW=init_weights,
             )
 
     def forward(
@@ -953,7 +959,7 @@ def calculate_discriminator_loss(
 def compile_srgan_model(
     num_residual_blocks: int = 12,
     residual_scaling: float = 0.2,
-    learning_rate: float = 8e-5,
+    learning_rate: float = 1e-4,
 ):
     """
     Instantiate our Super Resolution Generative Adversarial Network (SRGAN) model here.
@@ -1401,8 +1407,8 @@ def objective(
             "batch_size_exponent": 7,
             "num_residual_blocks": 12,
             "residual_scaling": 0.2,
-            "learning_rate": 9e-5,
-            "num_epochs": 45,
+            "learning_rate": 1.0e-4,
+            "num_epochs": 90,
         }
     ),
     enable_livelossplot: bool = False,  # Default: False, no plots makes it go faster!
@@ -1440,7 +1446,7 @@ def objective(
     experiment.log_parameter(name="dataset_hash", value=quilt_hash)
     experiment.log_parameter(name="use_gpu", value=cupy.is_available())
     batch_size: int = int(
-        2 ** trial.suggest_int(name="batch_size_exponent", low=6, high=7)
+        2 ** trial.suggest_int(name="batch_size_exponent", low=7, high=7)
     )
     experiment.log_parameter(name="batch_size", value=batch_size)
     train_iter, train_len, dev_iter, dev_len = get_train_dev_iterators(
@@ -1452,13 +1458,13 @@ def objective(
 
     ## Compile Model
     num_residual_blocks: int = trial.suggest_int(
-        name="num_residual_blocks", low=12, high=14
+        name="num_residual_blocks", low=9, high=12
     )
     residual_scaling: float = trial.suggest_discrete_uniform(
         name="residual_scaling", low=0.1, high=0.6, q=0.05
     )
     learning_rate: float = trial.suggest_discrete_uniform(
-        name="learning_rate", high=1.4e-4, low=9.0e-5, q=0.5e-5
+        name="learning_rate", high=2.0e-4, low=1.0e-4, q=0.1e-4
     )
     g_model, g_optimizer, d_model, d_optimizer = compile_srgan_model(
         num_residual_blocks=num_residual_blocks,
@@ -1479,7 +1485,7 @@ def objective(
     )
 
     ## Run Trainer and save trained model
-    epochs: int = trial.suggest_int(name="num_epochs", low=40, high=90)
+    epochs: int = trial.suggest_int(name="num_epochs", low=90, high=150)
     experiment.log_parameter(name="num_epochs", value=epochs)
 
     metric_names = [
@@ -1578,7 +1584,7 @@ def objective(
 
 
 # %%
-n_trials = 1
+n_trials = 50
 if n_trials == 1:  # run training once only, i.e. just test the objective function
     objective(enable_livelossplot=True, enable_comet_logging=True)
 elif n_trials > 1:  # perform hyperparameter tuning with multiple experimental trials
@@ -1595,7 +1601,7 @@ elif n_trials > 1:  # perform hyperparameter tuning with multiple experimental t
         study_name="DeepBedMap_tuning",
         load_if_exists=True,
         sampler=sampler,
-        pruner=optuna.pruners.MedianPruner(n_warmup_steps=15),
+        pruner=optuna.pruners.MedianPruner(),
     )
     study.optimize(func=objective, n_trials=n_trials, n_jobs=1)
 
