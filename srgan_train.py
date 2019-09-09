@@ -447,7 +447,7 @@ class GeneratorModel(chainer.Chain):
     >>> y_pred.shape
     (1, 1, 36, 36)
     >>> generator_model.count_params()
-    10535165
+    10587077
     """
 
     def __init__(
@@ -467,42 +467,46 @@ class GeneratorModel(chainer.Chain):
 
             # Initial Input and Residual Blocks
             self.input_block = inblock_class()
-            self.pre_residual_conv_layer = L.Convolution2D(
+            self.pre_residual_conv_layer = L.DeformableConvolution2D(
                 in_channels=None,
                 out_channels=64,
                 ksize=(3, 3),
                 stride=(1, 1),
                 pad=1,  # 'same' padding
-                initialW=init_weights,
+                offset_initialW=init_weights,
+                deform_initialW=init_weights,
             )
             self.residual_network = resblock_class(
                 residual_scaling=residual_scaling
             ).repeat(n_repeat=num_residual_blocks)
-            self.post_residual_conv_layer = L.Convolution2D(
+            self.post_residual_conv_layer = L.DeformableConvolution2D(
                 in_channels=None,
                 out_channels=64,
                 ksize=(3, 3),
                 stride=(1, 1),
                 pad=1,  # 'same' padding
-                initialW=init_weights,
+                offset_initialW=init_weights,
+                deform_initialW=init_weights,
             )
 
             # Upsampling Layers
-            self.post_upsample_conv_layer_1 = L.Convolution2D(
+            self.post_upsample_conv_layer_1 = L.DeformableConvolution2D(
                 in_channels=None,
                 out_channels=64,
                 ksize=(3, 3),
                 stride=(1, 1),
                 pad=1,  # 'same' padding
-                initialW=init_weights,
+                offset_initialW=init_weights,
+                deform_initialW=init_weights,
             )
-            self.post_upsample_conv_layer_2 = L.Convolution2D(
+            self.post_upsample_conv_layer_2 = L.DeformableConvolution2D(
                 in_channels=None,
                 out_channels=64,
                 ksize=(3, 3),
                 stride=(1, 1),
                 pad=1,  # 'same' padding
-                initialW=init_weights,
+                offset_initialW=init_weights,
+                deform_initialW=init_weights,
             )
 
             # Final post-upsample convolution layers
@@ -959,7 +963,7 @@ def calculate_discriminator_loss(
 def compile_srgan_model(
     num_residual_blocks: int = 12,
     residual_scaling: float = 0.2,
-    learning_rate: float = 1e-4,
+    learning_rate: float = 2e-4,
 ):
     """
     Instantiate our Super Resolution Generative Adversarial Network (SRGAN) model here.
@@ -1407,7 +1411,7 @@ def objective(
             "batch_size_exponent": 7,
             "num_residual_blocks": 12,
             "residual_scaling": 0.2,
-            "learning_rate": 1.0e-4,
+            "learning_rate": 2.0e-4,
             "num_epochs": 90,
         }
     ),
@@ -1458,13 +1462,13 @@ def objective(
 
     ## Compile Model
     num_residual_blocks: int = trial.suggest_int(
-        name="num_residual_blocks", low=9, high=12
+        name="num_residual_blocks", low=12, high=12
     )
     residual_scaling: float = trial.suggest_discrete_uniform(
         name="residual_scaling", low=0.1, high=0.6, q=0.05
     )
     learning_rate: float = trial.suggest_discrete_uniform(
-        name="learning_rate", high=2.0e-4, low=1.0e-4, q=0.1e-4
+        name="learning_rate", high=4.0e-4, low=2.0e-4, q=0.1e-4
     )
     g_model, g_optimizer, d_model, d_optimizer = compile_srgan_model(
         num_residual_blocks=num_residual_blocks,
@@ -1611,4 +1615,7 @@ if n_trials > 1:
     study = optuna.load_study(
         study_name="DeepBedMap_tuning", storage="sqlite:///model/logs/train.db"
     )
-    IPython.display.display(study.trials_dataframe().nsmallest(n=10, columns="value"))
+    topten_df = study.trials_dataframe().nsmallest(n=10, columns="value")
+    IPython.display.display(
+        topten_df.drop(labels=["intermediate_values"], axis="columns", level=0)
+    )
