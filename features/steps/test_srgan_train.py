@@ -39,6 +39,7 @@ def run_neural_network_model_training(context):
         "discriminator_accu",
         "generator_loss",
         "generator_psnr",
+        "generator_ssim",
     ]
     columns = metric_names + [f"val_{metric_name}" for metric_name in metric_names]
 

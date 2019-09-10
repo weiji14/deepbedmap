@@ -56,6 +56,7 @@ import chainer.links as L
 import cupy
 import livelossplot
 import optuna
+import ssim.functions
 
 from features.environment import _load_ipynb_modules
 
@@ -713,14 +714,16 @@ class DiscriminatorModel(chainer.Chain):
 #
 # $$Perceptual Loss = Content Loss + Adversarial Loss + Topographic Loss$$
 #
-# ![Perceptual Loss in an adapted Enhanced Super Resolution Generative Adversarial Network](https://yuml.me/7731ae34.png)
+# ![Perceptual Loss in an adapted Enhanced Super Resolution Generative Adversarial Network](https://yuml.me/19155033.png)
 #
 # <!--
 # [LowRes-Inputs]-Generator>[SuperResolution_DEM]
 # [SuperResolution_DEM]-.->[note:Content-Loss|MeanAbsoluteError{bg:yellow}]
 # [LowRes-Inputs]-.->[note:Topographic-Loss|MeanAbsoluteError{bg:yellow}]
+# [SuperResolution_DEM]-.->[note:Structural-Loss|SSIM{bg:yellow}]
 # [SuperResolution_DEM]-.->[note:Topographic-Loss]
 # [HighRes-Groundtruth_DEM]-.->[note:Content-Loss]
+# [HighRes-Groundtruth_DEM]-.->[note:Structural-Loss]
 # [SuperResolution_DEM]-Discriminator>[False_or_True_Prediction]
 # [HighRes-Groundtruth_DEM]-Discriminator>[False_or_True_Prediction]
 # [False_or_True_Prediction]<->[False_or_True_Label]
@@ -729,6 +732,7 @@ class DiscriminatorModel(chainer.Chain):
 # [note:Content-Loss]-.->[note:Perceptual-Loss{bg:gold}]
 # [note:Adversarial-Loss]-.->[note:Perceptual-Loss{bg:gold}]
 # [note:Topographic-Loss]-.->[note:Perceptual-Loss{bg:gold}]
+# [note:Structural-Loss]-.->[note:Perceptual-Loss{bg:gold}]
 # -->
 
 # %% [markdown]
@@ -820,7 +824,21 @@ class DiscriminatorModel(chainer.Chain):
 # We then sum all the pixel-wise errors $e_j,\dots,e_n$ and divide by the number of pixels $n$ to get the Arithmetic Mean $\dfrac{1}{n} \sum\limits_{i=1}^n$ of our error which is our *Topographic Loss*.
 #
 # $$ Loss_{Topographic} = Mean Absolute Error = \dfrac{1}{n} \sum\limits_{i=1}^n e_j $$
+
+# %% [markdown]
+# ### Structural Loss
 #
+# Complementing the L1 Content Loss further, we define a *Structural (Similarity) Loss*.
+# This is computed using the [Structural Similarity (SSIM)](https://en.wikipedia.org/wiki/Structural_similarity) Index,
+# on a moving window (here set to 9x9) between the super resolution predicted image and high resolution groundtruth image.
+# The comparison takes into account luminance, contrast and structural information.
+#
+# $$ SSIM(x,y) = \dfrac{(2\mu_x\mu_y + c_1)(2\sigma_{xy} + c_2)}{(\mu_x^2 + \mu_y^2 + c_1)(\sigma_x^2 + \sigma_y^2 + c_2)} $$
+#
+# where $\mu_x$ and $\mu_y$ are the average (mean) of predicted image $x$ and groundtruth image $y$ respectively,
+# $\sigma_{xy}$ is the covariance of $x$ and $y$,
+# $\sigma_x^2$ and $\sigma_y^2$ are the variance of $x$ and $y$ respectively, and
+# $c_1$ and $c_2$ are two variables to stabilize the division with weak denominator.
 
 # %%
 def calculate_generator_loss(
@@ -834,10 +852,11 @@ def calculate_generator_loss(
     content_loss_weighting: float = 1e-2,
     adversarial_loss_weighting: float = 5e-3,
     topographic_loss_weighting: float = 5e-3,
+    structural_loss_weighting: float = 1e-2,
 ) -> chainer.variable.Variable:
     """
     This function calculates the weighted sum between
-    "Content Loss", "Adversarial Loss", and "Topographic Loss"
+    "Content Loss", "Adversarial Loss", "Topographic Loss", and "Structural Loss"
     which forms the basis for training the Generator Network.
 
     >>> calculate_generator_loss(
@@ -849,7 +868,7 @@ def calculate_generator_loss(
     ...     real_minus_fake_target=np.array([[0], [0]]).astype(np.int32),
     ...     x_topo=np.full(shape=(2, 1, 3, 3), fill_value=9.0),
     ... )
-    variable(0.13867307)
+    variable(0.14669286)
     """
     # Content Loss (L1, Mean Absolute Error) between predicted and groundtruth 2D images
     content_loss = F.mean_absolute_error(x0=y_pred, x1=y_true)
@@ -867,13 +886,20 @@ def calculate_generator_loss(
         x0=F.average_pooling_2d(x=y_pred, ksize=(4, 4)), x1=x_topo
     )
 
+    # Structural Similarity Loss between predicted and groundtruth 2D images
+    structural_loss = 1 - ssim_loss_func(y_pred=y_pred, y_true=y_true)
+
     # Get generator loss
     weighted_content_loss = content_loss_weighting * content_loss
     weighted_adversarial_loss = adversarial_loss_weighting * adversarial_loss
     weighted_topographic_loss = topographic_loss_weighting * topographic_loss
+    weighted_structural_loss = structural_loss_weighting * structural_loss
 
     g_loss = (
-        weighted_content_loss + weighted_adversarial_loss + weighted_topographic_loss
+        weighted_content_loss
+        + weighted_adversarial_loss
+        + weighted_topographic_loss
+        + weighted_structural_loss
     )
 
     return g_loss
@@ -881,7 +907,7 @@ def calculate_generator_loss(
 
 # %%
 def psnr(
-    y_true: cupy.ndarray, y_pred: cupy.ndarray, data_range=2 ** 32
+    y_pred: cupy.ndarray, y_true: cupy.ndarray, data_range=2 ** 32
 ) -> cupy.ndarray:
     """
     Peak Signal-Noise Ratio (PSNR) metric, calculated batchwise.
@@ -891,8 +917,8 @@ def psnr(
     Implementation is same as skimage.measure.compare_psnr with data_range=2**32
 
     >>> psnr(
-    ...     y_true=np.ones(shape=(2, 1, 3, 3)),
-    ...     y_pred=np.full(shape=(2, 1, 3, 3), fill_value=2),
+    ...     y_pred=np.ones(shape=(2, 1, 3, 3)),
+    ...     y_true=np.full(shape=(2, 1, 3, 3), fill_value=2),
     ... )
     192.65919722494797
     """
@@ -903,6 +929,34 @@ def psnr(
 
     # Calculate Peak Signal-Noise Ratio, setting MAX_I as 2^32, i.e. max for int32
     return xp.multiply(20, xp.log10(data_range / xp.sqrt(mse)))
+
+
+# %%
+def ssim_loss_func(
+    y_pred: chainer.variable.Variable,
+    y_true: cupy.ndarray,
+    window_size: int = 9,
+    stride: int = 1,
+) -> chainer.variable.Variable:
+    """
+    Structural Similarity (SSIM) loss/metric, calculated with default window size of 9.
+    See https://en.wikipedia.org/wiki/Structural_similarity
+
+    Can take in either numpy (CPU) or cupy (GPU) arrays as input.
+
+    >>> ssim_loss_func(
+    ...     y_pred=chainer.variable.Variable(data=np.ones(shape=(2, 1, 9, 9))),
+    ...     y_true=np.full(shape=(2, 1, 9, 9), fill_value=2.0),
+    ... )
+    variable(0.800004)
+    """
+    if not y_pred.shape == y_true.shape:
+        raise ValueError("Input images must have the same dimensions.")
+
+    ssim_value = ssim.functions.ssim_loss(
+        y=y_pred, t=y_true, window_size=window_size, stride=stride
+    )
+    return ssim_value
 
 
 # %%
@@ -1121,7 +1175,7 @@ def train_eval_generator(
     d_model,
     g_optimizer=None,
     train: bool = True,
-) -> (float, float):
+) -> (float, float, float):
     """
     Evaluates and/or trains the Generator for one minibatch
     within a Super Resolution Generative Adversarial Network.
@@ -1196,6 +1250,7 @@ def train_eval_generator(
         x_topo=input_arrays["X"][:, :, 1:-1, 1:-1],  # sliced to remove 1km borders
     )
     g_psnr = psnr(y_pred=fake_images.array, y_true=real_images)
+    g_ssim = ssim_loss_func(y_pred=fake_images, y_true=real_images)
 
     # @then("the generator should learn to create a more authentic looking image")
     if train == True:
@@ -1203,7 +1258,11 @@ def train_eval_generator(
         g_loss.backward()  # renew gradients
         g_optimizer.update()  # backpropagate the loss using optimizer
 
-    return float(g_loss.array), float(g_psnr)  # return generator loss and metric values
+    return (
+        float(g_loss.array),
+        float(g_psnr),
+        float(g_ssim.array),
+    )  # return generator loss and metric values
 
 
 # %%
@@ -1240,7 +1299,7 @@ def trainer(
         metrics_dict["discriminator_accu"].append(d_train_accu)
 
         ## 1.2 - Train Generator
-        g_train_loss, g_train_psnr = train_eval_generator(
+        g_train_loss, g_train_psnr, g_train_ssim = train_eval_generator(
             input_arrays=train_arrays,
             g_model=g_model,
             d_model=d_model,
@@ -1248,24 +1307,26 @@ def trainer(
         )
         metrics_dict["generator_loss"].append(g_train_loss)
         metrics_dict["generator_psnr"].append(g_train_psnr)
+        metrics_dict["generator_ssim"].append(g_train_ssim)
 
     ## Part 2 - Evaluation on development dataset
     while i == dev_iter.epoch:  # while we are in epoch i, evaluate on each minibatch
         dev_batch = dev_iter.next()
         dev_arrays = chainer.dataset.concat_examples(batch=dev_batch)
         ## 2.1 - Evaluate Discriminator
-        d_train_loss, d_train_accu = train_eval_discriminator(
+        d_dev_loss, d_dev_accu = train_eval_discriminator(
             input_arrays=dev_arrays, g_model=g_model, d_model=d_model, train=False
         )
-        metrics_dict["val_discriminator_loss"].append(d_train_loss)
-        metrics_dict["val_discriminator_accu"].append(d_train_accu)
+        metrics_dict["val_discriminator_loss"].append(d_dev_loss)
+        metrics_dict["val_discriminator_accu"].append(d_dev_accu)
 
         ## 2.2 - Evaluate Generator
-        g_dev_loss, g_dev_psnr = train_eval_generator(
+        g_dev_loss, g_dev_psnr, g_dev_ssim = train_eval_generator(
             input_arrays=dev_arrays, g_model=g_model, d_model=d_model, train=False
         )
         metrics_dict["val_generator_loss"].append(g_dev_loss)
         metrics_dict["val_generator_psnr"].append(g_dev_psnr)
+        metrics_dict["val_generator_ssim"].append(g_dev_ssim)
 
     return metrics_dict
 
@@ -1412,7 +1473,7 @@ def objective(
             "num_residual_blocks": 12,
             "residual_scaling": 0.2,
             "learning_rate": 2.0e-4,
-            "num_epochs": 90,
+            "num_epochs": 120,
         }
     ),
     enable_livelossplot: bool = False,  # Default: False, no plots makes it go faster!
@@ -1497,6 +1558,7 @@ def objective(
         "discriminator_accu",
         "generator_loss",
         "generator_psnr",
+        "generator_ssim",
     ]
     columns = metric_names + [f"val_{metric_name}" for metric_name in metric_names]
     dataframe = pd.DataFrame(index=np.arange(epochs), columns=columns)
@@ -1526,7 +1588,7 @@ def objective(
             livelossplot.draw_plot(
                 logs=dataframe.to_dict(orient="records"),
                 metrics=metric_names,
-                max_cols=4,
+                max_cols=5,
                 figsize=(21, 9),
                 max_epoch=None,
             )
