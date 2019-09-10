@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "05ceabe9650603e87935239834c5220b843527b0deb3c5ce8bc6f9a1b593485f"
+            "sha256": "d6b6e25bdbc6a2aa6a896e2b9e41361621244037398395714613bef0ebe3e8df"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -1124,6 +1124,11 @@
                 "sha256:2f8ff566a4d3a92246d367f2e9cd6ed3edeef670dcd6dda6dfdc9efed88bcd80"
             ],
             "version": "==1.3.8"
+        },
+        "ssim-chainer": {
+            "editable": true,
+            "git": "https://github.com/higumachan/ssim-chainer.git",
+            "ref": "9c54f25b7c068b562b711027a92c346ce0708b52"
         },
         "stevedore": {
             "hashes": [
