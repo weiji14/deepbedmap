@@ -852,7 +852,7 @@ def calculate_generator_loss(
     content_loss_weighting: float = 1e-2,
     adversarial_loss_weighting: float = 5e-3,
     topographic_loss_weighting: float = 5e-3,
-    structural_loss_weighting: float = 1e-2,
+    structural_loss_weighting: float = 5.25e-2,
 ) -> chainer.variable.Variable:
     """
     This function calculates the weighted sum between
@@ -868,7 +868,7 @@ def calculate_generator_loss(
     ...     real_minus_fake_target=np.array([[0], [0]]).astype(np.int32),
     ...     x_topo=np.full(shape=(2, 1, 3, 3), fill_value=9.0),
     ... )
-    variable(0.14669286)
+    variable(0.18077699)
     """
     # Content Loss (L1, Mean Absolute Error) between predicted and groundtruth 2D images
     content_loss = F.mean_absolute_error(x0=y_pred, x1=y_true)
@@ -1650,7 +1650,7 @@ def objective(
 
 
 # %%
-n_trials = 50
+n_trials = 1
 if n_trials == 1:  # run training once only, i.e. just test the objective function
     objective(enable_livelossplot=True, enable_comet_logging=True)
 elif n_trials > 1:  # perform hyperparameter tuning with multiple experimental trials
