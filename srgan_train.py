@@ -132,7 +132,7 @@ def load_data_into_memory(
 def get_train_dev_iterators(
     dataset: chainer.datasets.dict_dataset.DictDataset,
     first_size: int,  # size of training set
-    batch_size: int = 64,
+    batch_size: int = 128,
     seed: int = 42,
 ) -> (
     chainer.iterators.serial_iterator.SerialIterator,
@@ -849,10 +849,10 @@ def calculate_generator_loss(
     fake_minus_real_target: cupy.ndarray,
     real_minus_fake_target: cupy.ndarray,
     x_topo: cupy.ndarray,
-    content_loss_weighting: float = 1e-2,
-    adversarial_loss_weighting: float = 5e-3,
-    topographic_loss_weighting: float = 5e-3,
-    structural_loss_weighting: float = 5.25e-2,
+    content_loss_weighting: float = 1e-2,  # e.g. ~35 * 1e-2 = 0.35
+    adversarial_loss_weighting: float = 2e-2,  # e.g. ~10 * 2e-2 = 0.20
+    topographic_loss_weighting: float = 2e-3,  # e.g. ~35 * 2e-3 = 0.07
+    structural_loss_weighting: float = 5.25e-0,  # e.g. ~0.75 * 5.25e-0 = 3.9375
 ) -> chainer.variable.Variable:
     """
     This function calculates the weighted sum between
@@ -868,7 +868,7 @@ def calculate_generator_loss(
     ...     real_minus_fake_target=np.array([[0], [0]]).astype(np.int32),
     ...     x_topo=np.full(shape=(2, 1, 3, 3), fill_value=9.0),
     ... )
-    variable(0.18077699)
+    variable(4.35108415)
     """
     # Content Loss (L1, Mean Absolute Error) between predicted and groundtruth 2D images
     content_loss = F.mean_absolute_error(x0=y_pred, x1=y_true)
@@ -1341,7 +1341,7 @@ def save_model_weights_and_architecture(
     Save the trained neural network's parameter weights and architecture (computational
     graph) respectively to zipped Numpy (.npz) and Graphviz DOT (.dot) format.
 
-    >>> model = GeneratorModel()
+    >>> model = GeneratorModel(num_residual_blocks=1)
     >>> _, _ = save_model_weights_and_architecture(
     ...     trained_model=model, save_path="/tmp/weights"
     ... )
@@ -1523,13 +1523,13 @@ def objective(
 
     ## Compile Model
     num_residual_blocks: int = trial.suggest_int(
-        name="num_residual_blocks", low=12, high=12
+        name="num_residual_blocks", low=12, high=16
     )
     residual_scaling: float = trial.suggest_discrete_uniform(
-        name="residual_scaling", low=0.1, high=0.6, q=0.05
+        name="residual_scaling", low=0.1, high=0.3, q=0.05
     )
     learning_rate: float = trial.suggest_discrete_uniform(
-        name="learning_rate", high=4.0e-4, low=2.0e-4, q=0.1e-4
+        name="learning_rate", high=4.0e-4, low=1.0e-4, q=0.1e-4
     )
     g_model, g_optimizer, d_model, d_optimizer = compile_srgan_model(
         num_residual_blocks=num_residual_blocks,
@@ -1550,7 +1550,7 @@ def objective(
     )
 
     ## Run Trainer and save trained model
-    epochs: int = trial.suggest_int(name="num_epochs", low=90, high=150)
+    epochs: int = trial.suggest_int(name="num_epochs", low=90, high=180)
     experiment.log_parameter(name="num_epochs", value=epochs)
 
     metric_names = [
@@ -1650,24 +1650,23 @@ def objective(
 
 
 # %%
-n_trials = 1
+n_trials = 45
 if n_trials == 1:  # run training once only, i.e. just test the objective function
     objective(enable_livelossplot=True, enable_comet_logging=True)
 elif n_trials > 1:  # perform hyperparameter tuning with multiple experimental trials
     # Set different seed using len($HOSTNAME) + GPU_ID
-    tpe_seed = len(os.uname().nodename) + int(
-        os.getenv(key="CUDA_VISIBLE_DEVICES", default="0")
-    )
+    hostname: str = os.uname().nodename
+    tpe_seed = len(hostname) + int(os.getenv(key="CUDA_VISIBLE_DEVICES", default="0"))
     # Tree-structured Parzen Estimator using HyperOpt defaults
     sampler = optuna.samplers.TPESampler(
         seed=tpe_seed, **optuna.samplers.TPESampler.hyperopt_parameters()
     )
     study = optuna.create_study(
-        storage="sqlite:///model/logs/train.db",
         study_name="DeepBedMap_tuning",
-        load_if_exists=True,
+        storage=f"sqlite:///model/logs/train_on_{hostname}.db",
         sampler=sampler,
         pruner=optuna.pruners.MedianPruner(),
+        load_if_exists=True,
     )
     study.optimize(func=objective, n_trials=n_trials, n_jobs=1)
 
@@ -1675,7 +1674,8 @@ elif n_trials > 1:  # perform hyperparameter tuning with multiple experimental t
 # %%
 if n_trials > 1:
     study = optuna.load_study(
-        study_name="DeepBedMap_tuning", storage="sqlite:///model/logs/train.db"
+        study_name="DeepBedMap_tuning",
+        storage=f"sqlite:///model/logs/train_on_{hostname}.db",
     )
     topten_df = study.trials_dataframe().nsmallest(n=10, columns="value")
     IPython.display.display(
