@@ -342,7 +342,7 @@ print(synthetic250.shape)
 
 # %%
 def load_trained_model(
-    experiment_key: str = "6b6343ce1b9e4ae08486d8ea0260c1ec",  # or simply use "latest"
+    experiment_key: str = "72e783d7b96d4ef5ac39cc00b808198f",  # or simply use "latest"
     model_weights_path: str = "model/weights/srgan_generator_model_weights.npz",
 ):
     """

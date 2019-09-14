@@ -220,41 +220,37 @@ class DeepbedmapInputBlock(chainer.Chain):
         init_weights = chainer.initializers.HeNormal(scale=0.1, fan_option="fan_in")
 
         with self.init_scope():
-            self.conv_on_X = L.DeformableConvolution2D(
+            self.conv_on_X = L.Convolution2D(
                 in_channels=1,
                 out_channels=out_channels,
                 ksize=(3, 3),
                 stride=(1, 1),
                 pad=(0, 0),  # 'valid' padding
-                offset_initialW=init_weights,
-                deform_initialW=init_weights,
+                initialW=init_weights,
             )
-            self.conv_on_W1 = L.DeformableConvolution2D(
+            self.conv_on_W1 = L.Convolution2D(
                 in_channels=1,
                 out_channels=out_channels,
                 ksize=(30, 30),
                 stride=(10, 10),
                 pad=(0, 0),  # 'valid' padding
-                offset_initialW=init_weights,
-                deform_initialW=init_weights,
+                initialW=init_weights,
             )
-            self.conv_on_W2 = L.DeformableConvolution2D(
+            self.conv_on_W2 = L.Convolution2D(
                 in_channels=2,
                 out_channels=out_channels,
                 ksize=(6, 6),
                 stride=(2, 2),
                 pad=(0, 0),  # 'valid' padding
-                offset_initialW=init_weights,
-                deform_initialW=init_weights,
+                initialW=init_weights,
             )
-            self.conv_on_W3 = L.DeformableConvolution2D(
+            self.conv_on_W3 = L.Convolution2D(
                 in_channels=1,
                 out_channels=out_channels,
                 ksize=(3, 3),
                 stride=(1, 1),
                 pad=(0, 0),  # 'valid' padding
-                offset_initialW=init_weights,
-                deform_initialW=init_weights,
+                initialW=init_weights,
             )
 
     def forward(self, x, w1, w2, w3):
@@ -286,7 +282,7 @@ class ResidualDenseBlock(chainer.Chain):
         self,
         in_out_channels: int = 64,
         inter_channels: int = 32,
-        residual_scaling: float = 0.2,
+        residual_scaling: float = 0.1,
     ):
         super().__init__()
         self.residual_scaling = residual_scaling
@@ -378,7 +374,7 @@ class ResInResDenseBlock(chainer.Chain):
     """
 
     def __init__(
-        self, denseblock_class=ResidualDenseBlock, residual_scaling: float = 0.2
+        self, denseblock_class=ResidualDenseBlock, residual_scaling: float = 0.1
     ):
         super().__init__()
         self.residual_scaling = residual_scaling
@@ -448,7 +444,7 @@ class GeneratorModel(chainer.Chain):
     >>> y_pred.shape
     (1, 1, 36, 36)
     >>> generator_model.count_params()
-    10587077
+    8907749
     """
 
     def __init__(
@@ -456,7 +452,7 @@ class GeneratorModel(chainer.Chain):
         inblock_class=DeepbedmapInputBlock,
         resblock_class=ResInResDenseBlock,
         num_residual_blocks: int = 12,
-        residual_scaling: float = 0.2,
+        residual_scaling: float = 0.1,
         out_channels: int = 1,
     ):
         super().__init__()
@@ -468,46 +464,42 @@ class GeneratorModel(chainer.Chain):
 
             # Initial Input and Residual Blocks
             self.input_block = inblock_class()
-            self.pre_residual_conv_layer = L.DeformableConvolution2D(
+            self.pre_residual_conv_layer = L.Convolution2D(
                 in_channels=None,
                 out_channels=64,
                 ksize=(3, 3),
                 stride=(1, 1),
                 pad=1,  # 'same' padding
-                offset_initialW=init_weights,
-                deform_initialW=init_weights,
+                initialW=init_weights,
             )
             self.residual_network = resblock_class(
                 residual_scaling=residual_scaling
             ).repeat(n_repeat=num_residual_blocks)
-            self.post_residual_conv_layer = L.DeformableConvolution2D(
+            self.post_residual_conv_layer = L.Convolution2D(
                 in_channels=None,
                 out_channels=64,
                 ksize=(3, 3),
                 stride=(1, 1),
                 pad=1,  # 'same' padding
-                offset_initialW=init_weights,
-                deform_initialW=init_weights,
+                initialW=init_weights,
             )
 
             # Upsampling Layers
-            self.post_upsample_conv_layer_1 = L.DeformableConvolution2D(
+            self.post_upsample_conv_layer_1 = L.Convolution2D(
                 in_channels=None,
                 out_channels=64,
                 ksize=(3, 3),
                 stride=(1, 1),
                 pad=1,  # 'same' padding
-                offset_initialW=init_weights,
-                deform_initialW=init_weights,
+                initialW=init_weights,
             )
-            self.post_upsample_conv_layer_2 = L.DeformableConvolution2D(
+            self.post_upsample_conv_layer_2 = L.Convolution2D(
                 in_channels=None,
                 out_channels=64,
                 ksize=(3, 3),
                 stride=(1, 1),
                 pad=1,  # 'same' padding
-                offset_initialW=init_weights,
-                deform_initialW=init_weights,
+                initialW=init_weights,
             )
 
             # Final post-upsample convolution layers
@@ -712,7 +704,7 @@ class DiscriminatorModel(chainer.Chain):
 #
 # Now we define the Perceptual Loss function for our Generator and Discriminator neural network models, where:
 #
-# $$Perceptual Loss = Content Loss + Adversarial Loss + Topographic Loss$$
+# $$Perceptual Loss = Content Loss + Adversarial Loss + Topographic Loss + Structural Loss$$
 #
 # ![Perceptual Loss in an adapted Enhanced Super Resolution Generative Adversarial Network](https://yuml.me/19155033.png)
 #
@@ -1016,7 +1008,7 @@ def calculate_discriminator_loss(
 # Build the models
 def compile_srgan_model(
     num_residual_blocks: int = 12,
-    residual_scaling: float = 0.2,
+    residual_scaling: float = 0.1,
     learning_rate: float = 2e-4,
 ):
     """
@@ -1471,8 +1463,8 @@ def objective(
         params={
             "batch_size_exponent": 7,
             "num_residual_blocks": 12,
-            "residual_scaling": 0.2,
-            "learning_rate": 2.0e-4,
+            "residual_scaling": 0.1,
+            "learning_rate": 1.6e-4,
             "num_epochs": 120,
         }
     ),
@@ -1523,7 +1515,7 @@ def objective(
 
     ## Compile Model
     num_residual_blocks: int = trial.suggest_int(
-        name="num_residual_blocks", low=12, high=16
+        name="num_residual_blocks", low=12, high=12
     )
     residual_scaling: float = trial.suggest_discrete_uniform(
         name="residual_scaling", low=0.1, high=0.3, q=0.05
@@ -1550,7 +1542,7 @@ def objective(
     )
 
     ## Run Trainer and save trained model
-    epochs: int = trial.suggest_int(name="num_epochs", low=90, high=180)
+    epochs: int = trial.suggest_int(name="num_epochs", low=90, high=150)
     experiment.log_parameter(name="num_epochs", value=epochs)
 
     metric_names = [
@@ -1650,7 +1642,7 @@ def objective(
 
 
 # %%
-n_trials = 45
+n_trials = 20
 if n_trials == 1:  # run training once only, i.e. just test the objective function
     objective(enable_livelossplot=True, enable_comet_logging=True)
 elif n_trials > 1:  # perform hyperparameter tuning with multiple experimental trials
@@ -1665,7 +1657,7 @@ elif n_trials > 1:  # perform hyperparameter tuning with multiple experimental t
         study_name="DeepBedMap_tuning",
         storage=f"sqlite:///model/logs/train_on_{hostname}.db",
         sampler=sampler,
-        pruner=optuna.pruners.MedianPruner(),
+        pruner=optuna.pruners.MedianPruner(n_warmup_steps=15),
         load_if_exists=True,
     )
     study.optimize(func=objective, n_trials=n_trials, n_jobs=1)
