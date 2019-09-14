@@ -27,6 +27,7 @@ rasterio = "==1.0.24"
 rtree = "==0.8.3"
 salem = "==0.2.4"
 scikit-image = "==0.15.0"
+ssim-chainer = {editable = true,git = "https://github.com/higumachan/ssim-chainer.git"}
 tqdm = "==4.32.2"
 
 [dev-packages]

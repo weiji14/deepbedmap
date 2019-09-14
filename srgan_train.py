@@ -56,6 +56,7 @@ import chainer.links as L
 import cupy
 import livelossplot
 import optuna
+import ssim.functions
 
 from features.environment import _load_ipynb_modules
 
@@ -131,7 +132,7 @@ def load_data_into_memory(
 def get_train_dev_iterators(
     dataset: chainer.datasets.dict_dataset.DictDataset,
     first_size: int,  # size of training set
-    batch_size: int = 64,
+    batch_size: int = 128,
     seed: int = 42,
 ) -> (
     chainer.iterators.serial_iterator.SerialIterator,
@@ -281,7 +282,7 @@ class ResidualDenseBlock(chainer.Chain):
         self,
         in_out_channels: int = 64,
         inter_channels: int = 32,
-        residual_scaling: float = 0.2,
+        residual_scaling: float = 0.1,
     ):
         super().__init__()
         self.residual_scaling = residual_scaling
@@ -373,7 +374,7 @@ class ResInResDenseBlock(chainer.Chain):
     """
 
     def __init__(
-        self, denseblock_class=ResidualDenseBlock, residual_scaling: float = 0.2
+        self, denseblock_class=ResidualDenseBlock, residual_scaling: float = 0.1
     ):
         super().__init__()
         self.residual_scaling = residual_scaling
@@ -443,7 +444,7 @@ class GeneratorModel(chainer.Chain):
     >>> y_pred.shape
     (1, 1, 36, 36)
     >>> generator_model.count_params()
-    8886977
+    8907749
     """
 
     def __init__(
@@ -451,7 +452,7 @@ class GeneratorModel(chainer.Chain):
         inblock_class=DeepbedmapInputBlock,
         resblock_class=ResInResDenseBlock,
         num_residual_blocks: int = 12,
-        residual_scaling: float = 0.2,
+        residual_scaling: float = 0.1,
         out_channels: int = 1,
     ):
         super().__init__()
@@ -502,21 +503,23 @@ class GeneratorModel(chainer.Chain):
             )
 
             # Final post-upsample convolution layers
-            self.final_conv_layer1 = L.Convolution2D(
+            self.final_conv_layer1 = L.DeformableConvolution2D(
                 in_channels=None,
                 out_channels=64,
                 ksize=(3, 3),
                 stride=(1, 1),
                 pad=1,  # 'same' padding
-                initialW=init_weights,
+                offset_initialW=init_weights,
+                deform_initialW=init_weights,
             )
-            self.final_conv_layer2 = L.Convolution2D(
+            self.final_conv_layer2 = L.DeformableConvolution2D(
                 in_channels=None,
                 out_channels=out_channels,
                 ksize=(3, 3),
                 stride=(1, 1),
                 pad=1,  # 'same' padding
-                initialW=init_weights,
+                offset_initialW=init_weights,
+                deform_initialW=init_weights,
             )
 
     def forward(
@@ -701,16 +704,18 @@ class DiscriminatorModel(chainer.Chain):
 #
 # Now we define the Perceptual Loss function for our Generator and Discriminator neural network models, where:
 #
-# $$Perceptual Loss = Content Loss + Adversarial Loss + Topographic Loss$$
+# $$Perceptual Loss = Content Loss + Adversarial Loss + Topographic Loss + Structural Loss$$
 #
-# ![Perceptual Loss in an adapted Enhanced Super Resolution Generative Adversarial Network](https://yuml.me/7731ae34.png)
+# ![Perceptual Loss in an adapted Enhanced Super Resolution Generative Adversarial Network](https://yuml.me/19155033.png)
 #
 # <!--
 # [LowRes-Inputs]-Generator>[SuperResolution_DEM]
 # [SuperResolution_DEM]-.->[note:Content-Loss|MeanAbsoluteError{bg:yellow}]
 # [LowRes-Inputs]-.->[note:Topographic-Loss|MeanAbsoluteError{bg:yellow}]
+# [SuperResolution_DEM]-.->[note:Structural-Loss|SSIM{bg:yellow}]
 # [SuperResolution_DEM]-.->[note:Topographic-Loss]
 # [HighRes-Groundtruth_DEM]-.->[note:Content-Loss]
+# [HighRes-Groundtruth_DEM]-.->[note:Structural-Loss]
 # [SuperResolution_DEM]-Discriminator>[False_or_True_Prediction]
 # [HighRes-Groundtruth_DEM]-Discriminator>[False_or_True_Prediction]
 # [False_or_True_Prediction]<->[False_or_True_Label]
@@ -719,6 +724,7 @@ class DiscriminatorModel(chainer.Chain):
 # [note:Content-Loss]-.->[note:Perceptual-Loss{bg:gold}]
 # [note:Adversarial-Loss]-.->[note:Perceptual-Loss{bg:gold}]
 # [note:Topographic-Loss]-.->[note:Perceptual-Loss{bg:gold}]
+# [note:Structural-Loss]-.->[note:Perceptual-Loss{bg:gold}]
 # -->
 
 # %% [markdown]
@@ -810,7 +816,21 @@ class DiscriminatorModel(chainer.Chain):
 # We then sum all the pixel-wise errors $e_j,\dots,e_n$ and divide by the number of pixels $n$ to get the Arithmetic Mean $\dfrac{1}{n} \sum\limits_{i=1}^n$ of our error which is our *Topographic Loss*.
 #
 # $$ Loss_{Topographic} = Mean Absolute Error = \dfrac{1}{n} \sum\limits_{i=1}^n e_j $$
+
+# %% [markdown]
+# ### Structural Loss
 #
+# Complementing the L1 Content Loss further, we define a *Structural (Similarity) Loss*.
+# This is computed using the [Structural Similarity (SSIM)](https://en.wikipedia.org/wiki/Structural_similarity) Index,
+# on a moving window (here set to 9x9) between the super resolution predicted image and high resolution groundtruth image.
+# The comparison takes into account luminance, contrast and structural information.
+#
+# $$ SSIM(x,y) = \dfrac{(2\mu_x\mu_y + c_1)(2\sigma_{xy} + c_2)}{(\mu_x^2 + \mu_y^2 + c_1)(\sigma_x^2 + \sigma_y^2 + c_2)} $$
+#
+# where $\mu_x$ and $\mu_y$ are the average (mean) of predicted image $x$ and groundtruth image $y$ respectively,
+# $\sigma_{xy}$ is the covariance of $x$ and $y$,
+# $\sigma_x^2$ and $\sigma_y^2$ are the variance of $x$ and $y$ respectively, and
+# $c_1$ and $c_2$ are two variables to stabilize the division with weak denominator.
 
 # %%
 def calculate_generator_loss(
@@ -821,13 +841,14 @@ def calculate_generator_loss(
     fake_minus_real_target: cupy.ndarray,
     real_minus_fake_target: cupy.ndarray,
     x_topo: cupy.ndarray,
-    content_loss_weighting: float = 1e-2,
-    adversarial_loss_weighting: float = 5e-3,
-    topographic_loss_weighting: float = 5e-3,
+    content_loss_weighting: float = 1e-2,  # e.g. ~35 * 1e-2 = 0.35
+    adversarial_loss_weighting: float = 2e-2,  # e.g. ~10 * 2e-2 = 0.20
+    topographic_loss_weighting: float = 2e-3,  # e.g. ~35 * 2e-3 = 0.07
+    structural_loss_weighting: float = 5.25e-0,  # e.g. ~0.75 * 5.25e-0 = 3.9375
 ) -> chainer.variable.Variable:
     """
     This function calculates the weighted sum between
-    "Content Loss", "Adversarial Loss", and "Topographic Loss"
+    "Content Loss", "Adversarial Loss", "Topographic Loss", and "Structural Loss"
     which forms the basis for training the Generator Network.
 
     >>> calculate_generator_loss(
@@ -839,7 +860,7 @@ def calculate_generator_loss(
     ...     real_minus_fake_target=np.array([[0], [0]]).astype(np.int32),
     ...     x_topo=np.full(shape=(2, 1, 3, 3), fill_value=9.0),
     ... )
-    variable(0.13867307)
+    variable(4.35108415)
     """
     # Content Loss (L1, Mean Absolute Error) between predicted and groundtruth 2D images
     content_loss = F.mean_absolute_error(x0=y_pred, x1=y_true)
@@ -857,13 +878,20 @@ def calculate_generator_loss(
         x0=F.average_pooling_2d(x=y_pred, ksize=(4, 4)), x1=x_topo
     )
 
+    # Structural Similarity Loss between predicted and groundtruth 2D images
+    structural_loss = 1 - ssim_loss_func(y_pred=y_pred, y_true=y_true)
+
     # Get generator loss
     weighted_content_loss = content_loss_weighting * content_loss
     weighted_adversarial_loss = adversarial_loss_weighting * adversarial_loss
     weighted_topographic_loss = topographic_loss_weighting * topographic_loss
+    weighted_structural_loss = structural_loss_weighting * structural_loss
 
     g_loss = (
-        weighted_content_loss + weighted_adversarial_loss + weighted_topographic_loss
+        weighted_content_loss
+        + weighted_adversarial_loss
+        + weighted_topographic_loss
+        + weighted_structural_loss
     )
 
     return g_loss
@@ -871,7 +899,7 @@ def calculate_generator_loss(
 
 # %%
 def psnr(
-    y_true: cupy.ndarray, y_pred: cupy.ndarray, data_range=2 ** 32
+    y_pred: cupy.ndarray, y_true: cupy.ndarray, data_range=2 ** 32
 ) -> cupy.ndarray:
     """
     Peak Signal-Noise Ratio (PSNR) metric, calculated batchwise.
@@ -881,8 +909,8 @@ def psnr(
     Implementation is same as skimage.measure.compare_psnr with data_range=2**32
 
     >>> psnr(
-    ...     y_true=np.ones(shape=(2, 1, 3, 3)),
-    ...     y_pred=np.full(shape=(2, 1, 3, 3), fill_value=2),
+    ...     y_pred=np.ones(shape=(2, 1, 3, 3)),
+    ...     y_true=np.full(shape=(2, 1, 3, 3), fill_value=2),
     ... )
     192.65919722494797
     """
@@ -893,6 +921,34 @@ def psnr(
 
     # Calculate Peak Signal-Noise Ratio, setting MAX_I as 2^32, i.e. max for int32
     return xp.multiply(20, xp.log10(data_range / xp.sqrt(mse)))
+
+
+# %%
+def ssim_loss_func(
+    y_pred: chainer.variable.Variable,
+    y_true: cupy.ndarray,
+    window_size: int = 9,
+    stride: int = 1,
+) -> chainer.variable.Variable:
+    """
+    Structural Similarity (SSIM) loss/metric, calculated with default window size of 9.
+    See https://en.wikipedia.org/wiki/Structural_similarity
+
+    Can take in either numpy (CPU) or cupy (GPU) arrays as input.
+
+    >>> ssim_loss_func(
+    ...     y_pred=chainer.variable.Variable(data=np.ones(shape=(2, 1, 9, 9))),
+    ...     y_true=np.full(shape=(2, 1, 9, 9), fill_value=2.0),
+    ... )
+    variable(0.800004)
+    """
+    if not y_pred.shape == y_true.shape:
+        raise ValueError("Input images must have the same dimensions.")
+
+    ssim_value = ssim.functions.ssim_loss(
+        y=y_pred, t=y_true, window_size=window_size, stride=stride
+    )
+    return ssim_value
 
 
 # %%
@@ -952,8 +1008,8 @@ def calculate_discriminator_loss(
 # Build the models
 def compile_srgan_model(
     num_residual_blocks: int = 12,
-    residual_scaling: float = 0.2,
-    learning_rate: float = 8e-5,
+    residual_scaling: float = 0.1,
+    learning_rate: float = 2e-4,
 ):
     """
     Instantiate our Super Resolution Generative Adversarial Network (SRGAN) model here.
@@ -1111,7 +1167,7 @@ def train_eval_generator(
     d_model,
     g_optimizer=None,
     train: bool = True,
-) -> (float, float):
+) -> (float, float, float):
     """
     Evaluates and/or trains the Generator for one minibatch
     within a Super Resolution Generative Adversarial Network.
@@ -1186,6 +1242,7 @@ def train_eval_generator(
         x_topo=input_arrays["X"][:, :, 1:-1, 1:-1],  # sliced to remove 1km borders
     )
     g_psnr = psnr(y_pred=fake_images.array, y_true=real_images)
+    g_ssim = ssim_loss_func(y_pred=fake_images, y_true=real_images)
 
     # @then("the generator should learn to create a more authentic looking image")
     if train == True:
@@ -1193,7 +1250,11 @@ def train_eval_generator(
         g_loss.backward()  # renew gradients
         g_optimizer.update()  # backpropagate the loss using optimizer
 
-    return float(g_loss.array), float(g_psnr)  # return generator loss and metric values
+    return (
+        float(g_loss.array),
+        float(g_psnr),
+        float(g_ssim.array),
+    )  # return generator loss and metric values
 
 
 # %%
@@ -1230,7 +1291,7 @@ def trainer(
         metrics_dict["discriminator_accu"].append(d_train_accu)
 
         ## 1.2 - Train Generator
-        g_train_loss, g_train_psnr = train_eval_generator(
+        g_train_loss, g_train_psnr, g_train_ssim = train_eval_generator(
             input_arrays=train_arrays,
             g_model=g_model,
             d_model=d_model,
@@ -1238,24 +1299,26 @@ def trainer(
         )
         metrics_dict["generator_loss"].append(g_train_loss)
         metrics_dict["generator_psnr"].append(g_train_psnr)
+        metrics_dict["generator_ssim"].append(g_train_ssim)
 
     ## Part 2 - Evaluation on development dataset
     while i == dev_iter.epoch:  # while we are in epoch i, evaluate on each minibatch
         dev_batch = dev_iter.next()
         dev_arrays = chainer.dataset.concat_examples(batch=dev_batch)
         ## 2.1 - Evaluate Discriminator
-        d_train_loss, d_train_accu = train_eval_discriminator(
+        d_dev_loss, d_dev_accu = train_eval_discriminator(
             input_arrays=dev_arrays, g_model=g_model, d_model=d_model, train=False
         )
-        metrics_dict["val_discriminator_loss"].append(d_train_loss)
-        metrics_dict["val_discriminator_accu"].append(d_train_accu)
+        metrics_dict["val_discriminator_loss"].append(d_dev_loss)
+        metrics_dict["val_discriminator_accu"].append(d_dev_accu)
 
         ## 2.2 - Evaluate Generator
-        g_dev_loss, g_dev_psnr = train_eval_generator(
+        g_dev_loss, g_dev_psnr, g_dev_ssim = train_eval_generator(
             input_arrays=dev_arrays, g_model=g_model, d_model=d_model, train=False
         )
         metrics_dict["val_generator_loss"].append(g_dev_loss)
         metrics_dict["val_generator_psnr"].append(g_dev_psnr)
+        metrics_dict["val_generator_ssim"].append(g_dev_ssim)
 
     return metrics_dict
 
@@ -1270,7 +1333,7 @@ def save_model_weights_and_architecture(
     Save the trained neural network's parameter weights and architecture (computational
     graph) respectively to zipped Numpy (.npz) and Graphviz DOT (.dot) format.
 
-    >>> model = GeneratorModel()
+    >>> model = GeneratorModel(num_residual_blocks=1)
     >>> _, _ = save_model_weights_and_architecture(
     ...     trained_model=model, save_path="/tmp/weights"
     ... )
@@ -1400,9 +1463,9 @@ def objective(
         params={
             "batch_size_exponent": 7,
             "num_residual_blocks": 12,
-            "residual_scaling": 0.2,
-            "learning_rate": 9e-5,
-            "num_epochs": 45,
+            "residual_scaling": 0.1,
+            "learning_rate": 1.6e-4,
+            "num_epochs": 120,
         }
     ),
     enable_livelossplot: bool = False,  # Default: False, no plots makes it go faster!
@@ -1440,7 +1503,7 @@ def objective(
     experiment.log_parameter(name="dataset_hash", value=quilt_hash)
     experiment.log_parameter(name="use_gpu", value=cupy.is_available())
     batch_size: int = int(
-        2 ** trial.suggest_int(name="batch_size_exponent", low=6, high=7)
+        2 ** trial.suggest_int(name="batch_size_exponent", low=7, high=7)
     )
     experiment.log_parameter(name="batch_size", value=batch_size)
     train_iter, train_len, dev_iter, dev_len = get_train_dev_iterators(
@@ -1452,13 +1515,13 @@ def objective(
 
     ## Compile Model
     num_residual_blocks: int = trial.suggest_int(
-        name="num_residual_blocks", low=12, high=14
+        name="num_residual_blocks", low=12, high=12
     )
     residual_scaling: float = trial.suggest_discrete_uniform(
-        name="residual_scaling", low=0.1, high=0.6, q=0.05
+        name="residual_scaling", low=0.1, high=0.3, q=0.05
     )
     learning_rate: float = trial.suggest_discrete_uniform(
-        name="learning_rate", high=1.4e-4, low=9.0e-5, q=0.5e-5
+        name="learning_rate", high=4.0e-4, low=1.0e-4, q=0.1e-4
     )
     g_model, g_optimizer, d_model, d_optimizer = compile_srgan_model(
         num_residual_blocks=num_residual_blocks,
@@ -1479,7 +1542,7 @@ def objective(
     )
 
     ## Run Trainer and save trained model
-    epochs: int = trial.suggest_int(name="num_epochs", low=40, high=90)
+    epochs: int = trial.suggest_int(name="num_epochs", low=90, high=150)
     experiment.log_parameter(name="num_epochs", value=epochs)
 
     metric_names = [
@@ -1487,6 +1550,7 @@ def objective(
         "discriminator_accu",
         "generator_loss",
         "generator_psnr",
+        "generator_ssim",
     ]
     columns = metric_names + [f"val_{metric_name}" for metric_name in metric_names]
     dataframe = pd.DataFrame(index=np.arange(epochs), columns=columns)
@@ -1516,7 +1580,7 @@ def objective(
             livelossplot.draw_plot(
                 logs=dataframe.to_dict(orient="records"),
                 metrics=metric_names,
-                max_cols=4,
+                max_cols=5,
                 figsize=(21, 9),
                 max_epoch=None,
             )
@@ -1578,24 +1642,23 @@ def objective(
 
 
 # %%
-n_trials = 1
+n_trials = 20
 if n_trials == 1:  # run training once only, i.e. just test the objective function
     objective(enable_livelossplot=True, enable_comet_logging=True)
 elif n_trials > 1:  # perform hyperparameter tuning with multiple experimental trials
     # Set different seed using len($HOSTNAME) + GPU_ID
-    tpe_seed = len(os.uname().nodename) + int(
-        os.getenv(key="CUDA_VISIBLE_DEVICES", default="0")
-    )
+    hostname: str = os.uname().nodename
+    tpe_seed = len(hostname) + int(os.getenv(key="CUDA_VISIBLE_DEVICES", default="0"))
     # Tree-structured Parzen Estimator using HyperOpt defaults
     sampler = optuna.samplers.TPESampler(
         seed=tpe_seed, **optuna.samplers.TPESampler.hyperopt_parameters()
     )
     study = optuna.create_study(
-        storage="sqlite:///model/logs/train.db",
         study_name="DeepBedMap_tuning",
-        load_if_exists=True,
+        storage=f"sqlite:///model/logs/train_on_{hostname}.db",
         sampler=sampler,
         pruner=optuna.pruners.MedianPruner(n_warmup_steps=15),
+        load_if_exists=True,
     )
     study.optimize(func=objective, n_trials=n_trials, n_jobs=1)
 
@@ -1603,6 +1666,10 @@ elif n_trials > 1:  # perform hyperparameter tuning with multiple experimental t
 # %%
 if n_trials > 1:
     study = optuna.load_study(
-        study_name="DeepBedMap_tuning", storage="sqlite:///model/logs/train.db"
+        study_name="DeepBedMap_tuning",
+        storage=f"sqlite:///model/logs/train_on_{hostname}.db",
     )
-    IPython.display.display(study.trials_dataframe().nsmallest(n=10, columns="value"))
+    topten_df = study.trials_dataframe().nsmallest(n=10, columns="value")
+    IPython.display.display(
+        topten_df.drop(labels=["intermediate_values"], axis="columns", level=0)
+    )
