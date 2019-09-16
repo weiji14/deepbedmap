@@ -31,8 +31,7 @@ os.environ["CUDA_VISIBLE_DEVICES"] = ""
 import xarray as xr
 import salem
 
-import comet_ml
-import cupy
+import geopandas as gpd
 import matplotlib
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import axes3d
@@ -43,7 +42,9 @@ import quilt
 import rasterio
 import skimage
 
+import comet_ml
 import chainer
+import cupy
 
 from features.environment import _load_ipynb_modules, _download_model_weights_from_comet
 
@@ -110,11 +111,11 @@ def get_image_with_bounds(filepaths: list, indexers: dict = None) -> xr.DataArra
 
 
 # %%
-test_filepaths = ["highres/2007tx"]  # , "highres/2010tr", "highres/istarxx"]
+test_filepaths = ["highres/2007tx", "highres/2010tr", "highres/istarxx"]
 groundtruth = get_image_with_bounds(
     filepaths=[f"{t}.nc" for t in test_filepaths],
-    indexers={"y": slice(1, -2), "x": slice(1, -2)},  # for 2007tx
-    # indexers={"x": slice(1, -2)},  # for 2007tx, 2010tr and istarxx
+    # indexers={"y": slice(1, -2), "x": slice(1, -2)},  # for 2007tx
+    indexers={"x": slice(1, -2)},  # for 2007tx, 2010tr and istarxx
 )
 window_bound = rasterio.coords.BoundingBox(*groundtruth.bounds)
 print(window_bound)
@@ -127,7 +128,9 @@ print(window_bound)
 
 # %%
 def get_deepbedmap_model_inputs(
-    window_bound: rasterio.coords.BoundingBox, padding: int = 1000
+    window_bound: rasterio.coords.BoundingBox,
+    padding: int = 1000,
+    use_whole_rema: bool = False,
 ) -> (np.ndarray, np.ndarray, np.ndarray, np.ndarray):
     """
     Outputs one large tile for each of:
@@ -176,11 +179,23 @@ def get_deepbedmap_model_inputs(
             ],
             axis=1,
         )
-        W1_tile = data_prep.selective_tile(
-            filepath="misc/REMA_100m_dem_filled.tif",
-            window_bounds=[[*window_bound]],
-            padding=padding,
-        )
+        if not use_whole_rema:
+            W1_tile = data_prep.selective_tile(
+                filepath="misc/REMA_100m_dem_filled.tif",
+                window_bounds=[[*window_bound]],
+                padding=padding,
+            )
+        elif use_whole_rema:
+            print("Getting: misc/REMA_100m_dem_filled.tif ...", end="")
+            with xr.open_rasterio("misc/REMA_100m_dem_filled.tif") as ds:
+                W1_tile = np.expand_dims(a=ds.values, axis=0)
+                # special zero padding for REMA, 10pixels on top, bottom, left and right
+                W1_tile = np.pad(
+                    array=W1_tile,
+                    pad_width=[(0, 0), (0, 0), (10, 10), (10, 10)],
+                    mode="constant",
+                )
+            print("Done!")
 
     return X_tile, W1_tile, W2_tile, W3_tile
 
@@ -342,7 +357,7 @@ print(synthetic250.shape)
 
 # %%
 def load_trained_model(
-    experiment_key: str = "72e783d7b96d4ef5ac39cc00b808198f",  # or simply use "latest"
+    experiment_key: str = "055b697548e048b78202cfebb78d6d8c",  # or simply use "latest"
     model_weights_path: str = "model/weights/srgan_generator_model_weights.npz",
 ):
     """
@@ -461,12 +476,14 @@ _ = data_prep.save_array_to_grid(
     outfilepath="model/cubicbedmap",
     window_bound=window_bound,
     array=cubicbedmap2[0, :, :, :],
+    save_netcdf=True,
 )
 # Save Billinear Resampled Synthetic High Resolution grid to GeoTiff and NetCDF format
 _ = data_prep.save_array_to_grid(
     outfilepath="model/synthetichr",
     window_bound=window_bound,
     array=synthetic250[0, :, :, :],
+    save_netcdf=True,
 )
 
 # %% [markdown]
@@ -607,9 +624,19 @@ window_bound_big = rasterio.coords.BoundingBox(
 print(window_bound_big)
 
 # %%
-X_tile, W1_tile, W2_tile, W3_tile = get_deepbedmap_model_inputs(
-    window_bound=window_bound_big
-)
+try:
+    X_tile = np.load(file="X_tile_big.npy")
+    W1_tile = np.load(file="W1_tile_big.npy")
+    W2_tile = np.load(file="W2_tile_big.npy")
+    W3_tile = np.load(file="W3_tile_big.npy")
+except FileNotFoundError:
+    X_tile, W1_tile, W2_tile, W3_tile = get_deepbedmap_model_inputs(
+        window_bound=window_bound_big, use_whole_rema=True
+    )
+    np.save(file="X_tile_big.npy", arr=X_tile)
+    np.save(file="W1_tile_big.npy", arr=W1_tile)
+    np.save(file="W2_tile_big.npy", arr=W2_tile)
+    np.save(file="W3_tile_big.npy", arr=W3_tile)
 
 # %%
 # Oh we will definitely need a GPU for this
@@ -617,14 +644,10 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 model.to_gpu()
 
 # %%
-# special zero padding for REMA, 5 pixels on top and bottom, 10 pixels on left and right
-W1_tile = np.pad(
-    array=W1_tile, pad_width=[(0, 0), (0, 0), (5, 5), (10, 10)], mode="constant"
-)
-
-# %%
-# the gapfilled Ice Velocity layer still has gaps (filled with -3.4027863e+38), so we clip to above 0.0
+# clip Ice Surface Elevation, Velocity and Accummulation values to above 0.0
+W1_tile = np.clip(a=W1_tile, a_min=0.0, a_max=None)
 W2_tile = np.clip(a=W2_tile, a_min=0.0, a_max=None)
+W3_tile = np.clip(a=W3_tile, a_min=0.0, a_max=None)
 
 # %%
 print(X_tile.shape, W1_tile.shape, W2_tile.shape, W3_tile.shape)
@@ -634,7 +657,7 @@ print(X_tile.shape, W1_tile.shape, W2_tile.shape, W3_tile.shape)
 #
 # Antarctica won't fit into our 16GB of GPU memory, so we have to:
 #
-# 1. Cut a 250kmx250km tile and load the data within this one small tile into GPU memory
+# 1. Cut a 250kmx125km tile and load the data within this one small tile into GPU memory
 # 2. Use our GPU-enabled model to make a prediction for this tile area
 # 3. Repeat (1) and (2) for every tile we have covering Antarctica
 
@@ -643,8 +666,8 @@ print(X_tile.shape, W1_tile.shape, W2_tile.shape, W3_tile.shape)
 if 1 == 1:
     # Size are in kilometres
     final_shape = (18000, 22000)  # 4x that of BEDMAP2
-    ary_height, ary_width = (1000, 1000)
-    stride_height, stride_width = (1000, 1000)
+    ary_height, ary_width = (1000, 500)
+    stride_height, stride_width = (1000, 500)
 
     Y_hat = np.full(
         shape=(1, final_shape[0] + 20, final_shape[1] + 20),
@@ -698,6 +721,23 @@ _ = data_prep.save_array_to_grid(
     tiled=True,
     compression=rasterio.enums.Compression.lzw.value,  # Lempel-Ziv-Welch, lossless
 )
+
+# %%
+# Mask areas more than 10km outside grounding zone
+gline = gpd.read_file("misc/GroundingLine_Antarctica_v2.shp")
+gline.crs = {"init": "epsg:3031"}
+gline.geometry = gline.geometry.buffer(distance=10000)
+
+with rasterio.open("model/deepbedmap3_big_int16.tif") as src:
+    cropped_image, _ = rasterio.mask.mask(src, shapes=gline.geometry[0], crop=False)
+    _ = data_prep.save_array_to_grid(
+        window_bound=window_bound_big,
+        array=cropped_image,
+        save_netcdf=True,
+        outfilepath="model/deepbedmap3_big_int16",
+        tiled=True,
+        compression=rasterio.enums.Compression.lzw.value,  # Lempel-Ziv-Welch, lossless
+    )
 
 # %% [markdown]
 # ## 4.3 Show *the* DeepBedMap

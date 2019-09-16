@@ -1009,7 +1009,7 @@ def calculate_discriminator_loss(
 def compile_srgan_model(
     num_residual_blocks: int = 12,
     residual_scaling: float = 0.1,
-    learning_rate: float = 2e-4,
+    learning_rate: float = 1.6e-4,
 ):
     """
     Instantiate our Super Resolution Generative Adversarial Network (SRGAN) model here.
@@ -1521,7 +1521,7 @@ def objective(
         name="residual_scaling", low=0.1, high=0.3, q=0.05
     )
     learning_rate: float = trial.suggest_discrete_uniform(
-        name="learning_rate", high=4.0e-4, low=1.0e-4, q=0.1e-4
+        name="learning_rate", high=2.0e-4, low=1.0e-4, q=0.1e-4
     )
     g_model, g_optimizer, d_model, d_optimizer = compile_srgan_model(
         num_residual_blocks=num_residual_blocks,
@@ -1642,7 +1642,7 @@ def objective(
 
 
 # %%
-n_trials = 20
+n_trials = 30
 if n_trials == 1:  # run training once only, i.e. just test the objective function
     objective(enable_livelossplot=True, enable_comet_logging=True)
 elif n_trials > 1:  # perform hyperparameter tuning with multiple experimental trials
