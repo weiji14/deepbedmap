@@ -24,7 +24,6 @@
 # %%
 import glob
 import hashlib
-import io
 import json
 import os
 import shutil
@@ -54,7 +53,6 @@ import rasterio.mask
 import rasterio.plot
 import shapely.geometry
 import skimage.util.shape
-import tqdm
 
 print("Python       :", sys.version.split("\n")[0])
 print("Geopandas    :", gpd.__version__)
@@ -818,6 +816,7 @@ def save_array_to_grid(
     # Convert deepbedmap3 and cubicbedmap2 from geotiff to netcdf format
     if save_netcdf is True:
         with xr.open_rasterio(f"{outfilepath}.tif") as dataset:
+            dataset.name: str = "z"
             dataset.to_netcdf(f"{outfilepath}.nc")
     else:
         dataset = None

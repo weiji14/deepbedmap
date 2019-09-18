@@ -22,6 +22,7 @@
 # Finally we will produce an Antarctic-wide DeepBedMap Digital Elevation Model (DEM) at the very end!
 
 # %%
+import dataclasses
 import math
 import os
 import typing
@@ -652,60 +653,79 @@ W3_tile = np.clip(a=W3_tile, a_min=0.0, a_max=None)
 # %%
 print(X_tile.shape, W1_tile.shape, W2_tile.shape, W3_tile.shape)
 
+
 # %% [markdown]
 # ## 4.1 The whole of Antarctica tiler and predictor!!
 #
 # Antarctica won't fit into our 16GB of GPU memory, so we have to:
 #
-# 1. Cut a 250kmx125km tile and load the data within this one small tile into GPU memory
+# 1. Cut a 250kmx250km tile and load the data within this one small tile into GPU memory
 # 2. Use our GPU-enabled model to make a prediction for this tile area
 # 3. Repeat (1) and (2) for every tile we have covering Antarctica
 
 # %%
+@dataclasses.dataclass(frozen=True)
+class Shape:
+    y: int  # size in y-direction
+    x: int  # size in x-direction
+
+
+# %%
 # The whole of Antarctica tile and predictor
-if 1 == 1:
-    # Size are in kilometres
-    final_shape = (18000, 22000)  # 4x that of BEDMAP2
-    ary_height, ary_width = (1000, 500)
-    stride_height, stride_width = (1000, 500)
+with chainer.using_config(name="cudnn_deterministic", value=True):
+    # Size are in kilometres, same as BEDMAP2's 1km resolution
+    final_shape = Shape(y=18000, x=22000)  # 4x that of BEDMAP2
+    ary_shape = Shape(y=1000, x=1000)  # 1000pixels * 250m = 250km
+    stride = Shape(y=1000, x=1000)  # cut a tile every 1000 metres
+    xtrapad = Shape(y=18, x=18)  # extra padding at borders (which will be clipped off)
 
     Y_hat = np.full(
-        shape=(1, final_shape[0] + 20, final_shape[1] + 20),
-        fill_value=np.nan,
-        dtype=np.float32,
+        shape=(1, final_shape.y, final_shape.x), fill_value=np.nan, dtype=np.float32
     )
 
-    for y_step in range(0, final_shape[0], stride_height):
-        for x_step in range(0, final_shape[1], stride_width):
-            # plus 1 pixel on left and right
-            x0, x1 = ((x_step // 4), ((x_step + ary_width) // 4) + 2)
-            # plus 1 pixel on bottom and top
-            y0, y1 = ((y_step // 4), ((y_step + ary_height) // 4) + 2)
-            # x0, y0, x1, y1 = (3000,3000,3250,3250)
+    steps = []
+    for y_step in range(0, final_shape.y, stride.y):
+        for x_step in range(0, final_shape.x, stride.x):
+            steps.append(Shape(y=y_step, x=x_step))
 
-            X_tile_crop = cupy.asarray(a=X_tile[:, :, y0:y1, x0:x1], dtype="float32")
-            W1_tile_crop = cupy.asarray(
-                a=W1_tile[:, :, y0 * 10 : y1 * 10, x0 * 10 : x1 * 10], dtype="float32"
-            )
-            W2_tile_crop = cupy.asarray(
-                a=W2_tile[:, :, y0 * 2 : y1 * 2, x0 * 2 : x1 * 2], dtype="float32"
-            )
-            W3_tile_crop = cupy.asarray(a=W3_tile[:, :, y0:y1, x0:x1], dtype="float32")
+    for step in steps:
+        # plus `xtrapad.y` pixels and 1 pixel on bottom and top
+        y0 = max(0, (step.y // 4) - xtrapad.y - 1)
+        y1 = min(final_shape.y // 4, ((step.y + ary_shape.y) // 4) + xtrapad.y + 1)
+        # plus `xtrapad.x` pixels and 1 pixel on left and right
+        x0 = max(0, (step.x // 4) - xtrapad.x - 1)
+        x1 = min(final_shape.x // 4, ((step.x + ary_shape.x) // 4) + xtrapad.x + 1)
+        # print(str(x0).zfill(4), str(x1).zfill(4), str(y0).zfill(4), str(y1).zfill(4))
 
+        # Hardcoded crops of BEDMAP2 (X), REMA (W1), MEaSUREs (W2), Accumulation (W3)
+        X_tile_crop = model.xp.asarray(a=X_tile[:, :, y0:y1, x0:x1], dtype="float32")
+        W1_tile_crop = model.xp.asarray(
+            a=W1_tile[:, :, y0 * 10 : y1 * 10, x0 * 10 : x1 * 10], dtype="float32"
+        )
+        W2_tile_crop = model.xp.asarray(
+            a=W2_tile[:, :, y0 * 2 : y1 * 2, x0 * 2 : x1 * 2], dtype="float32"
+        )
+        W3_tile_crop = model.xp.asarray(a=W3_tile[:, :, y0:y1, x0:x1], dtype="float32")
+
+        # DeepBedMap terrain inference
+        with chainer.using_config(name="enable_backprop", value=False):
             Y_pred = model.forward(
                 x=X_tile_crop, w1=W1_tile_crop, w2=W2_tile_crop, w3=W3_tile_crop
             )
-            try:
-                Y_hat[
-                    :, (y0 * 4) + 4 : (y1 * 4) - 4, (x0 * 4) + 4 : (x1 * 4) - 4
-                ] = cupy.asnumpy(Y_pred.array[0, :, :, :])
-                # print(x0, y0, x1, y1)
-            except ValueError:
-                raise
-            finally:
-                X_tile_crop = W1_tile_crop = W2_tile_crop = W3_tile_crop = None
 
-    Y_hat = Y_hat[:, 10:-10, 10:-10]
+        try:
+            y_slice = slice((y0 + xtrapad.y + 1) * 4, (y1 - xtrapad.y - 1) * 4)
+            x_slice = slice((x0 + xtrapad.x + 1) * 4, (x1 - xtrapad.x - 1) * 4)
+            Y_hat[:, y_slice, x_slice] = cupy.asnumpy(
+                Y_pred.array[
+                    0, :, xtrapad.y * 4 : -xtrapad.y * 4, xtrapad.x * 4 : -xtrapad.x * 4
+                ]
+            )
+        except ValueError:
+            raise
+        finally:
+            X_tile_crop = W1_tile_crop = W2_tile_crop = W3_tile_crop = None
+
 
 # %% [markdown]
 # ## 4.2 Save full map to file
@@ -722,35 +742,28 @@ _ = data_prep.save_array_to_grid(
     compression=rasterio.enums.Compression.lzw.value,  # Lempel-Ziv-Welch, lossless
 )
 
-# %%
-# Mask areas more than 10km outside grounding zone
-gline = gpd.read_file("misc/GroundingLine_Antarctica_v2.shp")
-gline.crs = {"init": "epsg:3031"}
-gline.geometry = gline.geometry.buffer(distance=10000)
-
-with rasterio.open("model/deepbedmap3_big_int16.tif") as src:
-    cropped_image, _ = rasterio.mask.mask(src, shapes=gline.geometry[0], crop=False)
-    _ = data_prep.save_array_to_grid(
-        window_bound=window_bound_big,
-        array=cropped_image,
-        save_netcdf=True,
-        outfilepath="model/deepbedmap3_big_int16",
-        tiled=True,
-        compression=rasterio.enums.Compression.lzw.value,  # Lempel-Ziv-Welch, lossless
-    )
-
 # %% [markdown]
 # ## 4.3 Show *the* DeepBedMap
 
 # %%
-with rasterio.open("model/deepbedmap3_big_int16.tif") as raster_tiff:
-    deepbedmap_dem = raster_tiff.read(indexes=1, masked=True)
-
-# %%
-fig, ax = plt.subplots(nrows=1, ncols=1, squeeze=True, figsize=(12, 12))
-rasterio.plot.show(
-    source=np.ma.masked_less(x=deepbedmap_dem, value=-3000, copy=False),
-    transform=raster_tiff.transform,
-    cmap="Blues_r",
-    ax=ax,
+# Adapted from https://docs.generic-mapping-tools.org/latest/gallery/ex42.html
+fig = gmt.Figure()
+#!gmt makecpt -Coleron -T-4500/4500 > deepbedmap.cpt
+fig.grdimage(
+    grid="model/deepbedmap3_big_int16.tif",
+    region="-2800000/2800000/-2800000/2800000",  # make it square!
+    projection="x1:60000000",
+    frame="afg",  # add minor tick labels
+    C="deepbedmap.cpt",
+    Q=True,
 )
+fig.coast(
+    # region="-180/180/-90/-60",
+    projection="s0/-90/-71/1:60000000",
+    # frame="afg",  # add minor tick labels
+    area_thresh="+ai",  # crop to Antarctic 'i'ce shelf boundary
+    water="27/40/91",
+    V="q",
+)
+fig.savefig(fname="deepbedmap.png")
+fig.show()
