@@ -26,18 +26,13 @@
 # # 0. Setup libraries
 
 # %%
+import functools
 import glob
 import os
 import random
 import shutil
 import sys
 import typing
-import warnings
-
-try:  # check if CUDA_VISIBLE_DEVICES environment variable is set
-    os.environ["CUDA_VISIBLE_DEVICES"]
-except KeyError:  # if not set, then set it to the first GPU
-    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 import comet_ml
 import IPython.display
@@ -46,7 +41,7 @@ import numpy as np
 import pandas as pd
 import pygmt as gmt
 import quilt
-import skimage.transform
+import rasterio
 import tqdm
 import xarray as xr
 
@@ -55,15 +50,24 @@ import chainer.functions as F
 import chainer.links as L
 import cupy
 import livelossplot
-import onnx_chainer
 import optuna
+import ssim.functions
 
 from features.environment import _load_ipynb_modules
+
+try:  # check if CUDA_VISIBLE_DEVICES environment variable is set
+    os.environ["CUDA_VISIBLE_DEVICES"]
+except KeyError:  # if not set, then set it to the first GPU
+    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 print("Python       :", sys.version.split("\n")[0])
 chainer.print_runtime_info()
 
 # %%
+# Chainer configurations https://docs.chainer.org/en/latest/reference/configuration.html
+# Use CuDNN deterministic mode
+chainer.global_config.cudnn_deterministic = True
+
 # Set seed values
 seed = 42
 random.seed = seed
@@ -81,15 +85,15 @@ if cupy.is_available():
 
 # %%
 def load_data_into_memory(
-    redownload: bool = True,
-    quilt_hash: str = "0734959aa4f4903a17ed2acdfd53b3c0c826aadfc718e5fdd3c1b04963e1206e",
+    refresh_cache: bool = True,
+    quilt_hash: str = "e11988479975a091dd52e44b142370c37a03409f41cb6fec54fd7382ee1f99bc",
 ) -> (chainer.datasets.dict_dataset.DictDataset, str):
     """
     Downloads the prepackaged tiled data from quilt based on a hash,
     and loads it into CPU or GPU memory depending on what is available.
     """
 
-    if redownload:
+    if refresh_cache:
         quilt.install(
             package="weiji14/deepbedmap/model/train", hash=quilt_hash, force=True
         )
@@ -128,7 +132,7 @@ def load_data_into_memory(
 def get_train_dev_iterators(
     dataset: chainer.datasets.dict_dataset.DictDataset,
     first_size: int,  # size of training set
-    batch_size: int = 64,
+    batch_size: int = 128,
     seed: int = 42,
 ) -> (
     chainer.iterators.serial_iterator.SerialIterator,
@@ -181,31 +185,34 @@ def get_train_dev_iterators(
 #
 # Details of the first convolutional layer for each input:
 #
-# - Input tiles are 8000m by 8000m.
+# - Input tiles are 11000m by 11000m.
 # - Convolution filter kernels are 3000m by 3000m.
 # - Strides are 1000m by 1000m.
 #
 # Example: for a 100m spatial resolution tile:
 #
-# - Input tile is 80pixels by 80pixels
+# - Input tile is 110pixels by 110pixels
 # - Convolution filter kernels are 30pixels by 30pixels
 # - Strides are 10pixels by 10pixels
 #
-# Note that these first convolutional layers uses '**valid**' padding, see https://keras.io/layers/convolutional/ for more information.
+# Note that the first convolutional layers uses **valid** padding, see https://github.com/weiji14/deepbedmap/pull/65.
 
 # %%
 class DeepbedmapInputBlock(chainer.Chain):
     """
     Custom input block for DeepBedMap.
+    Takes in BEDMAP2 (X), REMA Ice Surface Elevation (W1),
+    MEaSUREs Ice Surface Velocity x and y components (W2) and Snow Accumulation (W3).
+    Passes them through custom-sized convolutions, with the results being concatenated.
 
     Each filter kernel is 3km by 3km in size, with a 1km stride and no padding.
     So for a 1km resolution image, (i.e. 1km pixel size):
     kernel size is (3, 3), stride is (1, 1), and pad is (0, 0)
 
-      (?,1,10,10) --Conv2D-- (?,32,8,8)  \
-    (?,1,100,100) --Conv2D-- (?,32,8,8) --Concat-- (?,128,8,8)
-      (?,1,20,20) --Conv2D-- (?,32,8,8)  /
-      (?,1,10,10) --Conv2D-- (?,32,8,8) /
+    X  (?,1,11,11)  --Conv2D-- (?,32,9,9) \
+    W1 (?,1,110,110) --Conv2D-- (?,32,9,9) --Concat-- (?,128,9,9)
+    W2 (?,2,22,22)  --Conv2D-- (?,32,9,9) /
+    W3 (?,1,11,11) --Conv2D-- (?,32,9,9) /
     """
 
     def __init__(self, out_channels=32):
@@ -230,7 +237,7 @@ class DeepbedmapInputBlock(chainer.Chain):
                 initialW=init_weights,
             )
             self.conv_on_W2 = L.Convolution2D(
-                in_channels=1,
+                in_channels=2,
                 out_channels=out_channels,
                 ksize=(6, 6),
                 stride=(2, 2),
@@ -275,7 +282,7 @@ class ResidualDenseBlock(chainer.Chain):
         self,
         in_out_channels: int = 64,
         inter_channels: int = 32,
-        residual_scaling: float = 0.2,
+        residual_scaling: float = 0.1,
     ):
         super().__init__()
         self.residual_scaling = residual_scaling
@@ -327,7 +334,6 @@ class ResidualDenseBlock(chainer.Chain):
         """
         Forward computation, i.e. evaluate based on input x
         """
-
         a0 = x
 
         a1 = self.conv_layer1(a0)
@@ -368,10 +374,7 @@ class ResInResDenseBlock(chainer.Chain):
     """
 
     def __init__(
-        self,
-        denseblock_class=ResidualDenseBlock,
-        out_channels: int = 64,
-        residual_scaling: float = 0.2,
+        self, denseblock_class=ResidualDenseBlock, residual_scaling: float = 0.1
     ):
         super().__init__()
         self.residual_scaling = residual_scaling
@@ -404,13 +407,15 @@ class ResInResDenseBlock(chainer.Chain):
 # %% [markdown]
 # ### 2.1.3 Build the Generator Network, with upsampling layers!
 #
-# ![4 inputs feeding into the Generator Network, producing a high resolution prediction output](https://yuml.me/4a9cbc25.png)
+# ![4 inputs feeding into the Generator Network, producing a high resolution prediction output](https://yuml.me/dfd301a2.png)
 #
-# <!--[W3_input(ACCUMULATION)|10x10x1]-k3n32s1>[W3_inter|8x8x32],[W3_inter]->[Concat|8x8x128]
-# [W2_input(MEASURES)|20x20x1]-k6n32s2>[W2_inter|8x8x32],[W2_inter]->[Concat|8x8x128]
-# [W1_input(REMA)|100x100x1]-k30n32s10>[W1_inter|8x8x32],[W1_inter]->[Concat|8x8x128]
-# [X_input(BEDMAP2)|10x10x1]-k3n32s1>[X_inter|8x8x32],[X_inter]->[Concat|8x8x128]
-# [Concat|8x8x128]->[Generator-Network|Many-Residual-Blocks],[Generator-Network]->[Y_hat(High-Resolution_DEM)|32x32x1]-->
+# <!--
+# [W3_input(ACCUMULATION)|1x11x11]-k3n32s1>[W3_inter|32x9x9],[W3_inter]->[Concat|128x9x9]
+# [W2_input(MEASURES)|2x22x22]-k6n32s2>[W2_inter|32x9x9],[W2_inter]->[Concat|128x9x9]
+# [W1_input(REMA)|1x110x110]-k30n32s10>[W1_inter|32x9x9],[W1_inter]->[Concat|128x9x9]
+# [X_input(BEDMAP2)|1x11x11]-k3n32s1>[X_inter|32x9x9],[X_inter]->[Concat|128x9x9]
+# [Concat|128x9x9]->[Generator-Network|Many-Residual-Blocks],[Generator-Network]->[Y_hat(High-Resolution_DEM)|1x36x36]
+# -->
 
 # %%
 class GeneratorModel(chainer.Chain):
@@ -421,26 +426,25 @@ class GeneratorModel(chainer.Chain):
     Glues the input block with several residual blocks and upsampling layers
 
     Parameters:
-      input_shape -- shape of input tensor in tuple format (height, width, channels)
-      num_residual_blocks -- how many Conv-LeakyReLU-Conv blocks to use
-      scaling -- even numbered integer to increase resolution (e.g. 0, 2, 4, 6, 8)
+      num_residual_blocks -- how many Residual-in-Residual Dense Blocks to use
+      residual_scaling -- scale factor for residuals before adding to parent branch
       out_channels -- integer representing number of output channels/filters/kernels
 
     Example:
-      An input_shape of (8,8,1) passing through 16 residual blocks with a scaling of 4
-      and output_channels 1 will result in an image of shape (32,32,1)
+      A convolved input_shape of (9,9,1) passing through b residual blocks with
+      a scaling of 4 and out_channels 1 will result in an image of shape (36,36,1)
 
     >>> generator_model = GeneratorModel()
     >>> y_pred = generator_model.forward(
-    ...     x=np.random.rand(1, 1, 10, 10).astype("float32"),
-    ...     w1=np.random.rand(1, 1, 100, 100).astype("float32"),
-    ...     w2=np.random.rand(1, 1, 20, 20).astype("float32"),
-    ...     w3=np.random.rand(1, 1, 10, 10).astype("float32"),
+    ...     x=np.random.rand(1, 1, 11, 11).astype("float32"),
+    ...     w1=np.random.rand(1, 1, 110, 110).astype("float32"),
+    ...     w2=np.random.rand(1, 2, 22, 22).astype("float32"),
+    ...     w3=np.random.rand(1, 1, 11, 11).astype("float32"),
     ... )
     >>> y_pred.shape
-    (1, 1, 32, 32)
+    (1, 1, 36, 36)
     >>> generator_model.count_params()
-    8885825
+    8907749
     """
 
     def __init__(
@@ -448,7 +452,7 @@ class GeneratorModel(chainer.Chain):
         inblock_class=DeepbedmapInputBlock,
         resblock_class=ResInResDenseBlock,
         num_residual_blocks: int = 12,
-        residual_scaling: float = 0.2,
+        residual_scaling: float = 0.1,
         out_channels: int = 1,
     ):
         super().__init__()
@@ -499,21 +503,23 @@ class GeneratorModel(chainer.Chain):
             )
 
             # Final post-upsample convolution layers
-            self.final_conv_layer1 = L.Convolution2D(
+            self.final_conv_layer1 = L.DeformableConvolution2D(
                 in_channels=None,
                 out_channels=64,
                 ksize=(3, 3),
                 stride=(1, 1),
                 pad=1,  # 'same' padding
-                initialW=init_weights,
+                offset_initialW=init_weights,
+                deform_initialW=init_weights,
             )
-            self.final_conv_layer2 = L.Convolution2D(
+            self.final_conv_layer2 = L.DeformableConvolution2D(
                 in_channels=None,
                 out_channels=out_channels,
                 ksize=(3, 3),
                 stride=(1, 1),
                 pad=1,  # 'same' padding
-                initialW=init_weights,
+                offset_initialW=init_weights,
+                deform_initialW=init_weights,
             )
 
     def forward(
@@ -525,7 +531,8 @@ class GeneratorModel(chainer.Chain):
         Each input should be either a numpy or cupy array.
         """
         # 0 part
-        # Resize inputs o right scale using convolution (hardcoded kernel_size and strides)
+        # Resize inputs to right scale using convolution
+        # with hardcoded kernel_sizes, strides and padding lengths
         # Also concatenate all inputs
         a0 = self.input_block(x=x, w1=w1, w2=w2, w3=w3)
 
@@ -544,8 +551,8 @@ class GeneratorModel(chainer.Chain):
         a3 = F.add(a1, a3)
 
         # 4th part
-        # Upsampling (if 4; run twice, if 8; run thrice, etc.) k3n256s1
-        # Uses Nearest Neighbour Interpolation followed by Convolution2D
+        # Upsampling (hardcoded to be 4x, actually 2x run twice)
+        # Uses Nearest Neighbour Interpolation followed by Convolution2D k3n64s1
         a4_1 = F.resize_images(
             x=a3, output_shape=(2 * a3.shape[-2], 2 * a3.shape[-1]), mode="nearest"
         )
@@ -593,12 +600,12 @@ class DiscriminatorModel(chainer.Chain):
 
     >>> discriminator_model = DiscriminatorModel()
     >>> y_pred = discriminator_model.forward(
-    ...     x=np.random.rand(2, 1, 32, 32).astype("float32")
+    ...     x=np.random.rand(2, 1, 36, 36).astype("float32")
     ... )
     >>> y_pred.shape
     (2, 1)
     >>> discriminator_model.count_params()
-    10205129
+    10370761
     """
 
     def __init__(self):
@@ -610,31 +617,31 @@ class DiscriminatorModel(chainer.Chain):
             self.conv_layer0 = L.Convolution2D(
                 in_channels=None,
                 out_channels=64,
-                ksize=(3, 3),
-                stride=(1, 1),
+                ksize=3,
+                stride=1,
                 pad=1,  # 'same' padding
-                nobias=False,  # default, have bias
+                nobias=False,  # only first Conv2D layer uses bias
                 initialW=init_weights,
             )
-            self.conv_layer1 = L.Convolution2D(None, 64, 4, 1, 1, False, init_weights)
-            self.conv_layer2 = L.Convolution2D(None, 64, 3, 2, 1, False, init_weights)
-            self.conv_layer3 = L.Convolution2D(None, 128, 4, 1, 1, False, init_weights)
-            self.conv_layer4 = L.Convolution2D(None, 128, 3, 2, 1, False, init_weights)
-            self.conv_layer5 = L.Convolution2D(None, 256, 4, 1, 1, False, init_weights)
-            self.conv_layer6 = L.Convolution2D(None, 256, 3, 2, 1, False, init_weights)
-            self.conv_layer7 = L.Convolution2D(None, 512, 4, 1, 1, False, init_weights)
-            self.conv_layer8 = L.Convolution2D(None, 512, 3, 2, 1, False, init_weights)
-            self.conv_layer9 = L.Convolution2D(None, 512, 4, 1, 1, False, init_weights)
+            self.conv_layer1 = L.Convolution2D(None, 64, 4, 2, 1, True, init_weights)
+            self.conv_layer2 = L.Convolution2D(None, 128, 3, 1, 1, True, init_weights)
+            self.conv_layer3 = L.Convolution2D(None, 128, 4, 2, 1, True, init_weights)
+            self.conv_layer4 = L.Convolution2D(None, 128, 3, 1, 1, True, init_weights)
+            self.conv_layer5 = L.Convolution2D(None, 256, 4, 2, 1, True, init_weights)
+            self.conv_layer6 = L.Convolution2D(None, 256, 3, 1, 1, True, init_weights)
+            self.conv_layer7 = L.Convolution2D(None, 512, 4, 2, 1, True, init_weights)
+            self.conv_layer8 = L.Convolution2D(None, 512, 3, 1, 1, True, init_weights)
+            self.conv_layer9 = L.Convolution2D(None, 512, 4, 2, 1, True, init_weights)
 
-            self.batch_norm1 = L.BatchNormalization(axis=(0, 2, 3), eps=0.001)
-            self.batch_norm2 = L.BatchNormalization(axis=(0, 2, 3), eps=0.001)
-            self.batch_norm3 = L.BatchNormalization(axis=(0, 2, 3), eps=0.001)
-            self.batch_norm4 = L.BatchNormalization(axis=(0, 2, 3), eps=0.001)
-            self.batch_norm5 = L.BatchNormalization(axis=(0, 2, 3), eps=0.001)
-            self.batch_norm6 = L.BatchNormalization(axis=(0, 2, 3), eps=0.001)
-            self.batch_norm7 = L.BatchNormalization(axis=(0, 2, 3), eps=0.001)
-            self.batch_norm8 = L.BatchNormalization(axis=(0, 2, 3), eps=0.001)
-            self.batch_norm9 = L.BatchNormalization(axis=(0, 2, 3), eps=0.001)
+            self.batch_norm1 = L.BatchNormalization(axis=(0, 2, 3), eps=1e-5)
+            self.batch_norm2 = L.BatchNormalization(axis=(0, 2, 3), eps=1e-5)
+            self.batch_norm3 = L.BatchNormalization(axis=(0, 2, 3), eps=1e-5)
+            self.batch_norm4 = L.BatchNormalization(axis=(0, 2, 3), eps=1e-5)
+            self.batch_norm5 = L.BatchNormalization(axis=(0, 2, 3), eps=1e-5)
+            self.batch_norm6 = L.BatchNormalization(axis=(0, 2, 3), eps=1e-5)
+            self.batch_norm7 = L.BatchNormalization(axis=(0, 2, 3), eps=1e-5)
+            self.batch_norm8 = L.BatchNormalization(axis=(0, 2, 3), eps=1e-5)
+            self.batch_norm9 = L.BatchNormalization(axis=(0, 2, 3), eps=1e-5)
 
             self.linear_1 = L.Linear(in_size=None, out_size=100, initialW=init_weights)
             self.linear_2 = L.Linear(in_size=None, out_size=1, initialW=init_weights)
@@ -697,14 +704,18 @@ class DiscriminatorModel(chainer.Chain):
 #
 # Now we define the Perceptual Loss function for our Generator and Discriminator neural network models, where:
 #
-# $$Perceptual Loss = Content Loss + Adversarial Loss$$
+# $$Perceptual Loss = Content Loss + Adversarial Loss + Topographic Loss + Structural Loss$$
 #
-# ![Perceptual Loss in an Enhanced Super Resolution Generative Adversarial Network](https://yuml.me/db58d683.png)
+# ![Perceptual Loss in an adapted Enhanced Super Resolution Generative Adversarial Network](https://yuml.me/19155033.png)
 #
 # <!--
 # [LowRes-Inputs]-Generator>[SuperResolution_DEM]
 # [SuperResolution_DEM]-.->[note:Content-Loss|MeanAbsoluteError{bg:yellow}]
+# [LowRes-Inputs]-.->[note:Topographic-Loss|MeanAbsoluteError{bg:yellow}]
+# [SuperResolution_DEM]-.->[note:Structural-Loss|SSIM{bg:yellow}]
+# [SuperResolution_DEM]-.->[note:Topographic-Loss]
 # [HighRes-Groundtruth_DEM]-.->[note:Content-Loss]
+# [HighRes-Groundtruth_DEM]-.->[note:Structural-Loss]
 # [SuperResolution_DEM]-Discriminator>[False_or_True_Prediction]
 # [HighRes-Groundtruth_DEM]-Discriminator>[False_or_True_Prediction]
 # [False_or_True_Prediction]<->[False_or_True_Label]
@@ -712,13 +723,15 @@ class DiscriminatorModel(chainer.Chain):
 # [False_or_True_Label]-.->[note:Adversarial-Loss]
 # [note:Content-Loss]-.->[note:Perceptual-Loss{bg:gold}]
 # [note:Adversarial-Loss]-.->[note:Perceptual-Loss{bg:gold}]
+# [note:Topographic-Loss]-.->[note:Perceptual-Loss{bg:gold}]
+# [note:Structural-Loss]-.->[note:Perceptual-Loss{bg:gold}]
 # -->
 
 # %% [markdown]
 # ### Content Loss
 #
 # The original SRGAN paper by [Ledig et al. 2017](https://arxiv.org/abs/1609.04802v5) calculates *Content Loss* based on the ReLU activation layers of the pre-trained 19 layer VGG network.
-# The implementation below is less advanced, simply using an L1 loss, i.e., a pixel-wise [Mean Absolute Error (MAE) loss](https://keras.io/losses/#mean_absolute_error) as the *Content Loss*.
+# The implementation below is less advanced, simply using an L1 loss, i.e., a pixel-wise [Mean Absolute Error (MAE) loss](https://docs.chainer.org/en/latest/reference/generated/chainer.functions.mean_absolute_error.html) as the *Content Loss*.
 # Specifically, the *Content Loss* is calculated as the MAE difference between the output of the generator model (i.e. the predicted Super Resolution Image) and that of the groundtruth image (i.e. the true High Resolution Image).
 #
 # $$ e_i = ||G(x_{i}) - y_i||_{1} $$
@@ -783,6 +796,42 @@ class DiscriminatorModel(chainer.Chain):
 #
 # See also how [Pytorch](https://pytorch.org/docs/stable/nn.html?highlight=bcewithlogitsloss#torch.nn.BCEWithLogitsLoss) and [Tensorflow](https://www.tensorflow.org/api_docs/python/tf/nn/sigmoid_cross_entropy_with_logits) implements this in a numerically stable manner.
 
+# %% [markdown]
+# ### Topographic Loss
+#
+# In addition to the L1 Content Loss, we further define a *Topographic Loss*.
+# Specifically, we want each of the averaged value in each 4x4 grid of the predicted DeepBedMap image to correspond to a 1x1 pixel on the BEDMAP2 image.
+#
+# Due to BEDMAP2 having a 4x lower resolution than the predicted DeepBedMap DEM (1000m compared to 250m), we first apply a 4x4 [Mean/Average Pooling](https://docs.chainer.org/en/latest/reference/generated/chainer.functions.average_pooling_2d.html) operation on the DeepBedMap image, turning it into a 1x1 pixel grid that matches the shape of the BEDMAP2 image.
+#
+# $$ \bar{y_j} = Mean = \dfrac{1}{n} \sum\limits_{i=1}^n y_i $$
+#
+# where $\bar{y_j}$ is the mean/average of all predicted pixel values $y_i$ across the 16 $i$ DeepBedMap pixels within a 4x4 grid corresponding to the spatial location of one (BEDMAP2) pixel at position $j$.
+# Then, we calculate the [MAE](https://docs.chainer.org/en/latest/reference/generated/chainer.functions.mean_absolute_error.html) difference between the output of the generator model (i.e. the predicted Super-Resolution DeepBedMap bed DEM Image) and that of the BEDMAP2 (i.e. the original Low Resolution Image we are super-resolving).
+#
+# $$ e_j = ||\bar{y_j} - x_j||_{1} $$
+#
+# where $\bar{y_j}$ is the mean of the 4x4 pixels we just calculated above, and $x_j$ is the spatially corresponding BEDMAP2 pixel, respectively at BEDMAP2 pixel $j$.
+# $e_j$ thus represents the absolute error (L1 loss) (denoted by $||\dots||_{1}$) between the (averaged) super-resolution and low-resolution values.
+# We then sum all the pixel-wise errors $e_j,\dots,e_n$ and divide by the number of pixels $n$ to get the Arithmetic Mean $\dfrac{1}{n} \sum\limits_{i=1}^n$ of our error which is our *Topographic Loss*.
+#
+# $$ Loss_{Topographic} = Mean Absolute Error = \dfrac{1}{n} \sum\limits_{i=1}^n e_j $$
+
+# %% [markdown]
+# ### Structural Loss
+#
+# Complementing the L1 Content Loss further, we define a *Structural (Similarity) Loss*.
+# This is computed using the [Structural Similarity (SSIM)](https://en.wikipedia.org/wiki/Structural_similarity) Index,
+# on a moving window (here set to 9x9) between the super resolution predicted image and high resolution groundtruth image.
+# The comparison takes into account luminance, contrast and structural information.
+#
+# $$ SSIM(x,y) = \dfrac{(2\mu_x\mu_y + c_1)(2\sigma_{xy} + c_2)}{(\mu_x^2 + \mu_y^2 + c_1)(\sigma_x^2 + \sigma_y^2 + c_2)} $$
+#
+# where $\mu_x$ and $\mu_y$ are the average (mean) of predicted image $x$ and groundtruth image $y$ respectively,
+# $\sigma_{xy}$ is the covariance of $x$ and $y$,
+# $\sigma_x^2$ and $\sigma_y^2$ are the variance of $x$ and $y$ respectively, and
+# $c_1$ and $c_2$ are two variables to stabilize the division with weak denominator.
+
 # %%
 def calculate_generator_loss(
     y_pred: chainer.variable.Variable,
@@ -791,25 +840,29 @@ def calculate_generator_loss(
     real_labels: cupy.ndarray,
     fake_minus_real_target: cupy.ndarray,
     real_minus_fake_target: cupy.ndarray,
-    content_loss_weighting: float = 1e-2,
-    adversarial_loss_weighting: float = 5e-3,
+    x_topo: cupy.ndarray,
+    content_loss_weighting: float = 1e-2,  # e.g. ~35 * 1e-2 = 0.35
+    adversarial_loss_weighting: float = 2e-2,  # e.g. ~10 * 2e-2 = 0.20
+    topographic_loss_weighting: float = 2e-3,  # e.g. ~35 * 2e-3 = 0.07
+    structural_loss_weighting: float = 5.25e-0,  # e.g. ~0.75 * 5.25e-0 = 3.9375
 ) -> chainer.variable.Variable:
     """
     This function calculates the weighted sum between
-    "Content Loss" and "Adversarial Loss".
+    "Content Loss", "Adversarial Loss", "Topographic Loss", and "Structural Loss"
     which forms the basis for training the Generator Network.
 
     >>> calculate_generator_loss(
-    ...     y_pred=chainer.variable.Variable(data=np.ones(shape=(2, 1, 3, 3))),
-    ...     y_true=np.full(shape=(2, 1, 3, 3), fill_value=10.0),
+    ...     y_pred=chainer.variable.Variable(data=np.ones(shape=(2, 1, 12, 12))),
+    ...     y_true=np.full(shape=(2, 1, 12, 12), fill_value=10.0),
     ...     fake_labels=np.array([[-1.2], [0.5]]),
     ...     real_labels=np.array([[0.5], [-0.8]]),
     ...     fake_minus_real_target=np.array([[1], [1]]).astype(np.int32),
     ...     real_minus_fake_target=np.array([[0], [0]]).astype(np.int32),
+    ...     x_topo=np.full(shape=(2, 1, 3, 3), fill_value=9.0),
     ... )
-    variable(0.09867307)
+    variable(4.35108415)
     """
-    # Content Loss (L1, Mean Absolute Error) between 2D images
+    # Content Loss (L1, Mean Absolute Error) between predicted and groundtruth 2D images
     content_loss = F.mean_absolute_error(x0=y_pred, x1=y_true)
 
     # Adversarial Loss between 1D labels
@@ -820,17 +873,33 @@ def calculate_generator_loss(
         fake_minus_real_target=fake_minus_real_target,  # Ones (1) instead of zeros (0)
     )
 
+    # Topographic Loss (L1, Mean Absolute Error) between predicted and low res 2D images
+    topographic_loss = F.mean_absolute_error(
+        x0=F.average_pooling_2d(x=y_pred, ksize=(4, 4)), x1=x_topo
+    )
+
+    # Structural Similarity Loss between predicted and groundtruth 2D images
+    structural_loss = 1 - ssim_loss_func(y_pred=y_pred, y_true=y_true)
+
     # Get generator loss
     weighted_content_loss = content_loss_weighting * content_loss
     weighted_adversarial_loss = adversarial_loss_weighting * adversarial_loss
-    g_loss = weighted_content_loss + weighted_adversarial_loss
+    weighted_topographic_loss = topographic_loss_weighting * topographic_loss
+    weighted_structural_loss = structural_loss_weighting * structural_loss
+
+    g_loss = (
+        weighted_content_loss
+        + weighted_adversarial_loss
+        + weighted_topographic_loss
+        + weighted_structural_loss
+    )
 
     return g_loss
 
 
 # %%
 def psnr(
-    y_true: cupy.ndarray, y_pred: cupy.ndarray, data_range=2 ** 32
+    y_pred: cupy.ndarray, y_true: cupy.ndarray, data_range=2 ** 32
 ) -> cupy.ndarray:
     """
     Peak Signal-Noise Ratio (PSNR) metric, calculated batchwise.
@@ -840,8 +909,8 @@ def psnr(
     Implementation is same as skimage.measure.compare_psnr with data_range=2**32
 
     >>> psnr(
-    ...     y_true=np.ones(shape=(2, 1, 3, 3)),
-    ...     y_pred=np.full(shape=(2, 1, 3, 3), fill_value=2),
+    ...     y_pred=np.ones(shape=(2, 1, 3, 3)),
+    ...     y_true=np.full(shape=(2, 1, 3, 3), fill_value=2),
     ... )
     192.65919722494797
     """
@@ -852,6 +921,34 @@ def psnr(
 
     # Calculate Peak Signal-Noise Ratio, setting MAX_I as 2^32, i.e. max for int32
     return xp.multiply(20, xp.log10(data_range / xp.sqrt(mse)))
+
+
+# %%
+def ssim_loss_func(
+    y_pred: chainer.variable.Variable,
+    y_true: cupy.ndarray,
+    window_size: int = 9,
+    stride: int = 1,
+) -> chainer.variable.Variable:
+    """
+    Structural Similarity (SSIM) loss/metric, calculated with default window size of 9.
+    See https://en.wikipedia.org/wiki/Structural_similarity
+
+    Can take in either numpy (CPU) or cupy (GPU) arrays as input.
+
+    >>> ssim_loss_func(
+    ...     y_pred=chainer.variable.Variable(data=np.ones(shape=(2, 1, 9, 9))),
+    ...     y_true=np.full(shape=(2, 1, 9, 9), fill_value=2.0),
+    ... )
+    variable(0.800004)
+    """
+    if not y_pred.shape == y_true.shape:
+        raise ValueError("Input images must have the same dimensions.")
+
+    ssim_value = ssim.functions.ssim_loss(
+        y=y_pred, t=y_true, window_size=window_size, stride=stride
+    )
+    return ssim_value
 
 
 # %%
@@ -911,8 +1008,8 @@ def calculate_discriminator_loss(
 # Build the models
 def compile_srgan_model(
     num_residual_blocks: int = 12,
-    residual_scaling: float = 0.2,
-    learning_rate: float = 8e-5,
+    residual_scaling: float = 0.1,
+    learning_rate: float = 1.6e-4,
 ):
     """
     Instantiate our Super Resolution Generative Adversarial Network (SRGAN) model here.
@@ -996,11 +1093,11 @@ def train_eval_discriminator(
     - Discriminator trained with these images and their Fake(0)/Real(1) labels
 
     >>> train_arrays = {
-    ...     "X": np.random.RandomState(seed=42).rand(2, 1, 10, 10).astype(np.float32),
-    ...     "W1": np.random.RandomState(seed=42).rand(2, 1, 100, 100).astype(np.float32),
-    ...     "W2": np.random.RandomState(seed=42).rand(2, 1, 20, 20).astype(np.float32),
-    ...     "W3": np.random.RandomState(seed=42).rand(2, 1, 10, 10).astype(np.float32),
-    ...     "Y": np.random.RandomState(seed=42).rand(2, 1, 32, 32).astype(np.float32),
+    ...     "X": np.random.RandomState(seed=42).rand(2, 1, 11, 11).astype(np.float32),
+    ...     "W1": np.random.RandomState(seed=42).rand(2, 1, 110, 110).astype(np.float32),
+    ...     "W2": np.random.RandomState(seed=42).rand(2, 2, 22, 22).astype(np.float32),
+    ...     "W3": np.random.RandomState(seed=42).rand(2, 1, 11, 11).astype(np.float32),
+    ...     "Y": np.random.RandomState(seed=42).rand(2, 1, 36, 36).astype(np.float32),
     ... }
     >>> discriminator_model = DiscriminatorModel()
     >>> discriminator_optimizer = chainer.optimizers.Adam(alpha=0.001, eps=1e-7).setup(
@@ -1021,7 +1118,7 @@ def train_eval_discriminator(
     """
     # @pytest.fixture
     chainer.global_config.train = train  # Explicitly set Chainer's train/eval flag
-    if train == True:
+    if train is True:
         assert d_optimizer is not None  # Optimizer required for neural network training
     xp = chainer.backend.get_array_module(input_arrays["Y"])
 
@@ -1055,7 +1152,7 @@ def train_eval_discriminator(
     d_accu = F.binary_accuracy(y=predicted_labels, t=groundtruth_labels)
 
     # @then("the discriminator should learn to know the fakes from the real images")
-    if train == True:
+    if train is True:
         d_model.cleargrads()  # clear/zero all gradients
         d_loss.backward()  # renew gradients
         d_optimizer.update()  # backpropagate the loss using optimizer
@@ -1070,7 +1167,7 @@ def train_eval_generator(
     d_model,
     g_optimizer=None,
     train: bool = True,
-) -> (float, float):
+) -> (float, float, float):
     """
     Evaluates and/or trains the Generator for one minibatch
     within a Super Resolution Generative Adversarial Network.
@@ -1085,11 +1182,11 @@ def train_eval_generator(
     - Generator is trained to be more like real image
 
     >>> train_arrays = {
-    ...     "X": np.random.RandomState(seed=42).rand(2, 1, 10, 10).astype(np.float32),
-    ...     "W1": np.random.RandomState(seed=42).rand(2, 1, 100, 100).astype(np.float32),
-    ...     "W2": np.random.RandomState(seed=42).rand(2, 1, 20, 20).astype(np.float32),
-    ...     "W3": np.random.RandomState(seed=42).rand(2, 1, 10, 10).astype(np.float32),
-    ...     "Y": np.random.RandomState(seed=42).rand(2, 1, 32, 32).astype(np.float32),
+    ...     "X": np.random.RandomState(seed=42).rand(2, 1, 11, 11).astype(np.float32),
+    ...     "W1": np.random.RandomState(seed=42).rand(2, 1, 110, 110).astype(np.float32),
+    ...     "W2": np.random.RandomState(seed=42).rand(2, 2, 22, 22).astype(np.float32),
+    ...     "W3": np.random.RandomState(seed=42).rand(2, 1, 11, 11).astype(np.float32),
+    ...     "Y": np.random.RandomState(seed=42).rand(2, 1, 36, 36).astype(np.float32),
     ... }
     >>> generator_model = GeneratorModel()
     >>> generator_optimizer = chainer.optimizers.Adam(alpha=0.001, eps=1e-7).setup(
@@ -1111,7 +1208,7 @@ def train_eval_generator(
 
     # @pytest.fixture
     chainer.global_config.train = train  # Explicitly set Chainer's train/eval flag
-    if train == True:
+    if train is True:
         assert g_optimizer is not None  # Optimizer required for neural network training
     xp = chainer.backend.get_array_module(input_arrays["Y"])
 
@@ -1141,16 +1238,23 @@ def train_eval_generator(
         real_labels=real_labels,  # real label 'should' get close to 0
         fake_minus_real_target=fake_minus_real_target,  # where 1 (fake) - 0 (real) = 1 (target)
         real_minus_fake_target=real_minus_fake_target,  # where 0 (real) - 1 (fake) = 0 (target)?
+        # topographic loss inputs, 2D image of low resolution input
+        x_topo=input_arrays["X"][:, :, 1:-1, 1:-1],  # sliced to remove 1km borders
     )
     g_psnr = psnr(y_pred=fake_images.array, y_true=real_images)
+    g_ssim = ssim_loss_func(y_pred=fake_images, y_true=real_images)
 
     # @then("the generator should learn to create a more authentic looking image")
-    if train == True:
+    if train is True:
         g_model.cleargrads()  # clear/zero all gradients
         g_loss.backward()  # renew gradients
         g_optimizer.update()  # backpropagate the loss using optimizer
 
-    return float(g_loss.array), float(g_psnr)  # return generator loss and metric values
+    return (
+        float(g_loss.array),
+        float(g_psnr),
+        float(g_ssim.array),
+    )  # return generator loss and metric values
 
 
 # %%
@@ -1187,7 +1291,7 @@ def trainer(
         metrics_dict["discriminator_accu"].append(d_train_accu)
 
         ## 1.2 - Train Generator
-        g_train_loss, g_train_psnr = train_eval_generator(
+        g_train_loss, g_train_psnr, g_train_ssim = train_eval_generator(
             input_arrays=train_arrays,
             g_model=g_model,
             d_model=d_model,
@@ -1195,24 +1299,26 @@ def trainer(
         )
         metrics_dict["generator_loss"].append(g_train_loss)
         metrics_dict["generator_psnr"].append(g_train_psnr)
+        metrics_dict["generator_ssim"].append(g_train_ssim)
 
     ## Part 2 - Evaluation on development dataset
     while i == dev_iter.epoch:  # while we are in epoch i, evaluate on each minibatch
         dev_batch = dev_iter.next()
         dev_arrays = chainer.dataset.concat_examples(batch=dev_batch)
         ## 2.1 - Evaluate Discriminator
-        d_train_loss, d_train_accu = train_eval_discriminator(
+        d_dev_loss, d_dev_accu = train_eval_discriminator(
             input_arrays=dev_arrays, g_model=g_model, d_model=d_model, train=False
         )
-        metrics_dict["val_discriminator_loss"].append(d_train_loss)
-        metrics_dict["val_discriminator_accu"].append(d_train_accu)
+        metrics_dict["val_discriminator_loss"].append(d_dev_loss)
+        metrics_dict["val_discriminator_accu"].append(d_dev_accu)
 
         ## 2.2 - Evaluate Generator
-        g_dev_loss, g_dev_psnr = train_eval_generator(
+        g_dev_loss, g_dev_psnr, g_dev_ssim = train_eval_generator(
             input_arrays=dev_arrays, g_model=g_model, d_model=d_model, train=False
         )
         metrics_dict["val_generator_loss"].append(g_dev_loss)
         metrics_dict["val_generator_psnr"].append(g_dev_psnr)
+        metrics_dict["val_generator_ssim"].append(g_dev_ssim)
 
     return metrics_dict
 
@@ -1224,14 +1330,14 @@ def save_model_weights_and_architecture(
     save_path: str = "model/weights",
 ) -> (str, str):
     """
-    Save the trained neural network's parameter weights and architecture,
-    respectively to zipped Numpy (.npz) and ONNX (.onnx, .onnx.txt) format.
+    Save the trained neural network's parameter weights and architecture (computational
+    graph) respectively to zipped Numpy (.npz) and Graphviz DOT (.dot) format.
 
-    >>> model = GeneratorModel()
+    >>> model = GeneratorModel(num_residual_blocks=1)
     >>> _, _ = save_model_weights_and_architecture(
     ...     trained_model=model, save_path="/tmp/weights"
     ... )
-    >>> os.path.exists(path="/tmp/weights/srgan_generator_model_architecture.onnx.txt")
+    >>> os.path.exists(path="/tmp/weights/srgan_generator_model_architecture.dot")
     True
     """
 
@@ -1241,28 +1347,21 @@ def save_model_weights_and_architecture(
     model_weights_path: str = os.path.join(save_path, f"{model_basename}_weights.npz")
     chainer.serializers.save_npz(file=model_weights_path, obj=trained_model)
 
-    # Save generator model's architecture in ONNX format
+    # Save generator model's architecture in Graphviz DOT format
     model_architecture_path: str = os.path.join(
-        save_path, f"{model_basename}_architecture.onnx"
+        save_path, f"{model_basename}_architecture.dot"
     )
-    with warnings.catch_warnings():
-        warnings.filterwarnings(
-            action="ignore",
-            message="`resize_images` is mapped to `Upsampling` ONNX op with bilinear interpolation",
-        )
-        _ = onnx_chainer.export(
-            model=trained_model,
-            args={
-                "x": trained_model.xp.random.rand(32, 1, 10, 10).astype("float32"),
-                "w1": trained_model.xp.random.rand(32, 1, 100, 100).astype("float32"),
-                "w2": trained_model.xp.random.rand(32, 1, 20, 20).astype("float32"),
-                "w3": trained_model.xp.random.rand(32, 1, 10, 10).astype("float32"),
-            },
-            filename=model_architecture_path,
-            export_params=False,
-            save_text=True,
-        )
-    assert os.path.exists(f"{model_architecture_path}.txt")
+    args = {
+        "x": trained_model.xp.random.rand(128, 1, 11, 11).astype("float32"),
+        "w1": trained_model.xp.random.rand(128, 1, 110, 110).astype("float32"),
+        "w2": trained_model.xp.random.rand(128, 2, 22, 22).astype("float32"),
+        "w3": trained_model.xp.random.rand(128, 1, 11, 11).astype("float32"),
+    }
+    graph = chainer.computational_graph.build_computational_graph(
+        outputs=trained_model.forward(**args)
+    )
+    with open(file=model_architecture_path, mode="w") as outgraph:
+        outgraph.writelines([f"{line};\n" for line in graph.dump().split(";")])
 
     return model_weights_path, model_architecture_path
 
@@ -1274,10 +1373,39 @@ def save_model_weights_and_architecture(
 # ## Evaluation on independent test set
 
 # %%
+@functools.lru_cache()
+def get_fixed_test_inputs(
+    test_filepath: str = "highres/2007tx",
+    indexers: dict = {"y": slice(1, -2), "x": slice(1, -2)},  # custom index-based crop
+) -> (xr.DataArray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, pd.DataFrame):
+    """
+    Cached way of getting the fixed (non-model) data array inputs for our hardcoded
+    DeepBedMap test area along the main trunk of Pine Island Glacier. Use it by simply
+    calling get_fixed_test_inputs(), which works arounds functools.lru_cache not
+    accepting unhashable inputs like Python list, dict, and slice objects.
+    """
+    deepbedmap = _load_ipynb_modules("deepbedmap.ipynb")
+
+    # Get neural network input datasets associated with groundtruth image bounds
+    groundtruth = deepbedmap.get_image_with_bounds(
+        filepaths=[f"{test_filepath}.nc"], indexers=indexers
+    )
+    X_tile, W1_tile, W2_tile, W3_tile = deepbedmap.get_deepbedmap_model_inputs(
+        window_bound=rasterio.coords.BoundingBox(*groundtruth.bounds)
+    )
+
+    # Load xyz points table for test region
+    data_prep = _load_ipynb_modules("data_prep.ipynb")
+    points = data_prep.ascii_to_xyz(pipeline_file=f"{test_filepath}.json")
+
+    return groundtruth, X_tile, W1_tile, W2_tile, W3_tile, points
+
+
+# %%
 def get_deepbedmap_test_result(
     model=None,
     test_filepath: str = "highres/2007tx",
-    indexers: dict = None,  # custom index-based crop e.g. {"x": slice(1, -1), "y": slice(1, -1)}
+    indexers: dict = {"y": slice(1, -2), "x": slice(1, -2)},  # custom index-based crop
     model_weights_path: str = "model/weights/srgan_generator_model_weights.npz",
 ) -> (float, xr.DataArray):
     """
@@ -1288,18 +1416,13 @@ def get_deepbedmap_test_result(
     (i.e. the trained weights will not be reloaded). If instead there is no model passed
     in, the default model will be loaded with trained weights from 'model_weights_path'.
     """
-    deepbedmap = _load_ipynb_modules("deepbedmap.ipynb")
-
     # Get neural network input datasets associated with groundtruth image bounds
-    groundtruth = deepbedmap.get_image_with_bounds(
-        filepaths=[f"{test_filepath}.nc"], indexers=indexers
-    )
-    X_tile, W1_tile, W2_tile, W3_tile = deepbedmap.get_deepbedmap_model_inputs(
-        window_bound=groundtruth.bounds
-    )
+    # Load xyz points table for test region
+    groundtruth, X_tile, W1_tile, W2_tile, W3_tile, points = get_fixed_test_inputs()
 
     # Run input datasets through trained neural network model
     if model is None:
+        deepbedmap = _load_ipynb_modules("deepbedmap.ipynb")
         model = deepbedmap.load_trained_model(model_weights_path=model_weights_path)
     Y_hat = model.forward(
         x=model.xp.asarray(a=X_tile),
@@ -1314,10 +1437,6 @@ def get_deepbedmap_test_result(
         dims=["y", "x"],
         coords={"y": groundtruth.y, "x": groundtruth.x},
     )
-
-    # Load xyz points table for test region
-    data_prep = _load_ipynb_modules("data_prep.ipynb")
-    points = data_prep.ascii_to_xyz(pipeline_file=f"{test_filepath}.json")
 
     # Get the elevation (z) value at specified x, y points along the groundtruth track
     df_deepbedmap3 = gmt.grdtrack(points=points, grid=grid, newcolname="z_interpolated")
@@ -1344,9 +1463,9 @@ def objective(
         params={
             "batch_size_exponent": 7,
             "num_residual_blocks": 12,
-            "residual_scaling": 0.2,
-            "learning_rate": 8e-5,
-            "num_epochs": 90,
+            "residual_scaling": 0.1,
+            "learning_rate": 1.6e-4,
+            "num_epochs": 120,
         }
     ),
     enable_livelossplot: bool = False,  # Default: False, no plots makes it go faster!
@@ -1378,9 +1497,7 @@ def objective(
         refresh_cache = False
 
     ## Load Dataset
-    dataset, quilt_hash = load_data_into_memory(
-        redownload=True if refresh_cache else False
-    )
+    dataset, quilt_hash = load_data_into_memory(refresh_cache=refresh_cache)
     experiment.log_parameter(name="dataset_hash", value=quilt_hash)
     experiment.log_parameter(name="use_gpu", value=cupy.is_available())
     batch_size: int = int(
@@ -1399,10 +1516,10 @@ def objective(
         name="num_residual_blocks", low=12, high=12
     )
     residual_scaling: float = trial.suggest_discrete_uniform(
-        name="residual_scaling", low=0.1, high=0.5, q=0.05
+        name="residual_scaling", low=0.1, high=0.3, q=0.05
     )
     learning_rate: float = trial.suggest_discrete_uniform(
-        name="learning_rate", high=9.5e-5, low=5.5e-5, q=0.5e-5
+        name="learning_rate", high=2.0e-4, low=1.0e-4, q=0.1e-4
     )
     g_model, g_optimizer, d_model, d_optimizer = compile_srgan_model(
         num_residual_blocks=num_residual_blocks,
@@ -1423,7 +1540,7 @@ def objective(
     )
 
     ## Run Trainer and save trained model
-    epochs: int = trial.suggest_int(name="num_epochs", low=60, high=90)
+    epochs: int = trial.suggest_int(name="num_epochs", low=90, high=150)
     experiment.log_parameter(name="num_epochs", value=epochs)
 
     metric_names = [
@@ -1431,6 +1548,7 @@ def objective(
         "discriminator_accu",
         "generator_loss",
         "generator_psnr",
+        "generator_ssim",
     ]
     columns = metric_names + [f"val_{metric_name}" for metric_name in metric_names]
     dataframe = pd.DataFrame(index=np.arange(epochs), columns=columns)
@@ -1451,7 +1569,7 @@ def objective(
             d_optimizer=d_optimizer,
         )
 
-        ## Record loss and metric information, and plot using livelossplot if enabled
+        ## Record training loss and metric info, and plot using livelossplot if enabled
         dataframe.loc[i] = [
             np.mean(metrics_dict[metric]) for metric in dataframe.keys()
         ]
@@ -1460,7 +1578,7 @@ def objective(
             livelossplot.draw_plot(
                 logs=dataframe.to_dict(orient="records"),
                 metrics=metric_names,
-                max_cols=4,
+                max_cols=5,
                 figsize=(21, 9),
                 max_epoch=None,
             )
@@ -1468,18 +1586,32 @@ def objective(
         progressbar.update(n=1)
         experiment.log_metrics(dic=epoch_metrics, step=i)
 
+        ## Evaluate model and produce image of test area
+        rmse_test, predicted_test_grid = get_deepbedmap_test_result(model=g_model)
+        experiment.log_metric(name="rmse_test", value=rmse_test)
+        experiment.log_image(
+            name="predicted_test_grid",
+            image_data=np.flipud(predicted_test_grid.data),
+            image_colormap="BrBG",
+        )
+        trial.report(value=rmse_test, step=i)
+
         ## Pruning unpromising trials with vanishing/exploding gradients
         if (
-            epoch_metrics["generator_psnr"] < 0
+            trial.should_prune()
+            or epoch_metrics["generator_psnr"] < 0
             or np.isnan(epoch_metrics["generator_loss"])
             or np.isnan(epoch_metrics["discriminator_loss"])
         ):
             experiment.end()
             raise optuna.structs.TrialPruned()
 
+    # Save neural network model weights and generator model architecture
     model_weights_path, model_architecture_path = save_model_weights_and_architecture(
         trained_model=g_model, save_path=f"model/weights/{experiment.get_key()}"
     )
+    with open(file=model_architecture_path) as outgraph:
+        experiment.set_model_graph(graph=outgraph.read())
     experiment.log_asset(
         file_data=model_weights_path, file_name=os.path.basename(model_weights_path)
     )
@@ -1491,47 +1623,40 @@ def objective(
         shutil.copy2(src=f, dst="model/weights")
     shutil.rmtree(path=f"model/weights/{experiment.get_key()}")
 
-    ## Evaluate model and return metrics
-    rmse_test, predicted_test_grid = get_deepbedmap_test_result(model=g_model)
-    print(f"Experiment yielded Root Mean Square Error of {rmse_test:.2f} on test set")
-    experiment.log_metric(name="rmse_test", value=rmse_test)
-
-    ## Upload raw image output and figure with scalebar
-    experiment.log_image(
-        name="predicted_test_grid",
-        image_data=np.flipud(predicted_test_grid.data),
-        image_colormap="BrBG",
-    )
+    ## Upload final predicted figure with scalebar
     predicted_test_grid.plot.imshow(
         cmap="BrBG",
         size=14,
         aspect=predicted_test_grid.shape[1] / predicted_test_grid.shape[0],
     )
     plt.tight_layout()
-    experiment.log_figure()
+    experiment.log_figure(figure_name="final_figure_of_predicted_test_area")
     plt.close()
 
+    print(f"Experiment yielded Root Mean Square Error of {rmse_test:.2f} on test set")
     experiment.end()
 
     return rmse_test
 
 
 # %%
-n_trials = 12
+n_trials = 30
 if n_trials == 1:  # run training once only, i.e. just test the objective function
-    objective(enable_livelossplot=True, enable_comet_logging=False)
+    objective(enable_livelossplot=True, enable_comet_logging=True)
 elif n_trials > 1:  # perform hyperparameter tuning with multiple experimental trials
-    tpe_seed = len(os.uname().nodename) + int(
-        os.getenv(key="CUDA_VISIBLE_DEVICES", default="0")
-    )  # Set different seed using len($HOSTNAME) + GPU_ID
+    # Set different seed using len($HOSTNAME) + GPU_ID
+    hostname: str = os.uname().nodename
+    tpe_seed = len(hostname) + int(os.getenv(key="CUDA_VISIBLE_DEVICES", default="0"))
+    # Tree-structured Parzen Estimator using HyperOpt defaults
     sampler = optuna.samplers.TPESampler(
-        seed=tpe_seed
-    )  # Tree-structured Parzen Estimator
+        seed=tpe_seed, **optuna.samplers.TPESampler.hyperopt_parameters()
+    )
     study = optuna.create_study(
-        storage="sqlite:///model/logs/train.db",
         study_name="DeepBedMap_tuning",
-        load_if_exists=True,
+        storage=f"sqlite:///model/logs/train_on_{hostname}.db",
         sampler=sampler,
+        pruner=optuna.pruners.MedianPruner(n_warmup_steps=15),
+        load_if_exists=True,
     )
     study.optimize(func=objective, n_trials=n_trials, n_jobs=1)
 
@@ -1539,6 +1664,10 @@ elif n_trials > 1:  # perform hyperparameter tuning with multiple experimental t
 # %%
 if n_trials > 1:
     study = optuna.load_study(
-        study_name="DeepBedMap_tuning", storage="sqlite:///model/logs/train.db"
+        study_name="DeepBedMap_tuning",
+        storage=f"sqlite:///model/logs/train_on_{hostname}.db",
     )
-    IPython.display.display(study.trials_dataframe().nsmallest(n=10, columns="value"))
+    topten_df = study.trials_dataframe().nsmallest(n=10, columns="value")
+    IPython.display.display(
+        topten_df.drop(labels=["intermediate_values"], axis="columns", level=0)
+    )

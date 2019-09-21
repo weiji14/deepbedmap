@@ -19,7 +19,7 @@ matplotlib = "==3.1.1"
 netcdf4 = "==1.4.1"
 numpy = "==1.17.0rc2"
 onnx_chainer = "==1.5.0"
-optuna = "==0.13.0"
+optuna = "==0.14.0"
 pandas = "==0.25.0"
 pygmt = {editable = true, ref = "0.0.1a0-43-g421e10d", git = "https://github.com/weiji14/pygmt.git"}
 quilt = "==2.9.15"
@@ -27,6 +27,7 @@ rasterio = "==1.0.24"
 rtree = "==0.8.3"
 salem = "==0.2.4"
 scikit-image = "==0.15.0"
+ssim-chainer = {editable = true,git = "https://github.com/higumachan/ssim-chainer.git"}
 tqdm = "==4.32.2"
 
 [dev-packages]
