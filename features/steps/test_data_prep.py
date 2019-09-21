@@ -55,7 +55,7 @@ def interpolate_xyz_data_to_grid(context, output_file):
 @then("a high resolution raster grid is returned")
 def open_raster_grid_to_check(context):
     with rasterio.open(context.outfile) as raster_source:
-        assert raster_source.closed == False  # check that it can be opened
+        assert raster_source.closed is False  # check that it can be opened
 
 
 @given("a big {dataset_type} raster grid {raster_grid}")

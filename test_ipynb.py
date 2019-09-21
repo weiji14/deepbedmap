@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.2'
-#       jupytext_version: 1.1.4-rc1
+#       jupytext_version: 1.2.0
 #   kernelspec:
 #     display_name: deepbedmap
 #     language: python
@@ -26,12 +26,12 @@
 # You can then open up this very jupyter notebook to debug and inspect the situation further.
 
 # %%
-from features.environment import _load_ipynb_modules
-import behave.__main__
-
 import doctest
 import os
 import sys
+
+import behave.__main__
+from features.environment import _load_ipynb_modules
 
 
 def _unit_test_ipynb(path: str):
@@ -55,9 +55,9 @@ def _integration_test_ipynb(path: str, summary: bool = False):
     assert os.path.exists(path=path)
     assert path.endswith(".feature")
 
-    if summary == False:
+    if summary is False:
         args = f"--tags ~@skip --no-summary {path}"
-    elif summary == True:
+    elif summary is True:
         args = f"--tags ~@skip {path}"
 
     num_failures = behave.__main__.main(args=args)
