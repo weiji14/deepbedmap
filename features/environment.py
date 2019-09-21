@@ -41,7 +41,7 @@ def _load_ipynb_modules(ipynb_path: str):
             ast.ImportFrom,
         ]:
             parsed_code.body.remove(node)
-    assert len(parsed_code.body) > 0
+    assert parsed_code.body  # make sure there is a non-empty list
 
     # import modules from the parsed .py string
     module = types.ModuleType(basename)

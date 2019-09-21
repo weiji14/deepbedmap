@@ -716,11 +716,10 @@ with chainer.using_config(name="cudnn_deterministic", value=True):
         try:
             y_slice = slice((y0 + xtrapad.y + 1) * 4, (y1 - xtrapad.y - 1) * 4)
             x_slice = slice((x0 + xtrapad.x + 1) * 4, (x1 - xtrapad.x - 1) * 4)
-            Y_hat[:, y_slice, x_slice] = cupy.asnumpy(
-                Y_pred.array[
-                    0, :, xtrapad.y * 4 : -xtrapad.y * 4, xtrapad.x * 4 : -xtrapad.x * 4
-                ]
-            )
+            Y_pred_uncut: np.ndarray = cupy.asnumpy(Y_pred.array)[0, :, :, :]
+            Y_hat[:, y_slice, x_slice] = Y_pred_uncut[
+                :, xtrapad.y * 4 : -xtrapad.y * 4, xtrapad.x * 4 : -xtrapad.x * 4
+            ]
         except ValueError:
             raise
         finally:
@@ -751,19 +750,11 @@ fig = gmt.Figure()
 #!gmt makecpt -Coleron -T-4500/4500 > deepbedmap.cpt
 fig.grdimage(
     grid="model/deepbedmap3_big_int16.tif",
-    region="-2800000/2800000/-2800000/2800000",  # make it square!
+    region="-2700000/2800000/-2200000/2300000",
     projection="x1:60000000",
-    frame="afg",  # add minor tick labels
+    frame="f",  # add minor tick labels only
     C="deepbedmap.cpt",
     Q=True,
-)
-fig.coast(
-    # region="-180/180/-90/-60",
-    projection="s0/-90/-71/1:60000000",
-    # frame="afg",  # add minor tick labels
-    area_thresh="+ai",  # crop to Antarctic 'i'ce shelf boundary
-    water="27/40/91",
-    V="q",
 )
 fig.savefig(fname="deepbedmap.png")
 fig.show()

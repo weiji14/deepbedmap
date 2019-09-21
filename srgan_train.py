@@ -34,11 +34,6 @@ import shutil
 import sys
 import typing
 
-try:  # check if CUDA_VISIBLE_DEVICES environment variable is set
-    os.environ["CUDA_VISIBLE_DEVICES"]
-except KeyError:  # if not set, then set it to the first GPU
-    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-
 import comet_ml
 import IPython.display
 import matplotlib.pyplot as plt
@@ -59,6 +54,11 @@ import optuna
 import ssim.functions
 
 from features.environment import _load_ipynb_modules
+
+try:  # check if CUDA_VISIBLE_DEVICES environment variable is set
+    os.environ["CUDA_VISIBLE_DEVICES"]
+except KeyError:  # if not set, then set it to the first GPU
+    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 print("Python       :", sys.version.split("\n")[0])
 chainer.print_runtime_info()
@@ -85,7 +85,7 @@ if cupy.is_available():
 
 # %%
 def load_data_into_memory(
-    redownload: bool = True,
+    refresh_cache: bool = True,
     quilt_hash: str = "e11988479975a091dd52e44b142370c37a03409f41cb6fec54fd7382ee1f99bc",
 ) -> (chainer.datasets.dict_dataset.DictDataset, str):
     """
@@ -93,7 +93,7 @@ def load_data_into_memory(
     and loads it into CPU or GPU memory depending on what is available.
     """
 
-    if redownload:
+    if refresh_cache:
         quilt.install(
             package="weiji14/deepbedmap/model/train", hash=quilt_hash, force=True
         )
@@ -1118,7 +1118,7 @@ def train_eval_discriminator(
     """
     # @pytest.fixture
     chainer.global_config.train = train  # Explicitly set Chainer's train/eval flag
-    if train == True:
+    if train is True:
         assert d_optimizer is not None  # Optimizer required for neural network training
     xp = chainer.backend.get_array_module(input_arrays["Y"])
 
@@ -1152,7 +1152,7 @@ def train_eval_discriminator(
     d_accu = F.binary_accuracy(y=predicted_labels, t=groundtruth_labels)
 
     # @then("the discriminator should learn to know the fakes from the real images")
-    if train == True:
+    if train is True:
         d_model.cleargrads()  # clear/zero all gradients
         d_loss.backward()  # renew gradients
         d_optimizer.update()  # backpropagate the loss using optimizer
@@ -1208,7 +1208,7 @@ def train_eval_generator(
 
     # @pytest.fixture
     chainer.global_config.train = train  # Explicitly set Chainer's train/eval flag
-    if train == True:
+    if train is True:
         assert g_optimizer is not None  # Optimizer required for neural network training
     xp = chainer.backend.get_array_module(input_arrays["Y"])
 
@@ -1245,7 +1245,7 @@ def train_eval_generator(
     g_ssim = ssim_loss_func(y_pred=fake_images, y_true=real_images)
 
     # @then("the generator should learn to create a more authentic looking image")
-    if train == True:
+    if train is True:
         g_model.cleargrads()  # clear/zero all gradients
         g_loss.backward()  # renew gradients
         g_optimizer.update()  # backpropagate the loss using optimizer
@@ -1497,9 +1497,7 @@ def objective(
         refresh_cache = False
 
     ## Load Dataset
-    dataset, quilt_hash = load_data_into_memory(
-        redownload=True if refresh_cache else False
-    )
+    dataset, quilt_hash = load_data_into_memory(refresh_cache=refresh_cache)
     experiment.log_parameter(name="dataset_hash", value=quilt_hash)
     experiment.log_parameter(name="use_gpu", value=cupy.is_available())
     batch_size: int = int(

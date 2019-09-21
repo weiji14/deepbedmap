@@ -31,7 +31,6 @@ import sys
 import tarfile
 import tempfile
 import urllib
-import yaml
 import zipfile
 
 # need to import before rasterio
@@ -53,6 +52,7 @@ import rasterio.mask
 import rasterio.plot
 import shapely.geometry
 import skimage.util.shape
+import yaml
 
 print("Python       :", sys.version.split("\n")[0])
 print("Geopandas    :", gpd.__version__)
@@ -93,18 +93,12 @@ def download_to_path(path: str, url: str):
     if filename != downloaded_filename:
         # Extract tar.gz archive file
         if downloaded_filename.endswith(("tgz", "tar.gz")):
-            try:
-                archive = tarfile.open(name=f"{folder}/{downloaded_filename}")
-                archive.extract(member=filename, path=folder)
-            except:
-                raise
+            archive = tarfile.open(name=f"{folder}/{downloaded_filename}")
+            archive.extract(member=filename, path=folder)
         # Extract from .zip archive file
         elif downloaded_filename.endswith((".zip")):
-            try:
-                archive = zipfile.ZipFile(file=f"{folder}/{downloaded_filename}")
-                archive.extract(member=filename, path=folder)
-            except:
-                raise
+            archive = zipfile.ZipFile(file=f"{folder}/{downloaded_filename}")
+            archive.extract(member=filename, path=folder)
         else:
             raise ValueError(
                 f"Unsupported archive format for downloaded file: {downloaded_filename}"
@@ -284,7 +278,8 @@ def ascii_to_xyz(pipeline_file: str) -> pd.DataFrame:
     assert pipeline_file.endswith((".json"))
 
     # Read json file first
-    j = json.loads(open(pipeline_file).read())
+    with open(pipeline_file) as _file:
+        j = json.loads(_file.read())
     jdf = pd.io.json.json_normalize(data=j, record_path="pipeline", max_level=0)
     jdf = jdf.set_index(keys="type")
     reader = jdf.loc["readers.text"]  # check how to read the file(s)
@@ -297,8 +292,8 @@ def ascii_to_xyz(pipeline_file: str) -> pd.DataFrame:
     na_values = None if not hasattr(reader, "na_values") else reader.na_values
 
     path_pattern = os.path.join(os.path.dirname(pipeline_file), reader.filename)
-    files = [file for file in glob.glob(path_pattern)]
-    assert len(files) > 0  # check that there are actually files being matched!
+    files: list = [file for file in glob.glob(path_pattern)]
+    assert files  # check that there are actually files being matched!
 
     df = pd.concat(
         pd.read_csv(

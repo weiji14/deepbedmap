@@ -1,6 +1,5 @@
 from behave import given, when, then
 import numpy as np
-import optuna
 
 
 @given("a prepared collection of tiled raster data")
