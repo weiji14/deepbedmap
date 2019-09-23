@@ -206,14 +206,18 @@ In the following sections, we will describe the loss functions and model archite
 
 \subsection{Loss functions}
 
+\subsubsection{Content Loss}
+
 To bring the pixel values of our generated images closer to that of the groundtruth, we first define our Content Loss function $L_1$.
 Following ESRGAN \citep{WangESRGANEnhancedSuperResolution2018}, we have:
 
 \begin{equation}\label{eq:4}
-  L_1 = \dfrac{1}{n} \sum\limits_{i=1}^n ||G(x_{i}) - y_i||_{1}
+  L_1 = \dfrac{1}{n} \sum\limits_{i=1}^n ||\hat{y}_i - y_i||_{1}
 \end{equation}
 
-where we take the mean absolute error between the Generator Network's predicted value $G(x_{i})$, and the groundtruth value $y_i$, respectively over every pixel $i$.
+where we take the mean absolute error between the Generator Network's predicted value $\hat{y}_i$ and the groundtruth value $y_i$, respectively over every pixel $i$.
+
+\subsubsection{Adversarial Loss}
 
 Next, we define an Adversarial Loss to encourage the production of high resolution images $\hat{y}$ closer to the manifold of natural looking digital elevation model images.
 To do so, we introduce the standard discriminator in the form of $D(y) = \sigma(C(y))$ where $\sigma$ is the sigmoid activation function and $C(y)$ is the raw, non-transformed output from a discriminator neural network acting on high resolution image $y$.
@@ -231,15 +235,55 @@ The generator network's adversarial loss is in a symmetrical form:
   L_G^{Ra} = - \mathbb{E}_y[\ln(1 - D(y,\hat{y}))] - \mathbb{E}_{\hat{y}}[\ln(D(\hat{y},y))]
 \end{equation}
 
-Finally, we compile the loss functions for our discriminator and generator networks:
+\subsubsection{Topographic Loss}
+
+We further define a Topographic Loss so that the elevation values in our super resolved image make topographic sense with respect to the original low resolution image.
+Specifically, we want the mean value of each 4x4 grid on the predicted super resolution (DeepBedMap) image to closely match its spatially corresponding 1x1 pixel on the low resolution (BEDMAP2) image.
+
+First, we apply a 4x4 Mean Pooling operation on our Generator Network's predicted super resolution image:
+
+\begin{equation}\label{eq:7}
+ \bar{\hat{y}}_j = \dfrac{1}{n} \sum\limits_{i=1}^n \hat{y}_i
+\end{equation}
+
+where $\bar{\hat{y}}_j$ is the mean of all predicted values $\hat{y}_i$ across the 16 super-resolved pixels $i$ within a 4x4 grid corresponding to the spatial location of one low resolution pixel at position $j$.
+Following this, we can compute our Topographic Loss as follows:
+
+\begin{equation}\label{eq:8}
+  L_T = \dfrac{1}{m} \sum\limits_{i=1}^m ||\bar{\hat{y}}_j - x_j||_{1}
+\end{equation}
+
+where we take the mean absolute error between the mean of the 4x4 super-resolved pixels calculated in Equation \eqref{eq:7} $\bar{\hat{y}}_j$ and that of the spatially corresponding low resolution pixel $x_j$, respectively over every low resolution pixel $j$.
+
+\subsubsection{Structural Loss}
+
+Lastly, we define a Structural Loss that takes into account luminance, contrast and structural information between our predicted and groundtruth images.
+This is based on the Structural Similarity Index \citep[SSIM,][]{WangImageQualityAssessment2004} and is calculated over a single window patch as so:
+
+\begin{equation}\label{eq:9}
+  SSIM(\hat{y}, y) = \dfrac{(2\mu_{\hat{y}}\mu_y + c_1)(2\sigma_{{\hat{y}}y} + c_2)}{(\mu_{\hat{y}}^2 + \mu_y^2 + c_1)(\sigma_{\hat{y}}^2 + \sigma_y^2 + c_2)}
+\end{equation}
+
+where $\mu_{\hat{y}}$ and $\mu_y$ are the arithmetic mean of predicted image ${\hat{y}}$ and groundtruth image $y$ respectively over a single window that we set to 9x9 pixels, $\sigma_{{\hat{y}}y}$ is the covariance of ${\hat{y}}$ and $y$, $\sigma_{\hat{y}}^2$ and $\sigma_y^2$ are the variance of ${\hat{y}}$ and $y$ respectively, and $c_1$ and $c_2$ are two variables set to $0.01^2$ and $0.03^2$ to stabilize division with a weak denominator.
+Thus, we can formulate our Structural Loss as follows:
+
+\begin{equation}\label{eq:10}
+  L_S = 1 - \dfrac{1}{p} \sum\limits_{i=1}^p SSIM(\hat{y}, y)_p
+\end{equation}
+
+where we do $1$ minus the mean of all structural similarity values $SSIM(\hat{y}, y)$ calculated over every patch $p$ obtained via a sliding window over our predicted image ${\hat{y}}$ and groundtruth image $y$.
+
+\subsubsection{Total Loss Function}
+
+Finally, we compile the loss functions for our discriminator and generator networks as follows:
 
 \begin{align}
   & L_D = L_D^{Ra} \\
-  & L_G = \lambda L_G^{Ra} + \eta L_1
+  & L_G = \eta L_1 + \lambda L_G^{Ra} + \theta L_T + \zeta L_S
 \end{align}
 
-where $\lambda$ and $\eta$ are the respective weights for the adversarial and content losses.
-The losses $L_G$ and $L_D$ are minimized in an alternate 1:1 manner so as to solve the entire Generative Adversarial Network's objective function defined in \eqref{eq:4}.
+where $\eta$, $\lambda$, $\theta$, and $\zeta$ are the scaled weights for the content $L_1$, adversarial $L_D$, topographic $L_T$ and structural losses $L_S$ respectively.
+The loss functions $L_D$ and $L_G$ are minimized in an alternate 1:1 manner so as to solve the entire Generative Adversarial Network's objective function defined in \eqref{eq:4}.
 Following this, we now describe the model architecture of our Generator and Discriminator neural networks.
 
 \subsection{Model Architecture}
@@ -253,15 +297,14 @@ Following this, we now describe the model architecture of our Generator and Disc
 Our Generative Adversarial Network model architecture is adapted from the ESRGAN model by \citet{WangESRGANEnhancedSuperResolution2018}, with a few notable differences.
 Specifically, the Generator neural network model is modified to:
 1) Use a custom conditional input block (see Figure 1a, focusing on input block) consisting of four sub-networks, each one having a different sized convolution size and stride so as to create identical sized outputs which are then concatenated together channel-wise before being fed into the main body of the ESRGAN-based convolutional neural network.
-2) Use a residual scaling factor \citep{SzegedyInceptionv4InceptionResNetImpact2016} of 0.3 instead of 0.2 for the Residual-in-Residual Dense Block (RRDB) connections.
-3) Use the PixelShuffle/Depth-to-Space upsampling function \citep{ShiRealTimeSingleImage2016} following SRGAN \citep{LedigPhotoRealisticSingleImage2016} instead of a Nearest Neighbour Upsample plus Convolutional Layer as in ESRGAN \citep{WangESRGANEnhancedSuperResolution2018}.
+2) Use Deformable Convolution \citep{DaiDeformableConvolutionalNetworks2017} instead of standard Convolution in the final two layers to enhance our model's predictive capability by having it learn dense spatial transformations.
 
 The objective of our 4 times upsampling super-resolution model is to produce a high resolution (250m) grid of Antarctica's bed elevation given a low resolution (1000m) BEDMAP2 \citep{FretwellBedmap2improvedice2013} image.
 However, the information contained in BEDMAP2 is insufficient for this regular super-resolution task, so we provide the neural network with more context through network conditioning.
 Specifically, the model is conditioned at the input block stage with these raster grids: 1) ice surface elevation, 2) ice surface velocity, and 3) snow accumulation, all of which are covered by satellite observations.
 The non-linear relationship between the low resolution bed elevation prior (BEDMAP2) and these conditioning inputs are then processed through $B$-layers of Residual-in-Residual Dense Blocks and upsampled at the end to produce a high resolution bed elevation prediction.
 
-This Generator model gradually improves its prediction by comparing the predicted output with the groundtruth image, specifically using the previously defined Content Loss \eqref{eq:4} and Adversarial Loss \eqref{eq:6}.
+This Generator model gradually improves its prediction by comparing the predicted output with the groundtruth image, specifically using the previously defined Content Loss \eqref{eq:4}, Adversarial Loss \eqref{eq:6}, Topographic Loss \eqref{eq:8}, and Structural Loss \eqref{eq:10}.
 Again, we follow ESRGAN's lead in the implementation of our adversarial Discriminator network.
 A VGG-style convolutional neural network \citep{SimonyanVeryDeepConvolutional2014} is used, consisting of 10 Convolutional-BatchNormalization-LeakyReLU blocks, followed by two fully connected layers with 100 and 1 neurons.
 For numerical stability, the sigmoid activation output is omitted from the Discriminator model's construction and is integrated instead into the binary cross entropy loss functions \eqref{eq:5} and \eqref{eq:6} via the log-sum-exp trick.
@@ -272,7 +315,7 @@ For numerical stability, the sigmoid activation output is omitted from the Discr
 
 Our 2D Convolutional neural network works on raster images, so we have to ensure our datasets are all in a suitable raster grid format.
 Groundtruth xyz points of the bed elevation (see Table \ref{table:groundtruth}) are first compiled together onto a common Antarctic Stereographic Projection (EPSG:3031) using the WGS84 datum, reprojecting if necessary.
-Using Generic Mapping Tools 6.0 \citep{WesselGenericMappingTools2019}, the points are then preprocessed using 'blockmedian' (block average using L1 norm) and gridded onto a 250m spatial resolution pixel-node registered grid using 'surface' (adjustable tension continuous curvature spline function) with a tension factor set to 0.35 and a mask set to 3 pixels (750m) from the nearest point.
+Using Generic Mapping Tools v6.0 \citep{WesselGenericMappingTools2019}, the points are then preprocessed using 'blockmedian' (block average using L1 norm) and gridded onto a 250m spatial resolution pixel-node registered grid using 'surface' (adjustable tension continuous curvature spline function) with a tension factor set to 0.35 and a mask set to 3 pixels (750m) from the nearest point.
 
 To create our training dataset, we use a sliding window to obtain smaller tiles of the groundtruth grids, and also find the inputs (see Table \ref{table:datainputs}) corresponding to the same spatial bounding box area.
 In order to reduce border edge effects, we have used no padding (also known as 'valid' padding) in our Generator model's input convolutional layers which means our model input grids will cover a larger spatial area than the groundtruth grids.
@@ -317,10 +360,10 @@ $w^3$ & Antarctic Snow Accumulation & 1000m & \cite{ArthernAntarcticsnowaccumula
 
 \subsection{Training Details}
 
-The neural networks were developed using the Chainer library (version 6.0.0), and trained using full precision (floating point 32) arithmetic.
-Initial experiments were carried out on a Tesla P100 Graphical Processing Unit (GPU), moving on to a Tesla V100 GPU when it became available.
-On our Tesla V100 GPU setup, one training run with about 100 epochs takes about 15 minutes.
-This is using a batch size of 128 on a total of 2275 training image tiles, with 114 tiles reserved for validation, i.e. a 95/5 training/validation split.
+The neural networks were developed using the Chainer v7.0.0b2 \citep{TokuiChainerDeepLearning2019}, and trained using full precision (floating point 32) arithmetic.
+Experiments were carried out on 4 Graphical Processing Units (GPUs), specifically 2 Tesla P100 GPUs and 2 Tesla V100 GPUs.
+On our Tesla V100 GPU setup, one training run with about 150 epochs takes about 30 minutes.
+This is using a batch size of 128 on a total of 3826 training image tiles, with 202 tiles reserved for validation, i.e. a 95/5 training/validation split.
 We next describe the method used to evaluate each DeepBedMap candidate model, as well as the high-level way in which we semi-automatically arrived at a good model via semi-automatic hyperparameter tuning.
 
 \begin{table*}[h]
@@ -330,13 +373,15 @@ We next describe the method used to evaluate each DeepBedMap candidate model, as
 \tophline
 Hyperparameter & Setting & Tuning Range \\
 \middlehline
-Learning rate (for both Generator and Discriminator) & 8e-5 & 1e-5 to 1e-4 \\
+Learning rate (for both Generator and Discriminator) & 1.7e-4 & 2e-4 to 1e-4 \\
 Number of Residual-in-Residual Blocks & 12 & 8 to 14 \\
 Mini-batch size & 128 & 64 or 128 \\
-Number of epochs & 120 & 50 to 150 \\
-Residual scaling & 0.3 & 0.1 to 0.5 \\
+Number of epochs & 140 & 90 to 150 \\
+Residual scaling & 0.2 & 0.1 to 0.5 \\
 Content Loss Weighting $\eta$ & 1e-2 & Fixed \\
-Adversarial Loss Weighting $\lambda$ & 5e-3 & Fixed \\
+Adversarial Loss Weighting $\lambda$ & 2e-2 & Fixed \\
+Topographic Loss Weighting $\theta$ & 2e-3 & Fixed \\
+Structural Loss Weighting $\zeta$ & 5.25 & Fixed \\
 He Normal Initialization Scaling & 0.1 & Fixed \\
 Adam optimizer epsilon & 0.1 & Fixed \\
 Adam optimizer beta1 & 0.9 & Fixed \\
@@ -350,16 +395,16 @@ To check for overfitting, we evaluate the Generative Adversarial Network model o
 Training stops when these validation performance metrics show little improvement, roughly at 90 epochs.
 
 Next, we conduct a full evaluation on an independent test dataset, comparing the model's predicted grid output against actual groundtruth xyz points.
-Using gmt grdtrack \citep{WesselGenericMappingTools2013}, we obtain the grid elevation at each of our groundtruth point and use it to calculate the elevation error on a point-to-point basis.
+Using the 'grdtrack' function in Generic Mapping Tools v6.0 \citep{WesselGenericMappingTools2019}, we obtain the grid elevation at each of our groundtruth point and use it to calculate the elevation error on a point-to-point basis.
 All of these elevation errors are then used to compute a Root Mean Squared Error (RMSE) statistic over this independent test site.
 This RMSE value is used to judge our model's performance in relation to baseline bicubic interpolation, and also the metric minimized by our hyperparameter optimization algorithm which we will describe next.
 
 Neural networks contain a lot of hyperparameter settings that need to be decided upon, and Generative Adversarial Networks are particularly sensitive to different hyperparameter settings.
 To stabilize model training and obtain better performance, we tune our hyperparameters (see Table \ref{table:1}) using a bayesian approach.
-Specifically, we employ the Tree-structured Parzen Estimator \citep{BergstraAlgorithmsHyperparameterOptimization2011} from the Optuna library (version 0.8.0).
-Given that we have 2 GPUs, we choose to parallelize the hyperparameter tuning experiments asynchronously between the two devices.
-The estimator first conducts 10 random experimental trials per GPU to scan the hyperparameter space, gradually narrowing down to a few candidate hyperparameters in subsequent experiments.
-We set each GPU to run a target of 100 experimental trials, though unpromising trials that have exploding/vanishing gradients are pruned prematurely to save time and computational resources.
+Specifically, we employ the Tree-structured Parzen Estimator \citep{BergstraAlgorithmsHyperparameterOptimization2011} from the Optuna v0.14.0 \citep{AkibaOptunaNextgenerationHyperparameter2019} with default settings as per the Hyperopt library \citep{BergstraHyperoptPythonlibrary2015}.
+Given that we have 4 GPUs, we choose to parallelize the hyperparameter tuning experiments asynchronously between all four devices.
+The estimator first conducts 20 random experimental trials to scan the hyperparameter space, gradually narrowing down to a few candidate hyperparameters in subsequent experiments.
+We set each GPU to run a target of 30 experimental trials (i.e. a total of 120), though unpromising trials that have exploding/vanishing gradients are pruned prematurely to save on time and computational resources.
 Finally, we present our results in the next section, comparing our DeepBedMap DEM grid with surfaces produced by other methods.
 
 
