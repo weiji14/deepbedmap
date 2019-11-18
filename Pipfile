@@ -20,7 +20,7 @@ netcdf4 = "==1.4.1"
 numpy = "==1.17.0rc2"
 optuna = "==0.14.0"
 pandas = "==0.25.0"
-pygmt = {editable = true, ref = "0.0.1a0-57-g7590d4a", git = "https://github.com/weiji14/pygmt.git"}
+pygmt = {editable = true, ref = "0.0.1a0-77-g4581a3e", git = "https://github.com/weiji14/pygmt.git"}
 quilt = "==2.9.15"
 rasterio = "==1.0.24"
 rtree = "==0.8.3"
