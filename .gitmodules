@@ -1,0 +1,3 @@
+[submodule "paper/figures/PlotNeuralNet"]
+	path = paper/figures/PlotNeuralNet
+	url = https://github.com/HarisIqbal88/PlotNeuralNet

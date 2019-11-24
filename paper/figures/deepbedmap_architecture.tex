@@ -1,7 +1,7 @@
 
 \documentclass[border=8pt, multi, tikz]{standalone}
 \usepackage{import}
-\subimport{/home/weiji/Documents/github/deepbedmap/paper/figures/layers/}{init}
+\subimport{paper/figures/PlotNeuralNet/layers/}{init}
 \usetikzlibrary{positioning}
 \usetikzlibrary{3d} %for including external image
 
@@ -20,13 +20,13 @@
 \tikzstyle{connection}=[ultra thick,every node/.style={sloped,allow upside down},draw=\edgecolor,opacity=0.7]
 \tikzstyle{copyconnection}=[ultra thick,every node/.style={sloped,allow upside down},draw={rgb:blue,4;red,1;green,1;black,3},opacity=0.7]
 
-\node[canvas is zy plane at x=0] (temp) at (-1.5,3,0) {\includegraphics[width=3cm,height=3cm]{/home/weiji/Documents/github/deepbedmap/paper/figures/ter_bedmap.png}};
+\node[canvas is zy plane at x=0] (temp) at (-1.5,3,0) {\includegraphics[width=3cm,height=3cm]{paper/figures/ter_bedmap.png}};
 
-\node[canvas is zy plane at x=0] (temp) at (-1.5,0,0) {\includegraphics[width=3cm,height=3cm]{/home/weiji/Documents/github/deepbedmap/paper/figures/REMA-hillshade-rendering-800px-768x768.jpg}};
+\node[canvas is zy plane at x=0] (temp) at (-1.5,0,0) {\includegraphics[width=3cm,height=3cm]{paper/figures/REMA-hillshade-rendering-800px-768x768.jpg}};
 
-\node[canvas is zy plane at x=0] (temp) at (-1.5,-3,0) {\includegraphics[width=3cm,height=3cm]{/home/weiji/Documents/github/deepbedmap/paper/figures/glac_flowspeed.png}};
+\node[canvas is zy plane at x=0] (temp) at (-1.5,-3,0) {\includegraphics[width=3cm,height=3cm]{paper/figures/glac_flowspeed.png}};
 
-\node[canvas is zy plane at x=0] (temp) at (-1.5,-6,0) {\includegraphics[width=3cm,height=3cm]{/home/weiji/Documents/github/deepbedmap/paper/figures/glac_albmap_snowacca.png}};
+\node[canvas is zy plane at x=0] (temp) at (-1.5,-6,0) {\includegraphics[width=3cm,height=3cm]{paper/figures/glac_albmap_snowacca.png}};
 
 \pic[shift={(0,3.5,0)}] at (0,0,0)
     {Box={
