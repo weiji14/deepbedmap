@@ -21,9 +21,11 @@
 
 # %%
 import os
+import subprocess
 
 import geopandas as gpd
 import IPython.display
+import numpy as np
 import pandas as pd
 import pygmt as gmt
 import rasterio
@@ -36,84 +38,395 @@ from paper.figures.PlotNeuralNet.pycore.tikzeng import (
     to_Conv,
     # to_ConvConvRelu,
     to_Pool,
-    to_UnPool,
-    to_ConvRes,
+    # to_UnPool,
+    # to_ConvRes,
     # to_ConvSoftMax,
     # to_SoftMax,
     to_connection,
-    to_skip,
+    # to_skip,
     to_end,
     to_generate,
+)
+from paper.figures.PlotNeuralNet.pycore.tikzeng3 import (
+    to_scalefont,
+    to_flatimage,
+    to_curvedskip,
+    to_InOut,
+    to_RRDB,
+    to_ConvRelu,
+    to_Upsample,
 )
 
 # %% [markdown]
 # # **Methodology**
 #
-# Uses [PlotNeuralNet](https://github.com/HarisIqbal88/PlotNeuralNet)
+# Uses personal [fork](https://github.com/weiji14/PlotNeuralNet)
+# of [PlotNeuralNet](https://github.com/HarisIqbal88/PlotNeuralNet)
 # for drawing convolutional neural network architecture diagram.
 
 # %% [markdown]
 # ### **Figure 1: DeepBedMap Model Architecture**
 
+# %% [markdown]
+# ### Thumbnail figures
+
 # %%
-FIG_DIR = os.path.join("paper", "figures")
+fig = gmt.Figure()
+fig.basemap(
+    region=[-2700000, 2800000, -2200000, 2300000],
+    projection="x1:100000000",
+    frame="wsne",
+)
+gmt.makecpt(cmap="turbo", series=[-2800, 2800])
+fig.grdimage(grid="lowres/bedmap2_bed.tif", cmap=True, I="+d", frame='+t"BEDMAP2"')
+fig.savefig(fname="paper/figures/fig1a_bedmap2.png")
+fig.show()
+
+# %%
+fig = gmt.Figure()
+fig.grdimage(
+    grid="https://www.the-cryosphere.net/13/665/2019/tc-13-665-2019-avatar-web.png",
+    frame='+t"REMA"',
+)
+fig.savefig(fname="paper/figures/fig1b_rema.png")
+fig.show()
+
+# %%
+fig = gmt.Figure()
+fig.grdimage(
+    grid="https://news.agu.org/files/2019/07/AntarcticaMap.jpg",
+    frame='+t"Ice Velocity"',
+)
+fig.savefig(fname="paper/figures/fig1c_measures.png")
+fig.show()
+
+# %%
+fig = gmt.Figure()
+fig.grdimage(
+    grid="https://wol-prod-cdn.literatumonline.com/cms/attachment/8bbfdd40-ea5b-409e-82a8-63a3b9ce4b7e/jgrd11996-fig-0005.png",
+    frame='+t"Snow Accumulation"',
+)
+fig.savefig(fname="paper/figures/fig1d_accumulation.png")
+fig.show()
+
+
+# %% [markdown]
+# ### Create [TikZ](https://en.wikipedia.org/wiki/PGF/TikZ) vector graphics of model architecture
+
+# %%
+def sizes(cl=(64, 9), scale=(30, 2.5), offset="(1.0,0,0)"):
+    """
+    Outputs pretty sized kwargs for PlotNeuralNet code,
+    given [c]hannel(s) and [l]ength (we assume a square input, i.e. height==width).
+    Optionally, adjust the channel and length scaling factor (default to (20, 2.5)).
+    """
+    channels, length = cl[0], cl[1]
+    c_scale, l_scale = scale[0], scale[1]
+
+    kwargs = {
+        "n_filer": channels,
+        "s_filer": length,
+        "height": length / l_scale,
+        "depth": length / l_scale,
+        "offset": offset,
+    }
+    if isinstance(channels, tuple):
+        kwargs["width"] = tuple([c / c_scale for c in channels])
+    else:  # (int, float)
+        kwargs["width"] = cl[0] / scale[0]
+
+    return kwargs
+
+
+# %%
+input_layers = [
+    # Actual raster images
+    to_flatimage("paper/figures/fig1a_bedmap2.png", to="(-1.8,3,0)", width=2, height=2),
+    to_flatimage("paper/figures/fig1b_rema.png", to="(-1.6,0,0)", width=2, height=2),
+    to_flatimage(
+        "paper/figures/fig1c_measures.png", to="(-1.8,-3.5,0)", width=2, height=2
+    ),
+    to_flatimage(
+        "paper/figures/fig1d_accumulation.png", to="(-1.8,-5.5,0)", width=2, height=2
+    ),
+    # Input Raster Images
+    to_InOut(name="x0_img", **sizes(cl=(1, 11)), to="(-1.2,3,0)"),
+    to_InOut(name="w1_img", **sizes(cl=(1, 110), scale=(20, 7.5)), to="(-1.0,0,0)"),
+    to_InOut(name="w2_img", **sizes(cl=(1, 22)), to="(-1.2,-3.5,0)"),
+    to_InOut(name="w3_img", **sizes(cl=(1, 11)), to="(-1.2,-5.5,0)"),
+    # First Convolution on input image
+    to_Conv(name="x0", **sizes(cl=(32, 11)), to="(x0_img-east)"),
+    to_Conv(name="w1", **sizes(cl=(32, 110), scale=(20, 7.5)), to="(w1_img-east)"),
+    to_Conv(name="w2", **sizes(cl=(32, 22)), to="(w2_img-east)"),
+    to_Conv(name="w3", **sizes(cl=(32, 11)), to="(w3_img-east)"),
+    to_connection(of="x0_img", to="x0"),
+    to_connection(of="w1_img", to="w1"),
+    to_connection(of="w2_img", to="w2"),
+    to_connection(of="w3_img", to="w3"),
+    # Second Convolution
+    to_Conv(name="x0_", **sizes(cl=(32, 9)), to="(x0-east)"),
+    to_Conv(name="w1_", **sizes(cl=(32, 9)), to="(w1-east)"),
+    to_Conv(name="w2_", **sizes(cl=(32, 9)), to="(w2-east)"),
+    to_Conv(name="w3_", **sizes(cl=(32, 9)), to="(w3-east)"),
+    to_connection(of="x0", to="x0_"),
+    to_connection(of="w1", to="w1_"),
+    to_connection(of="w2", to="w2_"),
+    to_connection(of="w3", to="w3_"),
+    # Concatenated Inputs
+    to_Conv(
+        name="concat",
+        **sizes(cl=(128, 9)),
+        to="(w1_-east)",
+        caption=r"Concatenated\\Inputs",
+    ),
+    to_connection(of="x0_", to="concat"),
+    to_connection(of="w1_", to="concat"),
+    to_connection(of="w2_", to="concat"),
+    to_connection(of="w3_", to="concat"),
+    # Label for Input Module
+    to_Pool(
+        name="input-module-label",
+        offset="(0,-1.5,0)",
+        to="(w3_img-west)",
+        caption=r"Input Module",
+        width=24,
+        height=0.1,
+        depth=0.1,
+        opacity=0.2,
+    ),
+]
+
+# %%
+rrdb_layers_simple = [
+    # Residual in Residual Dense Block Layers
+    #
+    to_ConvRelu(
+        name="pre-residual",
+        **sizes(cl=((64,), 9)),
+        to="(concat-east)",
+        caption="Pre-residual",
+    ),
+    to_connection(of="concat", to="pre-residual"),
+    # RRDB simplified box
+    to_RRDB(
+        name="rrdb-blocks",
+        **sizes(cl=((32,) * 12, 9)),
+        to="(pre-residual-east)",
+        caption=r"Residual-in-Residual\\Dense Blocks\\x12",
+    ),
+    to_connection(of="pre-residual", to="rrdb-blocks"),
+    #
+    to_Conv(
+        name="post-residual",
+        **sizes(cl=(64, 9)),
+        to="(rrdb-blocks-east)",
+        caption="Post-residual",
+    ),
+    to_connection(of="rrdb-blocks", to="post-residual"),
+    # Skip Connection
+    to_curvedskip(of="pre-residual", to="post-residual", xoffset=0.6),
+    # Label for Core RRDB module
+    to_Pool(
+        name="core-module-label",
+        offset="(0.3,0,0)",
+        to="(input-module-label-east)",
+        caption=r"Core Module",
+        width=32,
+        height=0.1,
+        depth=0.1,
+        opacity=0.2,
+    ),
+]
+# RRDB full expansion
+rrdb_layers_complex = [
+    # First Dense Block
+    to_Conv(
+        name="block1",
+        **sizes(cl=(160, 9), offset="(-3.0,-4.5,0)"),
+        to="(rrdb-blocks-west)",
+        caption="Dense Block 1",
+    ),
+    #
+    # Second Dense Block
+    to_ConvRelu(name="block2a", **sizes(cl=((32,), 9)), to="(block1-east)"),
+    to_ConvRelu(name="block2b", **sizes(cl=((32,), 9)), to="(block2a-east)"),
+    to_ConvRelu(name="block2c", **sizes(cl=((32,), 9)), to="(block2b-east)"),
+    to_ConvRelu(name="block2d", **sizes(cl=((32,), 9)), to="(block2c-east)"),
+    to_Conv(name="block2e", **sizes(cl=(32, 9)), to="(block2d-east)"),
+    # TODO write a loop...
+    # inter-block connectors
+    to_connection(of="block1", to="block2a"),
+    to_connection(of="block2a", to="block2b"),
+    to_connection(of="block2b", to="block2c"),
+    to_connection(of="block2c", to="block2d"),
+    to_connection(of="block2d", to="block2e"),
+    # 1st order skips
+    to_curvedskip(of="block1", to="block2a", xoffset=0.45),
+    to_curvedskip(of="block2a", to="block2b", xoffset=0.45),
+    to_curvedskip(of="block2b", to="block2c", xoffset=0.45),
+    to_curvedskip(of="block2c", to="block2d", xoffset=0.45),
+    # 2nd order skips
+    to_curvedskip(of="block1", to="block2b", xoffset=0.45),
+    to_curvedskip(of="block2a", to="block2c", xoffset=0.45),
+    to_curvedskip(of="block2b", to="block2d", xoffset=0.45),
+    # 3rd order skips
+    to_curvedskip(of="block1", to="block2c", xoffset=0.45),
+    to_curvedskip(of="block2a", to="block2d", xoffset=0.45),
+    # 4th order skips
+    to_curvedskip(of="block1", to="block2d", xoffset=0.45),
+    #
+    # Third Dense Block
+    to_Conv(
+        name="block3",
+        **sizes(cl=(160, 9)),
+        to="(block2e-east)",
+        caption="Dense Block 3",
+    ),
+    to_connection(of="block2e", to="block3"),
+    # ... connector
+    to_Pool(
+        name="ghost-block",
+        offset="(1.0,0,0)",
+        to="(block3-east)",
+        caption=r"\dots",
+        width=0,
+        height=0.1,
+        depth=0.1,
+        opacity=0.0,
+    ),
+    to_connection(of="block3", to="ghost-block"),
+]
+
+# %%
+upsampling_layers = [
+    # Upsampling layers
+    to_Upsample(name="upsample1", **sizes(cl=(64, 18)), to="(post-residual-east)"),
+    to_ConvRelu(
+        name="post-upsample1-conv",
+        **sizes(cl=(64, 18), offset="(0,0,0)"),
+        to="(upsample1-east)",
+    ),
+    to_connection(of="post-residual", to="upsample1"),
+    #
+    to_Upsample(
+        name="upsample2",
+        **sizes(cl=(64, 36), offset="(0.6,0,0)"),
+        to="(post-upsample1-conv-east)",
+        caption=r"Upsampling\\Blocks",
+    ),
+    to_ConvRelu(
+        name="post-upsample2-conv",
+        **sizes(cl=(64, 36), offset="(0,0,0)"),
+        to="(upsample2-east)",
+    ),
+    to_connection(of="post-upsample1-conv", to="upsample2"),
+    # Deformable Convolution layers
+    to_ConvRelu(
+        name="final-conv-block1",
+        **sizes(cl=(64, 36), offset="(1.4,0,0)"),
+        to="(post-upsample2-conv-east)",
+        caption=r"Deformable\\Conv",
+    ),
+    to_connection(of="post-upsample2-conv", to="final-conv-block1"),
+    to_Conv(
+        name="final-conv-block2",
+        **sizes(cl=(64, 36), offset="(0,0,0)"),
+        to="(final-conv-block1-east)",
+    ),
+    # Output DeepBedMap DEM!
+    to_InOut(
+        name="deepbedmap-dem",
+        **sizes(cl=(1, 36), offset="(1.2,0,0)"),
+        to="(final-conv-block2-east)",
+        caption=r"DeepBedMap\\DEM",
+    ),
+    to_connection(of="final-conv-block2", to="deepbedmap-dem"),
+    #
+    to_flatimage(
+        "paper/figures/fig1e_deepbedmap.png", to="(21,0,0)", width=5, height=5
+    ),
+    # Label for Upsampling Module
+    to_Pool(
+        name="upsampling-module-label",
+        offset="(0.3,0,0)",
+        to="(core-module-label-east)",
+        caption=r"Upsampling Module",
+        width=32,
+        height=0.1,
+        depth=0.1,
+        opacity=0.2,
+    ),
+]
+legend_key = [
+    to_Pool(
+        name="key",
+        offset="(3,-2.4,0)",
+        to="(deepbedmap-dem-east)",
+        caption=r"Key:",
+        width=0,
+        height=0.1,
+        depth=0.1,
+        opacity=0.0,
+    ),
+    to_Conv(
+        name="conv",
+        s_filer="\scriptsize Pixels",
+        n_filer=("'Channels'", 0, 0),
+        offset="(-1.2,-1.6,0)",
+        to="(key-southwest)",
+        width=64 / 30,
+        height=3.6,
+        depth=3.6,
+        caption=r"Convolution\\Layer",
+    ),
+    to_ConvRelu(
+        name="convrelu",
+        **sizes(offset="(2,0,0)"),
+        to="(conv-east)",
+        caption=r"Convolution\\+LeakyReLU",
+    ),
+    # to_RRDB(name="rrdb-block", **sizes(offset="(2,0,0)"), to="(convrelu-east)", caption=r"RRDB"),
+    to_Upsample(
+        name="upsample",
+        **sizes(offset="(0,-2,0)"),
+        to="(conv-southwest)",
+        caption=r"NN\\Upsample",
+    ),
+    to_InOut(
+        name="in-out",
+        **sizes(offset="(2,0,0)"),
+        to="(upsample-east)",
+        caption=r"Input/Output\\Images",
+    ),
+]
+
+# %%
 arch = [
-    to_head(os.path.join(FIG_DIR, "PlotNeuralNet")),
+    to_head("paper/figures/PlotNeuralNet"),
     to_cor(),
     to_begin(),
-    # input
-    to_input(os.path.join(FIG_DIR, "ter_bedmap.png"), to="(-1.5,3,0)", width=3, height=3),
-    to_input(os.path.join(FIG_DIR, "REMA-hillshade-rendering-800px-768x768.jpg"), to="(-1.5,0,0)", width=3, height=3),
-    to_input(os.path.join(FIG_DIR, "glac_flowspeed.png"), to="(-1.5,-3,0)", width=3, height=3),
-    to_input(os.path.join(FIG_DIR, "glac_albmap_snowacca.png"), to="(-1.5,-6,0)", width=3, height=3),
-
-    # Input Convolutions
-    to_Conv(name="x", s_filer=10, n_filer=32, offset="(0,3.5,0)", to="(0,0,0)", width=1.6, height=4, depth=4),
-    to_Conv(name="w1", s_filer=100, n_filer=32, offset="(0,0,0)", to="(0,0,0)", width=1.6, height=16, depth=16),
-    to_Conv(name="w2", s_filer=20, n_filer=32, offset="(0,-3.5,0)", to="(0,0,0)", width=1.6, height=8, depth=8),
-    to_Conv(name="w3", s_filer=10, n_filer=32, offset="(0,-5.5,0)", to="(0,0,0)", width=1.6, height=4, depth=4),
-    to_Conv(name="concat", s_filer=8, n_filer=128, offset="(1.2,0,0)", to="(w1-east)", width=4.8, height=4, depth=4, caption="Concat-enated Inputs"),
-    to_connection(of="x", to="concat"),
-    to_connection(of="w1", to="concat"),
-    to_connection(of="w2", to="concat"),
-    to_connection(of="w3", to="concat"),
-    # RRDB Blocks
-    to_Conv(name="pre-residual", s_filer=8, n_filer=64, offset="(1.2,0,0)", to="(concat-east)", width=3.2, height=4, depth=4, caption="Pre-residual"),
-    to_connection(of="concat", to="pre-residual"),
-    to_Pool(name="ghost-skip1", offset="(0.4,0,0)", to="(pre-residual-east)", width=0, height=0.1, depth=0.1, opacity=0.0),
-
-    to_Conv(name="block1", s_filer=8, n_filer=64, offset="(0.8,0,0)", to="(pre-residual-east)", caption="Block 1", width=8, height=4, depth=4),
-    to_connection(of="pre-residual", to="block1"),
-    to_Pool(name="ghost-block", offset="(0.8,0,0)", to="(block1-east)", caption="\dots", width=0, height=0.1, depth=0.1, opacity=0.0),
-    to_connection(of="block1", to="ghost-block"),
-    to_Conv(name="blockB", s_filer=8, n_filer=64, offset="(0.8,0,0)", to="(ghost-block-east)", caption="Block B", width=8, height=4, depth=4),
-    to_connection(of="ghost-block", to="blockB"),
-    # Post-RRDB Layers
-    to_Conv(name="post-residual", s_filer=8, n_filer=64, offset="(0.8,0,0)", to="(blockB-east)", width=3.2, height=4, depth=4, caption="Post-residual"),
-    to_connection(of="blockB", to="post-residual"),
-    to_Pool(name="ghost-skip2", offset="(0.4,0,0)", to="(post-residual-east)", width=0, height=0.1, depth=0.1, opacity=0.0),
-
-    to_skip(of="ghost-skip1", to="ghost-skip2", pos=75),
-
-    to_UnPool(name="upsample1", offset="(1.2,0,0)", to="(post-residual-east)", width=1.6, height=10, depth=10),
-    to_connection(of="post-residual", to="upsample1"),
-    to_UnPool(name="upsample2", offset="(0.3,0,0)", to="(upsample1-east)", width=1.6, height=16, depth=16, caption="Pixel-Shuffle Blocks 1\&2"),
-    to_connection(of="upsample1", to="upsample2"),
-
-    to_Conv(name="final-conv-block", s_filer=32, n_filer=32, offset="(1.2,0,0)", to="(upsample2-east)", width=1.6, height=16, depth=16, caption="Final Conv Block"),
-    to_connection(of="upsample2", to="final-conv-block"),
-
-    to_Conv(name="deepbedmap-dem", s_filer=32, n_filer=1, offset="(1.2,0,0)", to="(final-conv-block-east)", width=0.5, height=16, depth=16, caption="Deep-BedMap-DEM"),
-    to_connection(of="final-conv-block", to="deepbedmap-dem"),
-
+    to_scalefont(fontsize=r"\small"),
+    *input_layers,
+    *rrdb_layers_simple,
+    # *rrdb_layers_complex,
+    *upsampling_layers,
+    *legend_key,
     to_end(),
 ]
-to_generate(arch=arch, pathname=os.path.join(FIG_DIR, "deepbedmap_architecture.tex"))
-!pdflatex -output-dir {FIG_DIR} {os.path.join(FIG_DIR, 'deepbedmap_architecture.tex')}
+to_generate(arch=arch, pathname="paper/figures/fig1_deepbedmap_architecture.tex")
+# sudo apt install texlive-latex-base texlive-fonts-recommended texlive-fonts-extra texlive-latex-extra
+_ = subprocess.run(
+    [
+        "pdflatex",
+        "-output-directory=paper/figures",
+        "paper/figures/fig1_deepbedmap_architecture.tex",
+    ],
+    stdout=subprocess.PIPE,
+)
 
 # %%
 IPython.display.IFrame(
-    src="paper/figures/deepbedmap_architecture.pdf", width=900, height=450
+    src="paper/figures/fig1_deepbedmap_architecture.pdf", width=900, height=450
 )
 
 

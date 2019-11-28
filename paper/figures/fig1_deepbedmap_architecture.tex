@@ -1,0 +1,494 @@
+
+\documentclass[border=8pt, multi, tikz]{standalone}
+\usepackage{import}
+\subimport{paper/figures/PlotNeuralNet/layers/}{init}
+\usetikzlibrary{positioning}
+\usetikzlibrary{3d} %for including external image
+
+\def\ConvColor{rgb:yellow,5;red,2.5;white,5}
+\def\ConvReluColor{rgb:yellow,5;red,5;white,5}
+\def\PoolColor{rgb:red,1;black,0.3}
+\def\UnpoolColor{rgb:blue,2;green,1;black,0.3}
+\def\FcColor{rgb:blue,5;red,2.5;white,5}
+\def\FcReluColor{rgb:blue,5;red,5;white,4}
+\def\SoftmaxColor{rgb:magenta,5;black,7}
+
+\newcommand{\copymidarrow}{\tikz \draw[-Stealth,line width=0.8mm,draw={rgb:blue,4;red,1;green,1;black,3}] (-0.3,0) -- ++(0.3,0);}
+
+\begin{document}
+\begin{tikzpicture}
+\tikzstyle{connection}=[ultra thick,every node/.style={sloped,allow upside down},draw=\edgecolor,opacity=0.7]
+\tikzstyle{copyconnection}=[ultra thick,every node/.style={sloped,allow upside down},draw={rgb:blue,4;red,1;green,1;black,3},opacity=0.7]
+
+\tikzset{font=\small}
+
+\node[canvas is xy plane at z=0] (temp) at (-1.8,3,0){
+    \includegraphics[width=2cm,height=2cm]{paper/figures/fig1a_bedmap2.png}
+};
+
+\node[canvas is xy plane at z=0] (temp) at (-1.6,0,0){
+    \includegraphics[width=2cm,height=2cm]{paper/figures/fig1b_rema.png}
+};
+
+\node[canvas is xy plane at z=0] (temp) at (-1.8,-3.5,0){
+    \includegraphics[width=2cm,height=2cm]{paper/figures/fig1c_measures.png}
+};
+
+\node[canvas is xy plane at z=0] (temp) at (-1.8,-5.5,0){
+    \includegraphics[width=2cm,height=2cm]{paper/figures/fig1d_accumulation.png}
+};
+
+\pic[shift={ (1.0,0,0) }] at (-1.2,3,0){
+    Box={
+        name=x0_img,
+        caption= ,
+        xlabel={ 1, },
+        zlabel=11,
+        fill={rgb:green,1;black,3},
+        height=4.4,
+        width={ 0.03333333333333333 },
+        depth=4.4
+        }
+    };
+
+\pic[shift={ (1.0,0,0) }] at (-1.0,0,0){
+    Box={
+        name=w1_img,
+        caption= ,
+        xlabel={ 1, },
+        zlabel=110,
+        fill={rgb:green,1;black,3},
+        height=14.666666666666666,
+        width={ 0.05 },
+        depth=14.666666666666666
+        }
+    };
+
+\pic[shift={ (1.0,0,0) }] at (-1.2,-3.5,0){
+    Box={
+        name=w2_img,
+        caption= ,
+        xlabel={ 1, },
+        zlabel=22,
+        fill={rgb:green,1;black,3},
+        height=8.8,
+        width={ 0.03333333333333333 },
+        depth=8.8
+        }
+    };
+
+\pic[shift={ (1.0,0,0) }] at (-1.2,-5.5,0){
+    Box={
+        name=w3_img,
+        caption= ,
+        xlabel={ 1, },
+        zlabel=11,
+        fill={rgb:green,1;black,3},
+        height=4.4,
+        width={ 0.03333333333333333 },
+        depth=4.4
+        }
+    };
+
+\pic[shift={(1.0,0,0)}] at (x0_img-east)
+    {Box={
+        name=x0,
+        caption= ,
+        xlabel={{32, }},
+        zlabel=11,
+        fill=\ConvColor,
+        height=4.4,
+        width=1.0666666666666667,
+        depth=4.4
+        }
+    };
+
+\pic[shift={(1.0,0,0)}] at (w1_img-east)
+    {Box={
+        name=w1,
+        caption= ,
+        xlabel={{32, }},
+        zlabel=110,
+        fill=\ConvColor,
+        height=14.666666666666666,
+        width=1.6,
+        depth=14.666666666666666
+        }
+    };
+
+\pic[shift={(1.0,0,0)}] at (w2_img-east)
+    {Box={
+        name=w2,
+        caption= ,
+        xlabel={{32, }},
+        zlabel=22,
+        fill=\ConvColor,
+        height=8.8,
+        width=1.0666666666666667,
+        depth=8.8
+        }
+    };
+
+\pic[shift={(1.0,0,0)}] at (w3_img-east)
+    {Box={
+        name=w3,
+        caption= ,
+        xlabel={{32, }},
+        zlabel=11,
+        fill=\ConvColor,
+        height=4.4,
+        width=1.0666666666666667,
+        depth=4.4
+        }
+    };
+
+\draw [connection]  (x0_img-east)    -- node {\midarrow} (x0-west);
+
+\draw [connection]  (w1_img-east)    -- node {\midarrow} (w1-west);
+
+\draw [connection]  (w2_img-east)    -- node {\midarrow} (w2-west);
+
+\draw [connection]  (w3_img-east)    -- node {\midarrow} (w3-west);
+
+\pic[shift={(1.0,0,0)}] at (x0-east)
+    {Box={
+        name=x0_,
+        caption= ,
+        xlabel={{32, }},
+        zlabel=9,
+        fill=\ConvColor,
+        height=3.6,
+        width=1.0666666666666667,
+        depth=3.6
+        }
+    };
+
+\pic[shift={(1.0,0,0)}] at (w1-east)
+    {Box={
+        name=w1_,
+        caption= ,
+        xlabel={{32, }},
+        zlabel=9,
+        fill=\ConvColor,
+        height=3.6,
+        width=1.0666666666666667,
+        depth=3.6
+        }
+    };
+
+\pic[shift={(1.0,0,0)}] at (w2-east)
+    {Box={
+        name=w2_,
+        caption= ,
+        xlabel={{32, }},
+        zlabel=9,
+        fill=\ConvColor,
+        height=3.6,
+        width=1.0666666666666667,
+        depth=3.6
+        }
+    };
+
+\pic[shift={(1.0,0,0)}] at (w3-east)
+    {Box={
+        name=w3_,
+        caption= ,
+        xlabel={{32, }},
+        zlabel=9,
+        fill=\ConvColor,
+        height=3.6,
+        width=1.0666666666666667,
+        depth=3.6
+        }
+    };
+
+\draw [connection]  (x0-east)    -- node {\midarrow} (x0_-west);
+
+\draw [connection]  (w1-east)    -- node {\midarrow} (w1_-west);
+
+\draw [connection]  (w2-east)    -- node {\midarrow} (w2_-west);
+
+\draw [connection]  (w3-east)    -- node {\midarrow} (w3_-west);
+
+\pic[shift={(1.0,0,0)}] at (w1_-east)
+    {Box={
+        name=concat,
+        caption=Concatenated\\Inputs,
+        xlabel={{128, }},
+        zlabel=9,
+        fill=\ConvColor,
+        height=3.6,
+        width=4.266666666666667,
+        depth=3.6
+        }
+    };
+
+\draw [connection]  (x0_-east)    -- node {\midarrow} (concat-west);
+
+\draw [connection]  (w1_-east)    -- node {\midarrow} (concat-west);
+
+\draw [connection]  (w2_-east)    -- node {\midarrow} (concat-west);
+
+\draw [connection]  (w3_-east)    -- node {\midarrow} (concat-west);
+
+\pic[shift={ (0,-1.5,0) }] at (w3_img-west)
+    {Box={
+        name=input-module-label,
+        caption=Input Module,
+        fill=\PoolColor,
+        opacity=0.2,
+        height=0.1,
+        width=24,
+        depth=0.1
+        }
+    };
+
+\pic[shift={ (1.0,0,0) }] at (concat-east){
+RightBandedBox={
+    name=pre-residual,
+    caption=Pre-residual,
+    xlabel={ 64, },
+    zlabel=9,
+    fill=\ConvColor,
+    bandfill=\ConvReluColor,
+    height=3.6,
+    width={ 2.1333333333333333 },
+    depth=3.6
+    }
+};
+
+\draw [connection]  (concat-east)    -- node {\midarrow} (pre-residual-west);
+
+\pic[shift={ (1.0,0,0) }] at (pre-residual-east){
+    Box={
+        name=rrdb-blocks,
+        caption=Residual-in-Residual\\Dense Blocks\\x12,
+        xlabel={  ,  ,  ,  ,  ,  ,  ,  ,  ,  ,  ,  , },
+        zlabel=9,
+        fill={rgb:white,1;black,3},
+        height=3.6,
+        width={ 1.0666666666666667, 1.0666666666666667, 1.0666666666666667, 1.0666666666666667, 1.0666666666666667, 1.0666666666666667, 1.0666666666666667, 1.0666666666666667, 1.0666666666666667, 1.0666666666666667, 1.0666666666666667, 1.0666666666666667 },
+        depth=3.6
+        }
+    };
+
+\draw [connection]  (pre-residual-east)    -- node {\midarrow} (rrdb-blocks-west);
+
+\pic[shift={(1.0,0,0)}] at (rrdb-blocks-east)
+    {Box={
+        name=post-residual,
+        caption=Post-residual,
+        xlabel={{64, }},
+        zlabel=9,
+        fill=\ConvColor,
+        height=3.6,
+        width=2.1333333333333333,
+        depth=3.6
+        }
+    };
+
+\draw [connection]  (rrdb-blocks-east)    -- node {\midarrow} (post-residual-west);
+
+\draw [copyconnection]
+    ([xshift=0.6cm] pre-residual-east)
+    to [out=60,in=120]
+    node {\copymidarrow}
+    ([xshift=0.6cm] post-residual-east);
+
+\pic[shift={ (0.3,0,0) }] at (input-module-label-east)
+    {Box={
+        name=core-module-label,
+        caption=Core Module,
+        fill=\PoolColor,
+        opacity=0.2,
+        height=0.1,
+        width=32,
+        depth=0.1
+        }
+    };
+
+\pic[shift={ (1.0,0,0) }] at (post-residual-east){
+    Box={
+        name=upsample1,
+        caption= ,
+        xlabel={ 64, },
+        zlabel=18,
+        fill=\UnpoolColor,
+        height=7.2,
+        width={ 2.1333333333333333 },
+        depth=7.2
+        }
+    };
+
+\pic[shift={ (0,0,0) }] at (upsample1-east){
+RightBandedBox={
+    name=post-upsample1-conv,
+    caption= ,
+    xlabel={ 64, },
+    zlabel=18,
+    fill=\ConvColor,
+    bandfill=\ConvReluColor,
+    height=7.2,
+    width={ 2.1333333333333333 },
+    depth=7.2
+    }
+};
+
+\draw [connection]  (post-residual-east)    -- node {\midarrow} (upsample1-west);
+
+\pic[shift={ (0.6,0,0) }] at (post-upsample1-conv-east){
+    Box={
+        name=upsample2,
+        caption=Upsampling\\Blocks,
+        xlabel={ 64, },
+        zlabel=36,
+        fill=\UnpoolColor,
+        height=14.4,
+        width={ 2.1333333333333333 },
+        depth=14.4
+        }
+    };
+
+\pic[shift={ (0,0,0) }] at (upsample2-east){
+RightBandedBox={
+    name=post-upsample2-conv,
+    caption= ,
+    xlabel={ 64, },
+    zlabel=36,
+    fill=\ConvColor,
+    bandfill=\ConvReluColor,
+    height=14.4,
+    width={ 2.1333333333333333 },
+    depth=14.4
+    }
+};
+
+\draw [connection]  (post-upsample1-conv-east)    -- node {\midarrow} (upsample2-west);
+
+\pic[shift={ (1.4,0,0) }] at (post-upsample2-conv-east){
+RightBandedBox={
+    name=final-conv-block1,
+    caption=Deformable\\Conv,
+    xlabel={ 64, },
+    zlabel=36,
+    fill=\ConvColor,
+    bandfill=\ConvReluColor,
+    height=14.4,
+    width={ 2.1333333333333333 },
+    depth=14.4
+    }
+};
+
+\draw [connection]  (post-upsample2-conv-east)    -- node {\midarrow} (final-conv-block1-west);
+
+\pic[shift={(0,0,0)}] at (final-conv-block1-east)
+    {Box={
+        name=final-conv-block2,
+        caption= ,
+        xlabel={{64, }},
+        zlabel=36,
+        fill=\ConvColor,
+        height=14.4,
+        width=2.1333333333333333,
+        depth=14.4
+        }
+    };
+
+\pic[shift={ (1.2,0,0) }] at (final-conv-block2-east){
+    Box={
+        name=deepbedmap-dem,
+        caption=DeepBedMap\\DEM,
+        xlabel={ 1, },
+        zlabel=36,
+        fill={rgb:green,1;black,3},
+        height=14.4,
+        width={ 0.03333333333333333 },
+        depth=14.4
+        }
+    };
+
+\draw [connection]  (final-conv-block2-east)    -- node {\midarrow} (deepbedmap-dem-west);
+
+\node[canvas is xy plane at z=0] (temp) at (21,0,0){
+    \includegraphics[width=5cm,height=5cm]{paper/figures/fig1e_deepbedmap.png}
+};
+
+\pic[shift={ (0.3,0,0) }] at (core-module-label-east)
+    {Box={
+        name=upsampling-module-label,
+        caption=Upsampling Module,
+        fill=\PoolColor,
+        opacity=0.2,
+        height=0.1,
+        width=32,
+        depth=0.1
+        }
+    };
+
+\pic[shift={ (3,-2.4,0) }] at (deepbedmap-dem-east)
+    {Box={
+        name=key,
+        caption=Key:,
+        fill=\PoolColor,
+        opacity=0.0,
+        height=0.1,
+        width=0,
+        depth=0.1
+        }
+    };
+
+\pic[shift={(-1.2,-1.6,0)}] at (key-southwest)
+    {Box={
+        name=conv,
+        caption=Convolution\\Layer,
+        xlabel={{("'Channels'", 0, 0), }},
+        zlabel=\scriptsize Pixels,
+        fill=\ConvColor,
+        height=3.6,
+        width=2.1333333333333333,
+        depth=3.6
+        }
+    };
+
+\pic[shift={ (2,0,0) }] at (conv-east){
+RightBandedBox={
+    name=convrelu,
+    caption=Convolution\\+LeakyReLU,
+    xlabel={ 64, },
+    zlabel=9,
+    fill=\ConvColor,
+    bandfill=\ConvReluColor,
+    height=3.6,
+    width={ 2.1333333333333333 },
+    depth=3.6
+    }
+};
+
+\pic[shift={ (0,-2,0) }] at (conv-southwest){
+    Box={
+        name=upsample,
+        caption=NN\\Upsample,
+        xlabel={ 64, },
+        zlabel=9,
+        fill=\UnpoolColor,
+        height=3.6,
+        width={ 2.1333333333333333 },
+        depth=3.6
+        }
+    };
+
+\pic[shift={ (2,0,0) }] at (upsample-east){
+    Box={
+        name=in-out,
+        caption=Input/Output\\Images,
+        xlabel={ 64, },
+        zlabel=9,
+        fill={rgb:green,1;black,3},
+        height=3.6,
+        width={ 2.1333333333333333 },
+        depth=3.6
+        }
+    };
+
+\end{tikzpicture}
+\end{document}
