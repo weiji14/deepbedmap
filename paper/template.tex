@@ -263,24 +263,34 @@ In the following section, we will describe the model architecture of our Generat
 
 \begin{figure*}[ht]
   \includegraphics[width=\textwidth]{figures/fig1_deepbedmap_architecture.pdf}
-  \caption{DeepBedMap Model Architecture}
+  \caption{
+    DeepBedMap Generator Model Architecture.
+    The input module on the left is made up of 4 sub-networks, each one composed of a convolutional neural network that processes the input image into a consistent 9x9 shaped tensor.
+    From top to bottom, we have our prior low resolution input BEDMAP2 \citep{FretwellBedmap2improvedice2013}, and conditional inputs REMA \citep{HowatReferenceElevationModel2019}, MEaSUREs Ice Veloctiy \citep{MouginotContinentwideinterferometric2019}, and Snow Accumulation \citep{ArthernAntarcticsnowaccumulation2006}, more details of which can be found in Table \ref{table:datainputs}.
+    All the processed inputs are then concatenated together before being fed into the core module.
+    The core module in the middle is based on the ESRGAN architecture with 12 Residual-in-Residual Dense Blocks \citep[see][for details]{WangESRGANEnhancedSuperResolution2018}, saddled in between a pre-residual and post-residual convolutional layer.
+    The upsampling module on the right is composed of two upsampling blocks (nearest neighbour upsampling followed by a convolutional layer and LeakyReLU activation) that progressively scales our tensors by 2x each time.
+    Following this are two deformable convolutional layers \citep{DaiDeformableConvolutionalNetworks2017} which produces our final output super resolution DeepBedMap\_DEM.
+  }
   \label{fig:1}
 \end{figure*}
 
-Our Generative Adversarial Network model architecture is adapted from the ESRGAN model by \citet{WangESRGANEnhancedSuperResolution2018}, with a few notable differences.
+Our Generative Adversarial Network model architecture is adapted from the ESRGAN model \citep{WangESRGANEnhancedSuperResolution2018}, with a few notable differences.
 Specifically, the Generator neural network model is modified to:
-1) Use a custom conditional input block (see Figure \ref{fig:1}, focusing on input block) consisting of four sub-networks, each one having a different sized convolution size and stride so as to create identical sized outputs which are then concatenated together channel-wise before being fed into the main body of the ESRGAN-based convolutional neural network.
-2) Use Deformable Convolution \citep{DaiDeformableConvolutionalNetworks2017} instead of standard Convolution in the final two layers to enhance our model's predictive capability by having it learn dense spatial transformations.
+1) Use a custom conditional input block (see Figure \ref{fig:1}, focusing on input module) consisting of four sub-networks, each one having a different convolution size and stride so as to create identical sized outputs, all of which are then concatenated together channel-wise before being fed into the main body of the ESRGAN-based convolutional neural network (see Figure \ref{fig:1}, focusing on core module).
+2) Use Deformable Convolution \citep{DaiDeformableConvolutionalNetworks2017} instead of standard Convolution in the final two layers (see Figure \ref{fig:1}, focusing on upsampling module) to enhance our model's predictive capability by having it learn dense spatial transformations.
 
 The objective of our 4 times upsampling super-resolution model is to produce a high resolution (250 m) grid of Antarctica's bed elevation given a low resolution (1000 m) BEDMAP2 \citep{FretwellBedmap2improvedice2013} image.
 However, the information contained in BEDMAP2 is insufficient for this regular super-resolution task, so we provide the neural network with more context through network conditioning.
 Specifically, the model is conditioned at the input block stage with these raster grids: 1) ice surface elevation, 2) ice surface velocity, and 3) snow accumulation, all of which are covered by satellite observations.
-The non-linear relationship between the low resolution bed elevation prior (BEDMAP2) and these conditioning inputs are then processed through $B$-layers of Residual-in-Residual Dense Blocks and upsampled at the end to produce a high resolution bed elevation prediction.
+The non-linear relationship between the low resolution bed elevation prior (BEDMAP2) and these conditioning inputs are then processed through 12 layers of Residual-in-Residual Dense Blocks \citep[see][]{WangESRGANEnhancedSuperResolution2018} and upsampled at the end to produce our super resolution DeepBedMap\_DEM prediction.
+This Generator model gradually improves its prediction by comparing the predicted output with groundtruth images in our training regions (see Figure \ref{fig:2}), using the total loss function defined in Equation \eqref{eq:A9}.
 
-This Generator model gradually improves its prediction by comparing the predicted output with the groundtruth image, using the total loss function defined in Equation \eqref{eq:A9}.
-Again, we follow ESRGAN's lead in the implementation of our adversarial Discriminator network.
-A VGG-style convolutional neural network \citep{SimonyanVeryDeepConvolutional2014} is used, consisting of 10 Convolutional-BatchNormalization-LeakyReLU blocks, followed by two fully connected layers with 100 and 1 neurons.
-For numerical stability, the sigmoid activation output is omitted from the Discriminator model's construction and is integrated instead into the binary cross entropy loss functions at Equation \eqref{eq:A2} and Equation \eqref{eq:A3} via the log-sum-exp trick.
+Besides the Generator model, there is a separate adversarial Discriminator model \citep{GoodfellowGenerativeAdversarialNetworks2014} trained to distinguish between fake generated images and real groundtruth images, whose purpose is to push our predictions towards more realistic bed elevation surface textures.
+Again, we follow ESRGAN's \citep{WangESRGANEnhancedSuperResolution2018} lead by implementating our adversarial Discriminator network in the style of a VGG convolutional neural network model \citep{SimonyanVeryDeepConvolutional2014}.
+The Discriminator model consists of 10 Convolutional-BatchNormalization-LeakyReLU blocks, followed by two fully-connected layers of 100 and 1 neurons respectively.
+For numerical stability, we omit the final fully-connected layer's sigmoid activation function from the Discriminator model's construction, integrating it instead into the binary cross entropy loss functions at Equation \eqref{eq:A2} and Equation \eqref{eq:A3} using the log-sum-exp trick.
+The output of this Discriminator model is a floating point number ranging from 0 (fake) to 1 (real) that scores the Generator model's output image, and this is used to improve the resulting bed elevation surface prediction in our Generative Adversarial Network training process.
 
 
 \section{Discussion}
