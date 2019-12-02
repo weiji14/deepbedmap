@@ -175,7 +175,54 @@ More recently, generative adversarial networks \citep{GoodfellowGenerativeAdvers
 Our DeepBedMap model thus builds upon these ideas and other related DEM super-resolution work \citep{XuNonlocalsimilaritybased2015,ChenConvolutionalNeuralNetwork2016}, while incorporating extra conditional information specific to the cryospheric domain for resolving the bed elevation of Antarctica.
 
 
-\section{Methodology}
+\section{Data and Methods}
+
+\subsection{Data Preparation}
+
+Our 2D Convolutional neural network works on raster images, so we have to ensure our datasets are all in a suitable raster grid format.
+Groundtruth xyz points of the bed elevation (see Table \ref{table:groundtruthdata}) are first compiled together onto a common Antarctic Stereographic Projection (EPSG:3031) using the WGS84 datum, reprojecting if necessary.
+Using Generic Mapping Tools v6.0 \citep[GMT6][]{WesselGenericMappingTools2019}, the points are then preprocessed using 'blockmedian' (block average using L1 norm) and gridded onto a 250 m spatial resolution pixel-node registered grid using 'surface' (adjustable tension continuous curvature spline function) with a tension factor set to 0.35 and a mask set to 3 pixels (750 m) from the nearest point.
+
+To create our training dataset, we use a sliding window to obtain smaller tiles of the groundtruth grids, and also find the inputs (see Table \ref{table:datainputs}) corresponding to the same spatial bounding box area.
+In order to reduce border edge effects, we have used no padding (also known as 'valid' padding) in our Generator model's input convolutional layers which means our model input grids will cover a larger spatial area than the groundtruth grids.
+More specifically, the model inputs cover an area of 11x11km (e.g. 11x11pixels for BEDMAP2) while the groundtruth grids cover an area of 9x9km (36x36pixels).
+As the pixels of our groundtruth grids may not align perfectly with that of our model input grids, we use bilinear interpolation to ensure that all our input grids cover the same spatial bounds as that of our reference groundtruth tiles.
+
+\begin{table*}[ht]
+\caption{High Resolution groundtruth datasets from ice-penetrating radar surveys.}
+\label{table:groundtruthdata}
+\begin{tabular}{lcr}
+\tophline
+Location & Citation \\
+\middlehline
+Pine Island Glacier & \cite{BinghamDiverselandscapesPine2017} \\
+Wilkes Subglacial Basin & \cite{JordanHypothesismegaoutburstflooding2010} \\
+Carlson Inlet & \cite{KingIcestreamnot2011} \\
+Rutford Ice Stream & \cite{KingSubglaciallandformsRutford2016} \\
+Antarctica & \cite{ShiMultichannelCoherentRadar2010} \\
+\bottomhline
+\end{tabular}
+\belowtable{} % Table Footnotes
+\end{table*}
+
+\begin{table*}[ht]
+\caption{Remote Sensing dataset inputs into the DeepBedMap neural network model.}
+\label{table:datainputs}
+\begin{tabular}{cccc}
+\tophline
+Symbol & Name & Spatial Resolution & Citation \\
+\middlehline
+$x$ & BEDMAP2 & 1000 m & \cite{FretwellBedmap2improvedice2013} \\
+$w^1$ & REMA & 100 m* & \cite{HowatReferenceElevationModel2019} \\
+$w^2$ & MEaSUREs Ice Velocity & 500 m** & \cite{MouginotContinentwideinterferometric2019} \\
+$w^3$ & Antarctic Snow Accumulation & 1000 m & \cite{ArthernAntarcticsnowaccumulation2006} \\
+\bottomhline
+\end{tabular}
+\belowtable{
+  * gaps in 100 m mosaic filled in with bilinear resampled 200 m resolution REMA image \\
+  ** originally 450 m, bilinear resampled to 500 m.
+} % Table Footnotes
+\end{table*}
 
 \subsection{Loss Functions}
 
@@ -229,53 +276,6 @@ This Generator model gradually improves its prediction by comparing the predicte
 Again, we follow ESRGAN's lead in the implementation of our adversarial Discriminator network.
 A VGG-style convolutional neural network \citep{SimonyanVeryDeepConvolutional2014} is used, consisting of 10 Convolutional-BatchNormalization-LeakyReLU blocks, followed by two fully connected layers with 100 and 1 neurons.
 For numerical stability, the sigmoid activation output is omitted from the Discriminator model's construction and is integrated instead into the binary cross entropy loss functions at Equation \eqref{eq:A2} and Equation \eqref{eq:A3} via the log-sum-exp trick.
-
-\subsection{Data Preparation}
-
-Our 2D Convolutional neural network works on raster images, so we have to ensure our datasets are all in a suitable raster grid format.
-Groundtruth xyz points of the bed elevation (see Table \ref{table:groundtruthdata}) are first compiled together onto a common Antarctic Stereographic Projection (EPSG:3031) using the WGS84 datum, reprojecting if necessary.
-Using Generic Mapping Tools v6.0 \citep[GMT6][]{WesselGenericMappingTools2019}, the points are then preprocessed using 'blockmedian' (block average using L1 norm) and gridded onto a 250 m spatial resolution pixel-node registered grid using 'surface' (adjustable tension continuous curvature spline function) with a tension factor set to 0.35 and a mask set to 3 pixels (750 m) from the nearest point.
-
-To create our training dataset, we use a sliding window to obtain smaller tiles of the groundtruth grids, and also find the inputs (see Table \ref{table:datainputs}) corresponding to the same spatial bounding box area.
-In order to reduce border edge effects, we have used no padding (also known as 'valid' padding) in our Generator model's input convolutional layers which means our model input grids will cover a larger spatial area than the groundtruth grids.
-More specifically, the model inputs cover an area of 11x11km (e.g. 11x11pixels for BEDMAP2) while the groundtruth grids cover an area of 9x9km (36x36pixels).
-As the pixels of our groundtruth grids may not align perfectly with that of our model input grids, we use bilinear interpolation to ensure that all our input grids cover the same spatial bounds as that of our reference groundtruth tiles.
-
-\begin{table*}[ht]
-\caption{High Resolution groundtruth datasets from ice-penetrating radar surveys.}
-\label{table:groundtruthdata}
-\begin{tabular}{lcr}
-\tophline
-Location & Citation \\
-\middlehline
-Pine Island Glacier & \cite{BinghamDiverselandscapesPine2017} \\
-Wilkes Subglacial Basin & \cite{JordanHypothesismegaoutburstflooding2010} \\
-Carlson Inlet & \cite{KingIcestreamnot2011} \\
-Rutford Ice Stream & \cite{KingSubglaciallandformsRutford2016} \\
-Antarctica & \cite{ShiMultichannelCoherentRadar2010} \\
-\bottomhline
-\end{tabular}
-\belowtable{} % Table Footnotes
-\end{table*}
-
-\begin{table*}[ht]
-\caption{Remote Sensing dataset inputs into the DeepBedMap neural network model.}
-\label{table:datainputs}
-\begin{tabular}{cccc}
-\tophline
-Symbol & Name & Spatial Resolution & Citation \\
-\middlehline
-$x$ & BEDMAP2 & 1000 m & \cite{FretwellBedmap2improvedice2013} \\
-$w^1$ & REMA & 100 m* & \cite{HowatReferenceElevationModel2019} \\
-$w^2$ & MEaSUREs Ice Velocity & 500 m** & \cite{MouginotContinentwideinterferometric2019} \\
-$w^3$ & Antarctic Snow Accumulation & 1000 m & \cite{ArthernAntarcticsnowaccumulation2006} \\
-\bottomhline
-\end{tabular}
-\belowtable{
-  * gaps in 100 m mosaic filled in with bilinear resampled 200 m resolution REMA image \\
-  ** originally 450 m, bilinear resampled to 500 m.
-} % Table Footnotes
-\end{table*}
 
 
 \section{Discussion}
