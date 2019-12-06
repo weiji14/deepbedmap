@@ -452,28 +452,28 @@ fig = gmt.Figure()
 subplot(directive="begin", row=2, col=2, A="+jCT+o-4c/-5c", Fs="9c/9c", M="2c/3c")
 plot_3d_view(
     img="model/deepbedmap3.nc",  # DeepBedMap
-    ax=(1, 1),
+    ax=(0, 0),
     zmin=-1400,
     title="DeepBedMap",  # ours
     zlabel="Bed elevation (metres)",
 )
 plot_3d_view(
     img="model/cubicbedmap.nc",  # BEDMAP2
-    ax=(1, 2),
+    ax=(0, 1),
     zmin=-1400,
     title="BEDMAP2",
     zlabel="Bed elevation (metres)",
 )
 plot_3d_view(
     img="model/elevdiffmap.nc",  # DeepBedMap - BEDMAP2
-    ax=(2, 1),
+    ax=(1, 0),
     zmin=-400,
     title="Elevation Diff",
     zlabel="Difference (metres)",
 )
 plot_3d_view(
     img="model/synthetichr.nc",  # Synthetic High Resolution product
-    ax=(2, 2),
+    ax=(1, 1),
     zmin=-1400,
     title="Synthetic HRES",
     zlabel="Bed elevation (metres)",
