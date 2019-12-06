@@ -218,48 +218,73 @@ if reupload == True:
 
 
 # %%
+def subplot(directive: str, row: int = None, col: int = None, **kwargs):
+    """Thin wrapper around https://docs.generic-mapping-tools.org/latest/subplot.html"""
+    with gmt.clib.Session() as lib:
+        rowcol = ""  # default is blank, e.g. when directive == "end"
+        if row is not None and col is not None:
+            if directive == "begin":
+                rowcol = f"{row}x{col}"
+            elif directive == "set":
+                rowcol = f"{row},{col}"
+        arg_str = " ".join(
+            filter(None, [directive, rowcol, gmt.helpers.build_arg_string(kwargs)])
+        )
+        lib.call_module(module="subplot", args=arg_str)
+
+
+# %%
+def grdview(reliefgrid: str, **kwargs):
+    """Thin wrapper around https://docs.generic-mapping-tools.org/latest/grdview.html"""
+    kind = gmt.helpers.data_kind(reliefgrid, None, None)
+    with gmt.clib.Session() as lib:
+        if kind == "file":
+            file_context = gmt.helpers.dummy_context(reliefgrid)
+        elif kind == "grid":
+            file_context = lib.virtualfile_from_grid(reliefgrid)
+        with file_context as fname:
+            arg_str = " ".join([fname, gmt.helpers.build_arg_string(kwargs)])
+            lib.call_module(module="grdview", args=arg_str)
+
+
+# %%
 def plot_3d_view(
-    img: np.ndarray,
-    ax: matplotlib.axes._subplots.Axes,
-    elev: int = 60,
-    azim: int = 330,
-    z_minmax: tuple = None,
-    title: str = None,
-    zlabel: str = None,
+    img: str,  # filename (or xr.DataArray in the future) of the DEM to plot
+    ax: tuple = None,  # optional (row, col) specifying gmt subplot position to use
+    elev: int = 60,  # elevation angle above z-plane, value between 0-90
+    azim: int = 202.5,  # azimuth from North, e.g. SouthEast is 135
+    zmin: int = -1400,  # z-plane minimum elevation, in metres below or above datum
+    title: str = None,  # title/label for the plot
+    zlabel: str = None,  # z-axis label
 ):
     """
-    Creates a 3D perspective view plot of an elevation surface using matplotlib 3D.
+    Creates a 3D perspective view plot of an elevation surface using gmt grdview.
     The elevation (elev) and azimuth (azim) angle will need to be set accordingly,
-    here it is looking from the SouthWest (330deg) at an angle 60deg above the z-plane.
-
-    There are also optional parameters to set an elevation (z) range using the z_minmax
-    parameter, just provide a tuple in the form of (zmin, zmax). The resulting 3D plot's
-    colours will also be scaled to this range, or to the input array's z-range if this
-    z_minmax setting is left blank. You can also provide a title and z-axis label.
+    here it is looking from the SSW (202.5deg) at an angle 60deg above the z-plane.
+    You can also provide a title (actually an annotation) and z-axis label. Note that
+    there are several hardcoded defaults like the colormap and vertical exaggeration.
     """
-    # Get x, y, z data, assuming image in NCHW format
-    image = img[0, :, :, :]
-    xx, yy = np.mgrid[0 : image.shape[1], 0 : image.shape[2]]
-    zz = image[0, :, :]
+    if ax:
+        row, col = ax  # split ax tuple into (row, col)
+        subplot(directive="set", row=row, col=col, A=f'"{title}"')
 
-    # Scale the plot colours according to some elevation(z) range
-    zmin, zmax = z_minmax if z_minmax is not None else (img.min(), img.max())
-    cm_norm = matplotlib.cm.colors.Normalize(vmin=zmin, vmax=zmax)
-
-    # Make the 3D surface plot
-    ax.view_init(elev=elev, azim=azim)
-    ax.plot_surface(xx, yy, zz, cmap="BrBG", norm=cm_norm)
-
-    # Set title for plot and z-axis label
-    ax.set_title(label=f"{title}\n", fontsize=22)
-    ax.set_zlabel(zlabel=f"\n\n{zlabel}", fontsize=16)
-    ax.set_zlim(bottom=zmin, top=zmax)
-
-    return ax
+    grdview(
+        reliefgrid=img,
+        B=f"SWZ",  # plot South, West axes, and Z-axis
+        Bx="af",  # add x-axis annotations and minor ticks
+        By="af",  # add y-axis annotations and minor ticks
+        Bz=f'af+l"{zlabel}"',  # add z-axis annotations, minor ticks and axis label
+        C="oleron",  # colormap to use
+        Jz=0.01,  # zscaling factor, default to 10x vertical exaggeration
+        Q="sim",  # surface, image and mesh plot
+        N=f"{zmin}",  # z-plane to plot on
+        p=f"{azim}/{elev}",  # perspective using azimuth/elevation
+    )
+    return None  # should return instantiated PyGMT fig/Figure class
 
 
 # %% [markdown]
-# ### Plot figures of neural network raster inputs in 2D and 3D
+# ### Plot figures of neural network raster inputs in 2D
 
 # %%
 fig, axarr = plt.subplots(nrows=1, ncols=4, squeeze=False, figsize=(16, 12))
@@ -273,49 +298,17 @@ axarr[0, 3].imshow(W3_tile[0, 0, :, :], cmap="BrBG")
 axarr[0, 3].set_title("Antarctic Snow Accumulation\n(1000m resolution)")
 plt.show()
 
-# %%
-fig = plt.figure(figsize=plt.figaspect(1 / 4) * 2.5)
-axarr = [fig.add_subplot(1, 4, i + 1, projection="3d") for i in range(4)]
-
-plot_3d_view(
-    img=X_tile,
-    ax=axarr[0],
-    title="BEDMAP2\n(1000m resolution)",
-    zlabel="Elevation (metres)",
-)
-plot_3d_view(
-    img=W1_tile,
-    ax=axarr[1],
-    title="Reference Elevation Model of Antarctica\n(100m resolution)",
-    zlabel="Elevation (metres)",
-)
-plot_3d_view(
-    img=np.expand_dims(np.linalg.norm(W2_tile, axis=1), axis=0),
-    ax=axarr[2],
-    title="MEaSUREs Surface Ice Speed\n(450m resolution)",
-    zlabel="Surface Ice Speed (metres/year)",
-)
-plot_3d_view(
-    img=W3_tile,
-    ax=axarr[3],
-    title="Antarctic Snow Accumulation\n(1000m resolution)",
-    zlabel="Snow Accumulation (kg/m2/a)",
-)
-
-plt.tight_layout()
-plt.show()
-
 # %% [markdown]
 # ## 1.3 Prepare other interpolated grids for comparison
 #
 # We'll also have two other grids (interpolated to spatial resolution of 250m) to compare with our DeepBedMap model's prediction.
 # They are:
 #
-# - Bicubic interpolated BEDMAP2 (baseline)
-# - Synthetic High Resolution Grid from [Graham et al. 2017](https://doi.org/10.5194/essd-9-267-2017)
+# - Bicubic interpolated BEDMAP2 (baseline, originally 1000m)
+# - Bilinear interpolated Synthetic High Resolution Grid from [Graham et al. 2017](https://doi.org/10.5194/essd-9-267-2017) (originally 100m)
 
 # %%
-cubicbedmap2 = skimage.transform.rescale(
+cubicbedmap = skimage.transform.rescale(
     image=X_tile[0, 0, 1:-1, 1:-1].astype(np.int32),
     scale=4,  # 4x upscaling
     order=3,  # cubic interpolation
@@ -324,15 +317,23 @@ cubicbedmap2 = skimage.transform.rescale(
     multichannel=False,
     preserve_range=True,
 )
-cubicbedmap2 = np.expand_dims(np.expand_dims(cubicbedmap2, axis=0), axis=0)
-print(cubicbedmap2.shape)
+cubicbedmap = np.expand_dims(np.expand_dims(cubicbedmap, axis=0), axis=0)
+print(cubicbedmap.shape)
+
+# Save Bicubic Resampled BEDMAP2 to GeoTiff and NetCDF format
+cubicbedmap_grid = data_prep.save_array_to_grid(
+    outfilepath="model/cubicbedmap",
+    window_bound=window_bound,
+    array=cubicbedmap[0, :, :, :],
+    save_netcdf=True,
+)
 
 # %%
 S_tile = data_prep.selective_tile(
     filepath="model/hres.tif", window_bounds=[[*window_bound]], interpolate=False
 )
 print(S_tile.shape)
-synthetic250 = skimage.transform.rescale(
+synthetichr = skimage.transform.rescale(
     image=S_tile[0, 0, :, :].astype(np.int32),
     scale=1 / 2.5,  # 2.5 downscaling
     order=1,  # billinear interpolation
@@ -341,8 +342,16 @@ synthetic250 = skimage.transform.rescale(
     multichannel=False,
     preserve_range=True,
 )
-synthetic250 = np.expand_dims(np.expand_dims(synthetic250, axis=0), axis=0)
-print(synthetic250.shape)
+synthetichr = np.expand_dims(np.expand_dims(synthetichr, axis=0), axis=0)
+print(synthetichr.shape)
+
+# Save Billinear Resampled Synthetic High Resolution grid to GeoTiff and NetCDF format
+synthetichr_grid = data_prep.save_array_to_grid(
+    outfilepath="model/synthetichr",
+    window_bound=window_bound,
+    array=synthetichr[0, :, :, :],
+    save_netcdf=True,
+)
 
 
 # %% [markdown]
@@ -394,7 +403,34 @@ model = load_trained_model()
 # ## 2.2 Make prediction on area of interest
 
 # %%
-Y_hat = model.forward(x=X_tile, w1=W1_tile, w2=W2_tile, w3=W3_tile).array
+with chainer.using_config(name="enable_backprop", value=False):
+    Y_hat = model.forward(x=X_tile, w1=W1_tile, w2=W2_tile, w3=W3_tile).array
+
+# %%
+# Save BEDMAP3 to GeoTiff and NetCDF format
+deepbedmap3_grid = data_prep.save_array_to_grid(
+    outfilepath="model/deepbedmap3",
+    window_bound=window_bound,
+    array=Y_hat[0, :, :, :],
+    save_netcdf=True,
+)
+deepbedmap3_grid = xr.DataArray(
+    data=np.flipud(cupy.asnumpy(Y_hat[0, 0, :, :])),
+    dims=["y", "x"],
+    coords={"y": deepbedmap3_grid.y, "x": deepbedmap3_grid.x},  # for multiple grids
+    # coords={"y": groundtruth.y, "x": groundtruth.x},  # for single grid
+)
+deepbedmap3_grid = xr.open_dataarray("model/deepbedmap3.nc")
+
+# %%
+# Get elevation difference between DeepBedMap and CubicBedMap
+elevdiffmap = deepbedmap3_grid - cubicbedmap_grid
+elevdiffmap_grid = data_prep.save_array_to_grid(
+    outfilepath="model/elevdiffmap",
+    window_bound=window_bound,
+    array=elevdiffmap,
+    save_netcdf=True,
+)
 
 # %% [markdown]
 # ### Plot DeepBedMap prediction alongside other interpolated grids and groundtruth in 2D and 3D
@@ -412,93 +448,53 @@ axarr[0, 3].set_title("Groundtruth grids")
 plt.show()
 
 # %%
-fig = plt.figure(figsize=plt.figaspect(12 / 9) * 4.5)  # (height/width)*scaling
-axarr = [fig.add_subplot(2, 2, i + 1, projection="3d") for i in range(4)]
-
+fig = gmt.Figure()
+subplot(directive="begin", row=2, col=2, A="+jCT+o-4c/-5c", Fs="9c/9c", M="2c/3c")
 plot_3d_view(
-    img=Y_hat,  # DeepBedMap
-    ax=axarr[0],
-    z_minmax=(Y_hat.min(), Y_hat.max()),
-    title="DeepBedMap (ours)\n250m resolution",
-    zlabel="Elevation (metres)",
+    img="model/deepbedmap3.nc",  # DeepBedMap
+    ax=(0, 0),
+    zmin=-1400,
+    title="DeepBedMap",  # ours
+    zlabel="Bed elevation (metres)",
 )
 plot_3d_view(
-    img=X_tile,  # BEDMAP2
-    ax=axarr[1],
-    z_minmax=(Y_hat.min(), Y_hat.max()),
-    title="BEDMAP2\n1000m resolution",
-    zlabel="Elevation (metres)",
+    img="model/cubicbedmap.nc",  # BEDMAP2
+    ax=(0, 1),
+    zmin=-1400,
+    title="BEDMAP2",
+    zlabel="Bed elevation (metres)",
 )
 plot_3d_view(
-    img=Y_hat - cubicbedmap2,  # DeepBedMap - BEDMAP2
-    ax=axarr[2],
-    z_minmax=(-125, 125),
-    title="DeepBedMap minus\nBEDMAP2 (cubic interpolated)",
+    img="model/elevdiffmap.nc",  # DeepBedMap - BEDMAP2
+    ax=(1, 0),
+    zmin=-400,
+    title="Elevation Diff",
     zlabel="Difference (metres)",
 )
 plot_3d_view(
-    img=S_tile,  # Synthetic High Resolution product
-    ax=axarr[3],
-    z_minmax=(Y_hat.min(), Y_hat.max()),
-    title="Synthetic HRES\n100m resolution",
-    zlabel="Elevation (metres)",
+    img="model/synthetichr.nc",  # Synthetic High Resolution product
+    ax=(1, 1),
+    zmin=-1400,
+    title="Synthetic HRES",
+    zlabel="Bed elevation (metres)",
 )
+subplot(directive="end")
+fig.savefig(fname="esrgan_prediction.eps", crop=False)
+fig.show()
 
-plt.subplots_adjust(wspace=0.0001, hspace=0.0001, left=0.0, right=0.9, top=1.2)
-# plt.savefig(fname="esrgan_prediction.pdf", format="pdf", bbox_inches="tight")
-plt.show()
-
-# %% [markdown]
-# ## 2.3 Save interpolated grids to GeoTIFF and NetCDF format
-#
-# 250 spatial resolution grids of:
-# - DeepBedMap'3' (ours)
-# - Bicubic interpolated BEDMAP2 (originally 1000m)
-# - Bilinear interpolated Synthetic High Res (originally 100m)
-
-# %%
-# Save BEDMAP3 to GeoTiff and NetCDF format
-deepbedmap3_grid = data_prep.save_array_to_grid(
-    outfilepath="model/deepbedmap3",
-    window_bound=window_bound,
-    array=Y_hat[0, :, :, :],
-    save_netcdf=True,
-)
-deepbedmap3_grid = xr.DataArray(
-    data=np.flipud(cupy.asnumpy(Y_hat[0, 0, :, :])),
-    dims=["y", "x"],
-    coords={"y": deepbedmap3_grid.y, "x": deepbedmap3_grid.x},  # for multiple grids
-    # coords={"y": groundtruth.y, "x": groundtruth.x},  # for single grid
-)
-
-# %%
-# Save Bicubic Resampled BEDMAP2 to GeoTiff and NetCDF format
-_ = data_prep.save_array_to_grid(
-    outfilepath="model/cubicbedmap",
-    window_bound=window_bound,
-    array=cubicbedmap2[0, :, :, :],
-    save_netcdf=True,
-)
-# Save Billinear Resampled Synthetic High Resolution grid to GeoTiff and NetCDF format
-_ = data_prep.save_array_to_grid(
-    outfilepath="model/synthetichr",
-    window_bound=window_bound,
-    array=synthetic250[0, :, :, :],
-    save_netcdf=True,
-)
 
 # %% [markdown]
 # # 3. Elevation 'error' analysis
 
 # %% [markdown]
 # Here we compare the elevation error (or difference) between our grid and many many points!
-# We use [PyGMT](https://github.com/GenericMappingTools/pygmt)'s [grdtrack](https://gmt.soest.hawaii.edu/doc/latest/grdtrack) to sample the grid along the survey track points.
+# We use [PyGMT](https://github.com/GenericMappingTools/pygmt)'s [grdtrack](https://docs.generic-mapping-tools.org/latest/grdtrack.html) to sample the grid along the survey track points.
 #
 # The survey tracks are basically geographic points (x, y) with an elevation (z)
 # that were collected from an airplane or ground vehicle crossing Antarctica.
 # The four grids we sample from all have a spatial resolution of 250m and they are:
 #
-# - Groundtruth grid (interpolated from our groundtruth points using [surface](https://gmt.soest.hawaii.edu/doc/latest/surface.html))
+# - Groundtruth grid (interpolated from our groundtruth points using [surface](https://docs.generic-mapping-tools.org/latest/surface.html))
 # - DeepBedMap3 grid (predicted from our [Super Resolution Generative Adversarial Network model](/srgan_train.ipynb))
 # - CubicBedMap grid (interpolated from BEDMAP2 using a [bicubic spline algorithm](http://scikit-image.org/docs/dev/api/skimage.transform.html#skimage.transform.rescale))
 # - Synthetic High Res grid (created by [Graham et al. 2017](https://doi.org/10.5194/essd-9-267-2017))

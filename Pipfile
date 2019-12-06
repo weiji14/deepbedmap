@@ -5,9 +5,9 @@ name = "pypi"
 
 [packages]
 black = "==19.3b0"
-chainer = "==7.0.0b2"
+chainer = "==7.0.0rc1"
 comet-ml = "==2.0.5"
-cupy-cuda100 = "==7.0.0b2"
+cupy-cuda100 = "==7.0.0rc1"
 dask = {extras = ["array"],version = "==2.1.0"}
 descartes = "==1.1.0"
 geopandas = "==0.5.1"
@@ -18,17 +18,17 @@ livelossplot = "==0.4.1"
 matplotlib = "==3.1.1"
 netcdf4 = "==1.4.1"
 numpy = "==1.17.0rc2"
-onnx_chainer = "==1.5.0"
 optuna = "==0.14.0"
 pandas = "==0.25.0"
-pygmt = {editable = true, ref = "0.0.1a0-43-g421e10d", git = "https://github.com/weiji14/pygmt.git"}
+pygmt = {editable = true, ref = "0.0.1a0-77-g4581a3e", git = "https://github.com/weiji14/pygmt.git"}
 quilt = "==2.9.15"
 rasterio = "==1.0.24"
 rtree = "==0.8.3"
 salem = "==0.2.4"
 scikit-image = "==0.15.0"
-ssim-chainer = {editable = true,git = "https://github.com/higumachan/ssim-chainer.git"}
+ssim-chainer = {editable = true, ref="9c54f25b7c068b562b711027a92c346ce0708b52", git = "https://github.com/higumachan/ssim-chainer.git"}
 tqdm = "==4.32.2"
+xarray = "==0.12.3"
 
 [dev-packages]
 behave = "==1.2.6"

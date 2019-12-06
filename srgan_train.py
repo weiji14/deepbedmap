@@ -804,18 +804,18 @@ class DiscriminatorModel(chainer.Chain):
 #
 # Due to BEDMAP2 having a 4x lower resolution than the predicted DeepBedMap DEM (1000m compared to 250m), we first apply a 4x4 [Mean/Average Pooling](https://docs.chainer.org/en/latest/reference/generated/chainer.functions.average_pooling_2d.html) operation on the DeepBedMap image, turning it into a 1x1 pixel grid that matches the shape of the BEDMAP2 image.
 #
-# $$ \bar{y_j} = Mean = \dfrac{1}{n} \sum\limits_{i=1}^n y_i $$
+# $$ \bar{\hat{y}}_j = Mean = \dfrac{1}{n} \sum\limits_{i=1}^n y_i $$
 #
-# where $\bar{y_j}$ is the mean/average of all predicted pixel values $y_i$ across the 16 $i$ DeepBedMap pixels within a 4x4 grid corresponding to the spatial location of one (BEDMAP2) pixel at position $j$.
+# where $\bar{\hat{y}}_j$ is the mean/average of all predicted pixel values $y_i$ across the 16 high resolution (DeepBedMap) pixels $i$ within a 4x4 grid corresponding to the spatial location of one low resolution (BEDMAP2) pixel at position $j$.
 # Then, we calculate the [MAE](https://docs.chainer.org/en/latest/reference/generated/chainer.functions.mean_absolute_error.html) difference between the output of the generator model (i.e. the predicted Super-Resolution DeepBedMap bed DEM Image) and that of the BEDMAP2 (i.e. the original Low Resolution Image we are super-resolving).
 #
-# $$ e_j = ||\bar{y_j} - x_j||_{1} $$
+# $$ e_j = ||\bar{\hat{y}}_j - x_j||_{1} $$
 #
-# where $\bar{y_j}$ is the mean of the 4x4 pixels we just calculated above, and $x_j$ is the spatially corresponding BEDMAP2 pixel, respectively at BEDMAP2 pixel $j$.
+# where $\bar{\hat{y}}_j$ is the mean of the 4x4 pixels we just calculated above, and $x_j$ is the spatially corresponding BEDMAP2 pixel, respectively at BEDMAP2 pixel $j$.
 # $e_j$ thus represents the absolute error (L1 loss) (denoted by $||\dots||_{1}$) between the (averaged) super-resolution and low-resolution values.
-# We then sum all the pixel-wise errors $e_j,\dots,e_n$ and divide by the number of pixels $n$ to get the Arithmetic Mean $\dfrac{1}{n} \sum\limits_{i=1}^n$ of our error which is our *Topographic Loss*.
+# We then sum all the pixel-wise errors $e_j,\dots,e_m$ and divide by the number of low resolution pixels $m$ to get the Arithmetic Mean $\dfrac{1}{m} \sum\limits_{i=1}^m$ of our error which is our *Topographic Loss*.
 #
-# $$ Loss_{Topographic} = Mean Absolute Error = \dfrac{1}{n} \sum\limits_{i=1}^n e_j $$
+# $$ Loss_{Topographic} = Mean Absolute Error = \dfrac{1}{m} \sum\limits_{j=1}^m e_j $$
 
 # %% [markdown]
 # ### Structural Loss
@@ -823,14 +823,19 @@ class DiscriminatorModel(chainer.Chain):
 # Complementing the L1 Content Loss further, we define a *Structural (Similarity) Loss*.
 # This is computed using the [Structural Similarity (SSIM)](https://en.wikipedia.org/wiki/Structural_similarity) Index,
 # on a moving window (here set to 9x9) between the super resolution predicted image and high resolution groundtruth image.
-# The comparison takes into account luminance, contrast and structural information.
+# The comparison takes into account luminance, contrast and structural information and is calculated over a single window patch like so:
 #
-# $$ SSIM(x,y) = \dfrac{(2\mu_x\mu_y + c_1)(2\sigma_{xy} + c_2)}{(\mu_x^2 + \mu_y^2 + c_1)(\sigma_x^2 + \sigma_y^2 + c_2)} $$
+# $$SSIM(x,y) = \dfrac{(2\mu_x\mu_y + c_1)(2\sigma_{xy} + c_2)}{(\mu_x^2 + \mu_y^2 + c_1)(\sigma_x^2 + \sigma_y^2 + c_2)} $$
 #
 # where $\mu_x$ and $\mu_y$ are the average (mean) of predicted image $x$ and groundtruth image $y$ respectively,
 # $\sigma_{xy}$ is the covariance of $x$ and $y$,
 # $\sigma_x^2$ and $\sigma_y^2$ are the variance of $x$ and $y$ respectively, and
-# $c_1$ and $c_2$ are two variables to stabilize the division with weak denominator.
+# $c_1$ and $c_2$ are two variables set to $0.01^2$ and $0.03^2$ to stabilize division with a weak denominator.
+# Our Structural Loss can then be formulated as follows:
+#
+# $$ Loss_{Structural} = 1 - \dfrac{1}{p} \sum\limits_{i=1}^p SSIM(x, y)_p $$
+#
+# where we do $1$ minus the mean of all structural similarity values $SSIM(x, y)$ calculated over every patch $p$ obtained via a sliding window over our predicted image $x$ and groundtruth image $y$.
 
 # %%
 def calculate_generator_loss(

@@ -766,7 +766,7 @@ def save_array_to_grid(
     window_bound: tuple,  # bounding box in format (minx, miny, maxx, maxy)
     array: np.ndarray,  # must be in CHW format (channel, height, width)
     save_netcdf: bool = False,  # whether to also save a NetCDF file
-    crs: str = "EPSG:3031",  # projected coordinate system to use
+    crs: str = "+proj=stere +lat_0=-90 +lat_ts=-71 +lon_0=0 +k=1 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs",  # projected coordinate system to use
     dtype: str = None,  # data type to use e.g. np.float32, default inferred from array
     nodataval: float = -2000,  # what to use as NaN, hardcoded default to -2000m
     tiled: bool = False,  # store data arranged in square tiles, default is False
