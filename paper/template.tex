@@ -113,12 +113,13 @@
 
 
 \begin{abstract}
-To better resolve the bed elevation of Antarctica, we present a novel deep convolutional neural network that produces realistic terrain given multiple remote sensing data inputs.
-Our super-resolution DeepBedMap neural network model is trained on scattered regions in Antarctica where high resolution groundtruth bed elevation grids are available, and later used to generate high resolution bed topography in less well surveyed areas.
+To better resolve the bed elevation of Antarctica, we present DeepBedMap - a novel machine learning method that produces realistic Antarctic bed topography from multiple remote sensing data inputs.
+Our super-resolution deep convolutional neural network model is trained on scattered regions in Antarctica where high resolution (250 m) groundtruth bed elevation grids are available.
+The model is then used to generate high resolution bed topography in less well surveyed areas.
 DeepBedMap improves on previous interpolation methods by not restricting itself to a low spatial resolution (1000 m) BEDMAP2 raster image as its prior.
-It takes in additional high spatial resolution datasets, such as Antarctic ice surface velocity and ice surface elevation grids, which can be used to better inform the bed topography even in the absence of direct ice-penetrating radar survey data.
+It takes in additional high spatial resolution datasets, such as Antarctic ice surface velocity and ice surface elevation grids to better inform the bed topography even in the absence of ice-thickness data from direct ice-penetrating radar surveys.
 Our DeepBedMap model is based on an adapted Enhanced Super Resolution Generative Adversarial Network architecture, chosen to minimize per-pixel elevation errors while producing realistic topography.
-The final product is a four times upsampled (250 m) bed elevation model of Antarctica that can be used by glaciologists interested in the subglacial terrain, and also ice sheet modellers wanting to run catchment or continent-scale ice sheet model simulations.
+The final product is a four times upsampled (250 m) bed elevation model of Antarctica that can be used by glaciologists interested in the subglacial terrain, and by ice sheet modellers wanting to run catchment or continent-scale ice sheet model simulations.
 We show that DeepBedMap produces a more accurate digital elevation model than a baseline bicubic interpolation product, and also compare it with other synthetic bed elevation models on reference groundtruth survey tracks.
 \end{abstract}
 
@@ -128,25 +129,28 @@ We show that DeepBedMap produces a more accurate digital elevation model than a 
 
 \introduction  %% \introduction[modified heading if necessary]
 
-In order to create a more detailed map of Antarctica's bed, we present a novel deep convolutional neural network that produces realistic terrain given multiple remote sensing data inputs.
-A higher resolution digital bed elevation model of Antarctica enables us to better quantify glacier ice flow mechanics, particularly along fast flowing ice streams near the grounding line.
+To create a more detailed map of Antarctica's bed, we present a novel deep convolutional neural network that produces realistic terrain given multiple remote sensing data inputs.
+A higher resolution digital bed elevation model of Antarctica enables us to better estimate the volume of ice in Antarctica, and to quantify glacier ice flow dynamics more accurately, particularly along fast flowing ice streams near the grounding line.
 This in turn allows for the development of more accurate ice sheet models estimating how past and future sea level can change over time.
 
 There are two techniques for mapping the subglacial terrain of Antarctica.
-The main way is via the use of ice-penetrating radar - a method that images the ice-bed interface along survey lines.
-Although this is the most direct way, it is geographically limited and involves manual, time consuming work.
+The main method is via the use of ice-penetrating radar - a method that images the ice-bed interface along survey lines.
+This method does come with uncertainties due to different interpretations of radargrams, such as with variations in firn density across sites, and potential errors in the semi-automatic bed picks.
+However, this is still the most direct method, though it is geographically limited and involves manual, time consuming work.
 
-Another potential way to overcome these geographical limitations is via an indirect inversion method - using surface data observations to determine bed characteristics.
+A method to overcome the geographical limitations is via an indirect inversion method - using surface data observations to determine bed characteristics.
 A complex non-linear relationship exists between the surface elevation and bed elevation of glaciers, ice streams and ice sheets \citep{Raymondrelationshipsurfacebasal2005}, meaning one can theoretically use a well resolved surface to infer bed properties \citep[e.g.][]{Farinottimethodestimateice2009}.
-Using surface observable inputs such as the glacier outline, surface digital elevation models, surface mass balance, surface rate of elevation change and surface ice flow velocity, \citet{FarinottiHowaccurateare2017} have tested various models in the Ice Thickness Models Intercomparison eXperiment (ITMIX) to determine ice thickness (surface elevation minus bed elevation).
+Using surface observations, such as the glacier outline, surface digital elevation models, surface mass balance, surface rate of elevation change, and surface ice flow velocity, \citet{FarinottiHowaccurateare2017} have tested various models in the Ice Thickness Models Intercomparison eXperiment (ITMIX) to determine ice thickness (surface elevation minus bed elevation).
 While significant inter-model uncertainties do exist, they can be mitigated by combining several models in an ensemble to provide a consensus estimate \citep{Farinotticonsensusestimateice2019}.
-However, these studies tend to limit their scope to individual glaciers or small ice caps.
+On a larger scale, the inverse technique has also been applied to the Greenland \citep{MorlighemBedMachinev3Complete2017} and Antarctic \citep{MorlighemDeepglacialtroughs2019} ice sheets, specifically using the mass conservation approach \citep{Morlighemmassconservationapproach2011}.
 
-Here in this paper, we present a deep learning method that belongs to the inverse modelling category, but one that is trained on direct ice-penetrating radar observations over Antarctica.
+Here, we present a deep learning method that belongs to the inverse modelling category, but one that is trained on direct ice-penetrating radar observations over Antarctica.
 Similar work has been done before using Artificial Feedforward Neural Networks for estimating bed topography \citep[e.g.][]{ClarkeNeuralNetworksApplied2009,MonnierInferencebedtopography2018}, but to our knowledge, none so far in the glaciological community have attempted to use Convolutional Neural Networks that works in a more spatially-aware, 2-dimensional setting.
-Our main contributions are twofold and as follows:
-1) Use a deep convolutional neural network to integrate most if not all of the remote sensing datasets relevant for estimating Antarctica's bed topography;
-2) Present a high resolution (250 m) bed elevation map of Antarctica that goes beyond the 1km resolution of BEDMAP2 \citep{FretwellBedmap2improvedice2013}.
+Convolutional Neural Networks are prevalent in the computer vision community \citep[see][for a review]{LeCunDeeplearning2015}, having existed since the 1980s \citep{FukushimaNeocognitronnewalgorithm1982,LeCunBackpropagationAppliedHandwritten1989} and are commonly used in visual pattern recognition tasks \citep[e.g.][]{LecunGradientbasedlearningapplied1998,KrizhevskyImageNetClassificationDeep2012}.
+Our main contributions are twofold:
+1) Present a high resolution (250 m) bed elevation map of Antarctica that goes beyond the 1km resolution of BEDMAP2
+2) Design a deep convolutional neural network to integrate as many remote sensing datasets as possible which are relevant for estimating Antarctica's bed topography;
+ \citep{FretwellBedmap2improvedice2013}.
 We name our neural network "DeepBedMap", and the resulting digital elevation model (DEM) product as "DeepBedMap\_DEM".
 
 
@@ -155,19 +159,20 @@ We name our neural network "DeepBedMap", and the resulting digital elevation mod
 \subsection{Super-Resolution}
 
 Super-Resolution involves the processing of a low resolution raster image into a higher resolution one, a technique introduced in the seminal paper by \citet{TsaiMultiframeimagerestoration1984}.
-The problem is especially ill-posed since a specific low resolution input can correspond to many possible high resolution outputs, resulting in the development of several different algorithms aimed at solving this challenge \citep[see][for a review]{NasrollahiSuperresolutioncomprehensivesurvey2014}.
-One of the most promising approaches is using deep learning to learn an end-to-end mapping between the low and high resolution images, a method proposed by \citet{DongImageSuperResolutionUsing2014} with their super-resolution convolutional neural network (SRCNN).
+The problem is especially ill-posed because a specific low resolution input can correspond to many possible high resolution outputs, resulting in the development of several different algorithms aimed at solving this challenge \citep[see][for a review]{NasrollahiSuperresolutioncomprehensivesurvey2014}.
+One of the most promising approaches is using deep learning \citep{LeCunDeeplearning2015} to learn an end-to-end mapping between the low and high resolution images, a method proposed by \citet{DongImageSuperResolutionUsing2014} with their super-resolution convolutional neural network (SRCNN).
 
 More efficient neural network architectures and effective optimization objectives have been developed since SRCNN to further improve the quality of results \cite[see][for a review]{YangDeepLearningSingle2018}.
-Some key improvements include adding an adversarial loss to produce finer perceptual details as in the Super-Resolution Generative Adversarial Network (SRGAN) by \citet{LedigPhotoRealisticSingleImage2016}, or by adding residual connections while removing unnecessary model components to enable more efficient training of deeper models as in the Enhanced Deep Super-Resolution network (EDSR) by \citet{LimEnhancedDeepResidual2017}.
-For our DeepBedMap model in this paper, we choose to adapt the Enhanced Super-Resolution Generative Adversarial Network (ESRGAN) by \citet{WangESRGANEnhancedSuperResolution2018} that brings in several of these new ideas plus other improvements for state of the art perceptual quality, enough to win the 2018 Perceptual Image Restoration and Manipulation (PIRM) Challenge on Super-Resolution (Third Region) \citep{Blau2018PIRMChallenge2018}.
+Some key improvements include adding an adversarial loss \citep{GoodfellowGenerativeAdversarialNetworks2014} to produce finer perceptual details as in the Super-Resolution Generative Adversarial Network \citep[SRGAN,][]{LedigPhotoRealisticSingleImage2016}, or by adding residual connections while removing unnecessary model components to enable more efficient training of deeper models as in the Enhanced Deep Super-Resolution network \citep[EDSR,][]{LimEnhancedDeepResidual2017}.
+For our DeepBedMap model in this paper, we choose to adapt the Enhanced Super-Resolution Generative Adversarial Network \citep[ESRGAN,][]{WangESRGANEnhancedSuperResolution2018} that brings together the ideas mentioned above to produce state of the art perceptual quality, enough to win the 2018 Perceptual Image Restoration and Manipulation (PIRM) Challenge on Super-Resolution (Third Region) \citep{Blau2018PIRMChallenge2018}.
 
 \subsection{Network Conditioning}
 
 Network conditioning means having a neural network process one source of information in the context of other sources \citep{DumoulinFeaturewisetransformations2018}.
 In a geographical context, conditioning is akin to using not just one layer, but several overlapping and semantically meaningful layers so as to better solve the task at hand.
-It should be noted that many ways exist to insert extra conditional information into a network, such as concatenation-based conditioning, conditional biasing, conditional scaling, and conditional affine transformations \citep{DumoulinFeaturewisetransformations2018}.
-As all our contextual remote sensing datasets are raster grid images, we choose to use the concatenation-based conditioning approach which is more aligned with related work we highlight below.
+It should be noted that many ways exist to insert extra conditional information into a neural network, such as concatenation-based conditioning, conditional biasing, conditional scaling, and conditional affine transformations \citep{DumoulinFeaturewisetransformations2018}.
+We choose to use the concatenation-based conditioning approach, whereby all of the individual raster images are concatenated together channel-wise, much like the individual bands of a multispectral satellite image.
+This seemed to be the most appropriate conditioning method as all our contextual remote sensing datasets are raster grid images, and also because it aligns with related work in the remote sensing field.
 
 A nice example similar to our DEM super-resolution problem is the classic problem of pan-sharpening, where a blurry low resolution multispectral image conditioned with a high resolution panchromatic image can be turned into a high resolution multispectral image.
 There is ongoing research into the use of deep convolutional neural networks for pan-sharpening \citep{MasiPansharpeningConvolutionalNeural2016,ScarpaTargetAdaptiveCNNBasedPansharpening2018}, sometimes with the incorporation of specific domain-knowledge \citep{YangPanNetDeepNetwork2017}, all of which show promising improvements over classical image processing methods.
@@ -176,6 +181,9 @@ Our DeepBedMap model thus builds upon these ideas and other related DEM super-re
 
 
 \section{Data and Methods}
+
+In this section, we will outline the preprocessing steps used to produce our neural network's training data.
+This is followed by a mathematical definition of the loss function which forms the basis of training our neural network, and a description of our DeepBedMap model architecture.
 
 \subsection{Data Preparation}
 
@@ -229,17 +237,20 @@ $w^3$ & Antarctic Snow Accumulation & 1000 m & \cite{ArthernAntarcticsnowaccumul
 } % Table Footnotes
 \end{table*}
 
-\subsection{Loss Functions}
+\subsection{Loss Function}
 
-Given a low resolution input $x$ alongside conditional inputs $w^1, w^2, \dots, w^i$, our super-resolution model learns to estimate a high resolution output $\hat{y}$ which is as similar as possible to the groundtruth image $y$.
+The loss function, or cost function, is a mathematical function that maps a set of input variables to an output value.
+It is this output value which we want to minimize so as to train our neural network model to perform better, and we do this by iteratively optimizing the parameters in our loss function.
+
+Given a low resolution input $x$ alongside conditional inputs $w^1, w^2, \dots, w^i$ (see Table \ref{table:datainputs}), our super-resolution DeepBedMap model learns to estimate a high resolution output $\hat{y}$ which is as similar as possible to the groundtruth image $y$.
 
 \begin{equation}\label{eq:1}
   \hat{y} = G(x, w^1, w^2, \dots, w^i)
 \end{equation}
 
 where $G$ is the generator function in a Generative Adversarial Network that produces high resolution image candidates.
-For brevity in the following equations, \eqref{eq:1} is simplified to hide conditional inputs $w^1, w^2, \dots, w^i$, i.e. represent all input images using $x$.
-To train our generator, we update $\theta_G$ as follows:
+For brevity in the following equations, Equation \eqref{eq:1} is simplified to hide conditional inputs $w^1, w^2, \dots, w^i$, i.e. represent all input images using $x$.
+To train our generator, we update the parameters of our Generator network $\theta_G$ as follows:
 
 \begin{equation}\label{eq:2}
   \hat{\theta_G} = \arg\min_{\theta_G} \frac{1}{N}\sum_{n=1}^{N}L_G(G(x_n), y_n)
@@ -250,10 +261,11 @@ The generator network's loss $L_G$ is a custom perceptual loss function with fou
 
 The other component to a Generative Adversarial Network is the critic or discriminator network $D$.
 It is trained to distinguish between fake high resolution images $\hat{y}$ and real groundtruth images $y$, and has an objective opposite to that of Generator $G$.
+
 Our adversarial min-max problem can thus be formulated as follows:
 
 \begin{equation}\label{eq:3}
-  \min_{G} \max_{D} \mathbb{E}_{y \sim P_{\text{data}}(y)}[\ln D(y)] + \mathbb{E}_{x \sim P_{G(x)}}[\ln(1-D(G(x)))]
+  \min_{G} \max_{D} V(G,D) = \mathbb{E}_{y \sim P_{\text{data}}(y)}[\ln D(y)] + \mathbb{E}_{x \sim P_{G(x)}}[\ln(1-D(G(x)))]
 \end{equation}
 
 where $P_{\text{data}}(y)$ and $P_{G(x)}$ are the empirical distributions of groundtruth and training input images respectively.
@@ -267,7 +279,7 @@ In the following section, we will describe the model architecture of our Generat
     DeepBedMap Generator Model Architecture.
     The input module on the left is made up of 4 sub-networks, each one composed of a convolutional neural network that processes the input image into a consistent 9x9 shaped tensor.
     From top to bottom, we have our prior low resolution input BEDMAP2 \citep{FretwellBedmap2improvedice2013}, and conditional inputs REMA \citep{HowatReferenceElevationModel2019}, MEaSUREs Ice Veloctiy \citep{MouginotContinentwideinterferometric2019}, and Snow Accumulation \citep{ArthernAntarcticsnowaccumulation2006}, more details of which can be found in Table \ref{table:datainputs}.
-    All the processed inputs are then concatenated together before being fed into the core module.
+    All the processed inputs are then concatenated together channel-wise before being fed into the core module.
     The core module in the middle is based on the ESRGAN architecture with 12 Residual-in-Residual Dense Blocks \citep[see][for details]{WangESRGANEnhancedSuperResolution2018}, saddled in between a pre-residual and post-residual convolutional layer.
     The upsampling module on the right is composed of two upsampling blocks (nearest neighbour upsampling followed by a convolutional layer and LeakyReLU activation) that progressively scales our tensors by 2x each time.
     Following this are two deformable convolutional layers \citep{DaiDeformableConvolutionalNetworks2017} which produces our final output super resolution DeepBedMap\_DEM.
@@ -296,16 +308,16 @@ The output of this Discriminator model is a floating point number ranging from 0
 \section{Discussion}
 
 Our DeepBedMap convolutional neural network method presents a purely data-driven approach to resolve the bed topography of Antarctica.
-It is an improvement beyond simple interpolation techniques, generating realistic high spatial resolution (250 m) topography that preserves details in bed roughness and is adaptable for catchment to continent-scale studies.
-The method's GPU-based training and inference allows it to scale easily, performing better with the addition of more training datasets.
+It is an improvement beyond simple interpolation techniques, generating realistic high spatial resolution (250 m) topography that preserves detail in bed roughness and is adaptable for catchment to continent-scale studies.
+Using Graphical Processing Units (GPUs) for training and inference allows the method to scale easily, and perform better with the addition of more training datasets.
 Unlike other inverse methods that rely on some explicit parameterization of ice-flow physics, our model uses deep learning to find suitable neural network parameters via an iterative error minimization approach.
 
-In the results section, we quantify that the DeepBedMap neural network model can produce a lower error than existing interpolation and inverse modelling efforts in some circumstances.
-Our DeepBedMap\_DEM v1 has established a high resolution topographic result about halfway between the groundtruth surface and bicubic interpolated surface, which can be taken as the current empirical best for an inverse topographic model(?).
+In the results section, we show that our DeepBedMap\_DEM v1 produces a high resolution (250 m) result (see Figure \ref{fig:3}) that can capture a detailed and realistic picture of the underlying bed topography.
+We also quantify that the DeepBedMap neural network model can produce a lower error in roughness values than existing interpolation and inverse modelling efforts in most circumstances (see Figure \ref{fig:4} and \ref{fig:5}).
 Note however, that the topography generated by our model is quite sensitive to the accuracy of its inputs, and though this is a problem faced by many other inverse methods, neural network models like ours can be particularly biased towards the training dataset.
-In particular, our experimental model's topography is likely skewed towards the distribution of our training regions that tend to reside in coastal regions, especially over West Antarctica (see training regions figure).
+In particular, our experimental model's topography is likely skewed towards the distribution of our training regions that tend to reside in coastal regions, especially over West Antarctica (see Figure \ref{fig:2}).
 
-Moving forward, we have identified a strong need for better quality datasets over many parts of Antarctica.
+Moving forward, we have identified a strong need for densely spaced bed elevation datasets sampled over a more diverse portion of Antarctica.
 Our DeepBedMap model is trained only on a small fraction of the area of Antarctica, simply because the Convolutional Neural Network can't be trained on sparse survey point measurements.
 There is a need for denser, high resolution surveys (<250 m flight spacing) that capture a more representative picture of Antarctica's varied bed topography.
 Also, some of the conditional datasets we use such as REMA \citep{HowatReferenceElevationModel2019} and MEaSUREs Ice Velocity \citep{RignotMEaSUREsInSARBasedAntarctica2017} have data gaps which introduce artifacts in the DeepBedMap\_DEM, and those need to be filled up properly for continent-wide prediction.
@@ -418,13 +430,12 @@ Finally, we compile the loss functions for our discriminator and generator netwo
   & L_G = \eta L_1 + \lambda L_G^{Ra} + \theta L_T + \zeta L_S \label{eq:A9}
 \end{align}
 
-where $\eta$, $\lambda$, $\theta$, and $\zeta$ are the scaled weights for the content $L_1$, adversarial $L_D$, topographic $L_T$ and structural losses $L_S$ respectively.
+where $\eta$, $\lambda$, $\theta$, and $\zeta$ are the scaled weights for the content $L_1$, adversarial $L_D$, topographic $L_T$ and structural losses $L_S$ respectively (see Table \ref{table:B1} for values used).
 The loss functions $L_D$ and $L_G$ are minimized in an alternate 1:1 manner so as to solve the entire Generative Adversarial Network's objective function defined in Equation \eqref{eq:3}.
-Following this, we now describe the model architecture of our Generator and Discriminator neural networks.
 
 \section{Neural Network Training Details} \label{appendix:B}
 
-The neural networks were developed using the Chainer v7.0.0b2 \citep{TokuiChainerDeepLearning2019}, and trained using full precision (floating point 32) arithmetic.
+The neural networks were developed using Chainer v7.0.0b2 \citep{TokuiChainerDeepLearning2019}, and trained using full precision (floating point 32) arithmetic.
 Experiments were carried out on 4 Graphical Processing Units (GPUs), specifically 2 Tesla P100 GPUs and 2 Tesla V100 GPUs.
 On our Tesla V100 GPU setup, one training run with about 150 epochs takes about 30 minutes.
 This is using a batch size of 128 on a total of 3826 training image tiles, with 202 tiles reserved for validation, i.e. a 95/5 training/validation split.
@@ -432,7 +443,7 @@ We next describe the method used to evaluate each DeepBedMap candidate model, as
 
 \begin{table*}[ht]
   \caption{Optimized Hyperparameter Settings.}
-  \label{table:1}
+  \label{table:B1}
   \begin{tabular}{lrr}
   \tophline
   Hyperparameter & Setting & Tuning Range \\
@@ -456,7 +467,7 @@ We next describe the method used to evaluate each DeepBedMap candidate model, as
 \end{table*}
 
 To check for overfitting, we evaluate the Generative Adversarial Network model on our validation dataset after each epoch using two performance metrics - a peak signal-to-noise ratio (PSNR) metric for the Generator, and an accuracy metric for the Discriminator.
-Training stops when these validation performance metrics show little improvement, roughly at 90 epochs.
+Training stops when these validation performance metrics show little improvement, roughly at 120 epochs.
 
 Next, we conduct a full evaluation on an independent test dataset, comparing the model's predicted grid output against actual groundtruth xyz points.
 Using the 'grdtrack' function in Generic Mapping Tools v6.0 \citep{WesselGenericMappingTools2019}, we obtain the grid elevation at each of our groundtruth point and use it to calculate the elevation error on a point-to-point basis.
@@ -464,7 +475,7 @@ All of these elevation errors are then used to compute a Root Mean Squared Error
 This RMSE value is used to judge our model's performance in relation to baseline bicubic interpolation, and also the metric minimized by our hyperparameter optimization algorithm which we will describe next.
 
 Neural networks contain a lot of hyperparameter settings that need to be decided upon, and Generative Adversarial Networks are particularly sensitive to different hyperparameter settings.
-To stabilize model training and obtain better performance, we tune our hyperparameters (see Table \ref{table:1}) using a Bayesian approach.
+To stabilize model training and obtain better performance, we tune our hyperparameters (see Table \ref{table:B1}) using a Bayesian approach.
 Specifically, we employ the Tree-structured Parzen Estimator \citep{BergstraAlgorithmsHyperparameterOptimization2011} from the Optuna v0.14.0 \citep{AkibaOptunaNextgenerationHyperparameter2019} library with default settings as per the Hyperopt library \citep{BergstraHyperoptPythonlibrary2015}.
 Given that we have 4 GPUs, we choose to parallelize the hyperparameter tuning experiments asynchronously between all four devices.
 The estimator first conducts 20 random experimental trials to scan the hyperparameter space, gradually narrowing down to a few candidate hyperparameters in subsequent experiments.
