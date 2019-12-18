@@ -16,7 +16,7 @@
 %% -----------------------------------------------------------------
 \NeedsTeXFormat{LaTeX2e}[1995/12/01]
 \ProvidesClass{copernicus}
-    [2019/08/01 9.01 Copernicus papers]
+    [2019/09/27 9.02 Copernicus papers]
 \frenchspacing
 \clubpenalty10000
 \widowpenalty10000
@@ -296,7 +296,7 @@
 \def\runningheaderfont{%
   \if@stage@final%spec. obsolete ?
     \if@sansserifheader
-      \reset@font\sffamily\normalsize\color{textcol}%
+      \reset@font\sffamily\mathversion{sans}\normalsize\color{textcol}%
     \else
       \bfseries
     \fi
