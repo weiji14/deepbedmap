@@ -29,6 +29,8 @@ import numpy as np
 import pandas as pd
 import pygmt as gmt
 import rasterio
+import skimage
+import xarray as xr
 
 from paper.figures.PlotNeuralNet.pycore.tikzeng import (
     to_head,
@@ -56,6 +58,10 @@ from paper.figures.PlotNeuralNet.pycore.tikzeng3 import (
     to_ConvRelu,
     to_Upsample,
 )
+from features.environment import _load_ipynb_modules
+
+data_prep = _load_ipynb_modules("data_prep.ipynb")
+deepbedmap = _load_ipynb_modules("deepbedmap.ipynb")
 
 # %% [markdown]
 # # **Methodology**
@@ -443,7 +449,7 @@ IPython.display.IFrame(
 # Also includes the following layers:
 # - Grounding line
 # - Pine Island Glacier extent in Figure 3
-# - Thwaites Glacier extent in Figure 5
+# - Thwaites Glacier extent in Figure 4
 # - Bounding boxes of training tile regions
 
 # %%
@@ -516,3 +522,354 @@ fig.basemap(
 # Save and show the figure
 fig.savefig(fname="paper/figures/fig2_deepbedmap_dem.png")
 fig.show()
+
+
+# %%
+
+# %% [markdown]
+# ### **Figure 3: 3D plots over Pine Island Glacier**
+
+# %%
+# Process BedMachine Antarctica grid
+# Get from NSIDC at https://doi.org/10.5067/C2GFER6PTOS4
+window_bound = region_pineisle
+M_tile = data_prep.selective_tile(
+    filepath="netcdf:model/BedMachineAntarctica_2019-11-05_v01.nc:bed",
+    window_bounds=[[*window_bound]],
+    interpolate=True,
+)
+print(M_tile.shape)
+bedmachinea = skimage.transform.rescale(
+    image=M_tile[0, 0, :, :].astype(np.int32),
+    scale=2,  # 2x upscaling
+    order=3,  # cubic interpolation
+    mode="reflect",
+    anti_aliasing=True,
+    multichannel=False,
+    preserve_range=True,
+)
+bedmachinea = np.expand_dims(np.expand_dims(bedmachinea, axis=0), axis=0)
+print(bedmachinea.shape)
+
+# Save Bicubic Resampled BedMachine Antarctica to GeoTiff and NetCDF format
+bedmachinea_grid = data_prep.save_array_to_grid(
+    outfilepath="model/bedmachinea",
+    window_bound=window_bound,
+    array=bedmachinea[0, :, :, :],
+    save_netcdf=True,
+)
+
+# %%
+fig = gmt.Figure()
+deepbedmap.subplot(
+    directive="begin", row=2, col=2, A="+jCT+o-4c/-5c", Fs="9c/9c", M="2c/3c"
+)
+deepbedmap.plot_3d_view(
+    img="model/deepbedmap3.nc",  # DeepBedMap
+    ax=(0, 0),
+    zmin=-1400,
+    title="a) DeepBedMap",  # ours
+    zlabel="Bed elevation (metres)",
+)
+deepbedmap.plot_3d_view(
+    img="model/cubicbedmap.nc",  # BEDMAP2
+    ax=(0, 1),
+    zmin=-1400,
+    title="b) BEDMAP2",
+    zlabel="Bed elevation (metres)",
+)
+deepbedmap.plot_3d_view(
+    img="model/elevdiffmap.nc",  # DeepBedMap - BEDMAP2
+    ax=(1, 0),
+    zmin=-400,
+    title="c) DeepBedMap - BEDMAP2",
+    zlabel="Difference (metres)",
+)
+deepbedmap.plot_3d_view(
+    img="model/bedmachinea.nc",  # BedMachine Antarctica
+    ax=(1, 1),
+    zmin=-1400,
+    title="d) BedMachine",
+    zlabel="Bed elevation (metres)",
+)
+deepbedmap.subplot(directive="end")
+fig.savefig(fname="paper/figures/fig3_qualitative_bed_comparison.eps", crop=False)
+fig.savefig(
+    fname="paper/figures/fig3_qualitative_bed_comparison.png", dpi=300, crop=False
+)
+fig.show()
+
+# %%
+
+# %% [markdown]
+# ## **Surface Roughness**
+
+# %%
+region = [
+    region_thwaites.left,
+    region_thwaites.right,
+    region_thwaites.bottom,
+    region_thwaites.top,
+]
+kmregion = [r / 1000 for r in region]  # coordinates in km instead of m
+
+
+# %%
+def standard_deviation_2d(grid: xr.DataArray, window_length: int):
+    """
+    Get standard deviation of each pixel in a grid over a rolling 2d window.
+    A fairly basic proxy for the 'roughness' of a terrain.
+
+    >>> grid = xr.DataArray(data=np.arange(0, 15, 1).reshape(3, 5), dims=("x", "y"))
+    >>> standard_deviation_2d(grid=grid, window_length=3)
+    <xarray.DataArray (x: 3, y: 5)>
+    array([[2.54951 , 2.629956, 2.629956, 2.629956, 2.54951 ],
+           [4.112988, 4.163332, 4.163332, 4.163332, 4.112988],
+           [2.54951 , 2.629956, 2.629956, 2.629956, 2.54951 ]])
+    Dimensions without coordinates: x, y
+    """
+    yrol = grid.rolling(y=window_length, center=True).construct("y_window")
+    xrol = yrol.rolling(x=window_length, center=True).construct("x_window")
+
+    # xr.apply_ufunc(np.std, xrol, input_core_dims=[["y_window", "x_window"]])
+
+    roughness = xrol.std(dim=["y_window", "x_window"])
+
+    return roughness
+
+
+# %%
+def prepare_grid(file: str, region: list):
+    """
+    Prepares a raster grid for further plotting in PyGMT.
+    Reads in the grid from file using xarray.open_rasterio,
+    selects the first band and slices it using a bounding box region.
+    Also changes coordinates from metres to kilometres.
+    """
+    grid = xr.open_rasterio(file).sel(
+        band=1, x=slice(region[0], region[1]), y=slice(region[3], region[2])
+    )
+    if grid.dtype != np.float32:
+        grid = grid.astype(np.float32)
+
+    return grid
+
+
+# %%
+#!gmt grdcut model/deepbedmap3_big_int16.tif -Gmodel/deepbedmap3_thwaites.nc -R-1550000/-1250000/-550000/-300000
+# deepbedmap3grid = prepare_grid(file="model/deepbedmap3_thwaites.nc", region=region)
+deepbedmap3grid = prepare_grid(file="model/deepbedmap3_big_int16.tif", region=region)
+groundtruthgrid = prepare_grid(file="highres/20xx_Antarctica_DC8.nc", region=region)
+bedmap2grid = prepare_grid(file="lowres/bedmap2_bed.tif", region=region)
+bilinearbedmap2grid = bedmap2grid.interp_like(other=deepbedmap3grid, method="linear")
+
+gridDict = {
+    "DeepBedMap": deepbedmap3grid,
+    "Groundtruth": groundtruthgrid,
+    "BedMap2": bilinearbedmap2grid,
+}
+roughDict = {}
+for name, grid in gridDict.items():
+    roughness = standard_deviation_2d(grid=grid, window_length=5)
+    roughDict[name] = roughness
+
+# %%
+# Subset and Plot Operation IceBridge (OIB) groundtruth points over a transect
+# oibpoints = data_prep.ascii_to_xyz(pipeline_file="highres/20xx_Antarctica_DC8.json")
+_ = data_prep.download_to_path(
+    path="highres/Data_20141121_05.csv",
+    url="https://data.cresis.ku.edu/data/rds/2014_Antarctica_DC8/csv_good/Data_20141121_05.csv",
+)
+oibpoints = data_prep.ascii_to_xyz(pipeline_file="highres/Data_20141121_05.json")
+oibpoints = oibpoints.where(
+    cond=(
+        (oibpoints.x > region[0])
+        & (oibpoints.x < region[1])
+        & (oibpoints.y > region[2])
+        & (oibpoints.y < region[3])
+    )
+)
+oibpoints.dropna(inplace=True)
+oibpoints.reset_index(drop=True, inplace=True)
+
+len(oibpoints)
+
+# %% [raw]
+# # Start and Stop Longitude/Latitude coordinates manually picked from
+# # Operation IceBridge dataset, specifically Data_20141121_05.json
+# import pyproj
+#
+# start_lonlat = (-106.415404, -76.343903)
+# stop_lonlat = (-104.371744, -77.692208)
+#
+#
+# reprj_func = pyproj.Transformer.from_crs(
+#     crs_from=pyproj.CRS.from_epsg(4326),
+#     crs_to=pyproj.CRS.from_epsg(3031),
+#     always_xy=True,
+# )
+#
+# start_xy = reprj_func.transform(xx=start_lonlat[0], yy=start_lonlat[1])
+# stop_xy = reprj_func.transform(xx=stop_lonlat[0], yy=stop_lonlat[1])
+# start_stop_inc = f"{start_xy[0]}/{start_xy[1]}/{stop_xy[0]}/{stop_xy[1]}/+i125"
+# print(start_stop_inc)
+
+
+# %%
+elevpoints = {}
+for name, grid in roughDict.items():
+    # elevpoints[name] = gmt.grdtrack(
+    #     points=oibpoints[["x", "y"]],  # endpoints,
+    #     grid=grid,
+    #     newcolname="z",
+    #     R="/".join(str(r) for r in region),
+    #     # E="-1573985/-470866/-993375/-464996+i250",
+    # )
+    elevpoints[name] = gmt.grdtrack(
+        points=oibpoints[["x", "y"]],  # endpoints,
+        # points=None,
+        # grid=roughDict["BedMap2"],
+        grid=grid,
+        newcolname="roughness",
+        R="/".join(str(r) for r in region),
+        # E=start_stop_inc,
+    )
+    elevpoints[name] = elevpoints[name].dropna()
+    elevpoints[name].x = elevpoints[name].x.astype(float)
+    print(len(elevpoints[name]), name)
+
+# %% [raw]
+# # deepbedmap3_error = elevpoints["model/deepbedmap3_thwaites.nc"].z - oibpoints.z
+# # cubicbedmap_error = elevpoints["lowres/bedmap2_bed.tif"].z - oibpoints.z
+# deepbedmap3_error = (
+#     elevpoints["DeepBedMap"].roughness - elevpoints["Groundtruth"].roughness
+# )
+# cubicbedmap_error = (
+#     elevpoints["BedMap2"].roughness - elevpoints["Groundtruth"].roughness
+# )
+#
+# deepbedmap3_error.describe()
+# cubicbedmap_error.describe()
+#
+# rmse_deepbedmap3 = (deepbedmap3_error ** 2).mean() ** 0.5
+# rmse_cubicbedmap = (cubicbedmap_error ** 2).mean() ** 0.5
+# print(rmse_deepbedmap3, rmse_cubicbedmap)
+
+
+# %% [markdown]
+# ### **Figure 4: 2D view of roughness grids over Thwaites Glacier, West Antarctica**
+
+# %% [raw]
+# fig = gmt.Figure()
+# fig.basemap(
+#     region=kmregion,
+#     projection="X14c",
+#     Bx='af+l"Polar Stereographic X (km)"',
+#     By='af+l"Polar Stereographic Y (km)"',
+#     frame=['WSne+t"DeepBedMap DEM"'],
+# )
+# fig.grdimage(grid=gridDict["DeepBedMap"], region=region, cmap="gray")
+# gmt.makecpt(cmap="vik", series=[-250, 250])
+# fig.plot(
+#     x=elevpoints["DeepBedMap"].x,
+#     y=elevpoints["DeepBedMap"].y,
+#     color=deepbedmap3_error,
+#     style="c0.1c",
+#     pen="+cl",
+#     cmap=True,
+# )
+# fig.colorbar(position="JMR", cmap=True, frame=["af", "y+lm"])
+# fig.savefig("temp.png")
+# fig.show()
+
+
+# %%
+## Copied cpt from GenericMappingTools/gmt @ 3fb8efa8bf2c3016d6b22d8e9f0e84dbcc1965ae
+fig = gmt.Figure()
+fig.basemap(
+    region=kmregion,
+    projection="X14c",
+    Bx='af+l"Polar Stereographic X (km)"',
+    By='af+l"Polar Stereographic Y (km)"',
+    frame=['WSne+t"DeepBedMap DEM"'],
+)
+# Plot DeepBedMap DEM
+gmt.makecpt(cmap="oleron", series=[-2000, 2500])
+fig.grdimage(grid=gridDict["DeepBedMap"], region=region)
+fig.colorbar(position="JBC", frame=["af", 'x+l"Elevation"', "y+lm"])
+# Plot transect line points
+fig.plot(
+    x=oibpoints.x,
+    y=oibpoints.y,
+    color="orange",
+    style="c0.1c",
+    label='"Groundtruth points"',
+)
+fig.legend(position="JBL+jBL+o0.2c", box="+gwhite+p1p")
+# Save and show the figure
+fig.savefig(fname="paper/figures/fig4a_elevation_deepbedmap.png")
+fig.show()
+
+# %%
+for letter, (name, grid) in zip(["b", "c", "d"], roughDict.items()):
+    if name == "BedMap2":
+        maxstddev = 100
+    else:
+        maxstddev = 400
+    fig = gmt.Figure()
+    fig.basemap(
+        region=kmregion,
+        projection="X14c",
+        Bx='af+l"Polar Stereographic X (km)"',
+        By='af+l"Polar Stereographic Y (km)"',
+        frame=[f'WSne+t"{name} roughness"'],
+    )
+    print(float(grid.min()), float(grid.max()))
+    gmt.makecpt(cmap="davos", series=[0, maxstddev, maxstddev / 8], M="d")
+    fig.grdimage(grid=grid, region=region, cmap=True)
+    fig.colorbar(position="JBC+ef", frame=["af", 'x+l"Standard Deviation"', "y+lm"])
+    fig.savefig(fname=f"paper/figures/fig4{letter}_roughness_{name.lower()}.png")
+
+
+fig.show()
+
+# %%
+
+# %% [markdown]
+# ### **Figure 5: 1D Roughness over transect**
+
+# %%
+fig2 = gmt.Figure()
+fig2.basemap(
+    region=[
+        # -1550,  # elevpoints[grid].x.min(),
+        elevpoints["DeepBedMap"].x.min() / 1000,
+        # -1250,  # elevpoints[grid].x.max(),
+        elevpoints["DeepBedMap"].x.max() / 1000,
+        # -1800,  # elevpoints[grid].elevation.min(),
+        # -400,  # elevpoints[grid].elevation.max(),
+        0,
+        100,
+    ],
+    projection="X12c/6c",
+    Bx='af+l"Polar Stereographic X (km)"',
+    By='af+l"Standard Deviation (m)"',
+    frame=['WSne+t"Roughness over transect"'],
+)
+for grid, color in zip(roughDict, ("purple", "orange", "green")):
+    print(grid, color)
+    fig2.plot(
+        x=elevpoints[grid].x,
+        y=elevpoints[grid].roughness,
+        # region=[region[0], region[1], 0, 100],
+        region=[elevpoints[grid].x.min(), elevpoints[grid].x.max(), 0, 100],
+        style="c0.01c",
+        color=color,
+        label=grid,
+    )
+fig2.legend(S=10)  # position="jTR+o0/0", box=True,
+fig2.savefig(fname="paper/figures/fig5_roughness_transect.png")
+fig2.show()
+
+
+# %%

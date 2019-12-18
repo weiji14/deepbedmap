@@ -1,0 +1,19 @@
+{
+    "pipeline":[
+        {
+          "type":"readers.text",
+          "filename":"Data_20141121_05.csv",
+          "separator":",",
+          "skip":1,
+          "header":"Y,X,TIME,THICK,ELEVATION,FRAME,SURFACE,BOTTOM,QUALITY",
+          "usecols":"X,Y,ELEVATION,BOTTOM",
+          "converters": {"Z": "ELEVATION-BOTTOM"},
+          "dropcols":"ELEVATION,BOTTOM"
+        },
+        {
+          "type":"filters.reprojection",
+          "in_srs":"EPSG:4326",
+          "out_srs":"EPSG:3031"
+        }
+    ]
+}

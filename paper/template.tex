@@ -68,7 +68,7 @@
 %\usepackage{algorithm}
 %\usepackage{amsthm}
 %\usepackage{float}
-%\usepackage{subfig}
+\usepackage{subfig}
 %\usepackage{rotating}
 
 
@@ -308,6 +308,97 @@ Again, we follow ESRGAN's \citep{WangESRGANEnhancedSuperResolution2018} lead by 
 The Discriminator model consists of 10 Convolutional-BatchNormalization-LeakyReLU blocks, followed by two fully-connected layers of 100 and 1 neurons respectively.
 For numerical stability, we omit the final fully-connected layer's sigmoid activation function from the Discriminator model's construction, integrating it instead into the binary cross entropy loss functions at Equation \eqref{eq:A2} and Equation \eqref{eq:A3} using the log-sum-exp trick.
 The output of this Discriminator model is a floating point number ranging from 0 (fake) to 1 (real) that scores the Generator model's output image, and this is used to improve the resulting bed elevation surface prediction in our Generative Adversarial Network training process.
+
+
+\section{Results}
+
+\begin{figure*}[ht]
+    \centering
+    \includegraphics[width=0.9\textwidth]{figures/fig2_deepbedmap_dem.png}
+    \caption{
+      DeepBedMap\_DEM over the entire Antarctic continent.
+      Plotted on an Antarctic Stereographic Projection (EPSG:3031) with elevation referenced to the WGS84 datum.
+      Grounding line is plotted as thin black line.
+      Purple box shows Pine Island Glacier extent used in Figure \ref{fig:3}.
+      Yellow box shows Thwaites Glacier extent used in Figure \ref{fig:4}
+      Orange areas show locations of training tiles (see Table \ref{table:groundtruthdata}).
+    }
+    \label{fig:2}
+\end{figure*}
+
+\subsection{DeepBedMap\_DEM Topography}
+
+Here we present the output Digital Elevation Model (DEM) of our super-resolution DeepBedMap neural network model, and compare it with bed topography produced by other methods.
+The resulting DEM has a 250 m spatial resolution, and is essentially a four-times upsampled bed elevation grid product of BEDMAP2 \citep{FretwellBedmap2improvedice2013}.
+In Figure \ref{fig:2}, we show that the full Antarctic-wide DeepBedMap\_DEM manages to capture general topographical features across the whole continent.
+The model is only valid for grounded ice regions, but we have produced predictions extending outside of the grounding zone area (including ice shelf cavities) for visual purposes as well as to make it easier to integrate with other grid products.
+
+We highlight a few qualitative observations on closer visual inspection of a zoomed-in DeepBedMap\_DEM.
+Over relatively flat regions in both West and East Antarctica, there are megadune-like structures \citep{ScambosSnowMegadune2014} in our DeepBedMap\_DEM that our DeepBedMap model has likely picked up from using the high resolution ice surface elevation model.
+Over steep topographical areas such as the Transantarctic Mountains and Gamburtsev Subglacial Mountains, DeepBedMap produced wisp-like texture patterns (see Appendix TODO).
+Still, our DeepBedMap\_DEM shows a terrain with strikingly realistic topographical features (see Figure \ref{fig:3}), being rougher than that of BEDMAP2 \citep{FretwellBedmap2improvedice2013} and Bedmachine Antarctica \citep{MorlighemMEaSUREsBedMachineAntarctica2019}, yet still preserving the general topography of the area.
+
+\begin{figure}[ht]
+  \includegraphics[width=0.9\columnwidth]{figures/fig3_qualitative_bed_comparison.png}
+  \caption{
+    Comparison of interpolated bed elevation grid products over Pine Island Glacier (see extent in Figure \ref{fig:2}).
+    \textbf{a} DeepBedMap (ours) at 250 m resolution.
+    \textbf{b} BEDMAP2 \citep{FretwellBedmap2improvedice2013}, originally 1000 m, bicubic interpolated to 250 m.
+    \textbf{c} Elevation Difference between DeepBedMap and BEDMAP2.
+    \textbf{d} Bedmachine Antarctica \citep{MorlighemMEaSUREsBedMachineAntarctica2019}, originally 500 m, bicubic interpolated to 250 m.
+  }
+  \label{fig:3}
+\end{figure}
+
+Following this, we make some quantitative bed roughness comparisons between our DeepBedMap\_DEM, BEDMAP2, and BedMachine Antarctica \citep{MorlighemMEaSUREsBedMachineAntarctica2019}.
+
+\subsection{Surface Roughness}
+
+One of the key challenges when producing a high resolution Digital Elevation Model (DEM) of Antarctica's bed elevation surface is the need to preserve a realistic rough terrain.
+Bed roughness, especially at short-wavelengths, exerts a frictional force on ice which has an important influence on ice velocity \citep{BinghamDiverselandscapesPine2017,FalciniQuantifyingbedroughness2018}.
+
+Using standard deviation as a simple measure of roughness \citep{RippinBasalroughnessInstitute2014}, we show a quick intercomparison of the different grids over Thwaites Glacier spatially in 2D (see Figure \ref{fig:4}) as well as over a 1D transect (see Figure \ref{fig:5}).
+Specifically, the surface roughness for a single 250 m pixel is calculated from the standard deviation of elevation values over a square 1250 m area (i.e. 5 pixels) surrounding the centre of the pixel.
+The comparisons are made between our DeepBedMap\_DEM and BEDMAP2 in relation to groundtruth grids from processed Operation IceBridge data.
+
+\begin{figure*}[ht]
+  \centering
+  \subfloat[DeepBedMap Digital Elevation Model (DEM).]{
+    \includegraphics[width=0.4\textwidth]{figures/fig4a_elevation_deepbedmap.png}
+    \label{fig:4a}
+  }
+  \subfloat[2D roughness from our DeepBedMap\_DEM grid.]{
+    \includegraphics[width=0.4\textwidth]{figures/fig4b_roughness_deepbedmap.png}
+    \label{fig:4b}
+  }
+  \qquad
+  \subfloat[2D roughness from interpolated Operation IceBridge grid.]{
+    \includegraphics[width=0.4\textwidth]{figures/fig4c_roughness_groundtruth.png}
+    \label{fig:4c}
+  }
+  \subfloat[2D roughness from bicubic interpolated BEDMAP2 grid.]{
+    \includegraphics[width=0.4\textwidth]{figures/fig4d_roughness_bedmap2.png}
+    \label{fig:4d}
+  }
+  \caption{
+    Spatial 2D view of grids over Thwaites Glacier, West Antarctica.
+    Plotted on an Antarctic Stereographic Projection (EPSG:3031) with elevation and standard deviation values in metres referenced to the WGS84 datum.
+    Orange groundtruth points in \textbf{a} correspond to transect sampling locations used in Figure \ref{fig:5}.
+    Note that color scale of \textbf{b} and \textbf{c} is twice that of \textbf{d}.
+  }
+  \label{fig:4}
+\end{figure*}
+
+\begin{figure}[ht]
+    \includegraphics[width=0.9\columnwidth]{figures/fig5_roughness_transect.png}
+    \caption{
+      Comparing surface roughness (standard deviation of elevation values) of each interpolated grid product (250 m resolution) over a transect.
+      Orange values are from tension spline interpolated Operation IceBridge groundtruth points;
+      Purple values are from our super resolution DeepBedMap\_DEM;
+      Green values are from bicubic interpolated BEDMAP2.
+    }
+    \label{fig:5}
+\end{figure}
 
 
 \section{Discussion}
