@@ -152,7 +152,7 @@ Here, we present a deep learning method that belongs to the inverse modelling ca
 Similar work has been done before using Artificial Feedforward Neural Networks for estimating bed topography \citep[e.g.][]{ClarkeNeuralNetworksApplied2009,MonnierInferencebedtopography2018}, but to our knowledge, none so far in the glaciological community have attempted to use Convolutional Neural Networks that works in a more spatially-aware, 2-dimensional setting.
 Convolutional Neural Networks are prevalent in the computer vision community \citep[see][for a review]{LeCunDeeplearning2015}, having existed since the 1980s \citep{FukushimaNeocognitronnewalgorithm1982,LeCunBackpropagationAppliedHandwritten1989} and are commonly used in visual pattern recognition tasks \citep[e.g.][]{LecunGradientbasedlearningapplied1998,KrizhevskyImageNetClassificationDeep2012}.
 Our main contributions are twofold:
-1) Present a high resolution (250 m) bed elevation map of Antarctica that goes beyond the 1km resolution of BEDMAP2
+1) Present a high resolution (250 m) bed elevation map of Antarctica that goes beyond the 1km resolution of BEDMAP2.
 2) Design a deep convolutional neural network to integrate as many remote sensing datasets as possible which are relevant for estimating Antarctica's bed topography;
  \citep{FretwellBedmap2improvedice2013}.
 We name our neural network "DeepBedMap", and the resulting digital elevation model (DEM) product as "DeepBedMap\_DEM".
@@ -186,13 +186,11 @@ Our DeepBedMap model thus builds upon these ideas and other related DEM super-re
 
 \section{Data and Methods}
 
-In this section, we will outline the preprocessing steps used to produce our neural network's training data.
-This is followed by a mathematical definition of the loss function which forms the basis of training our neural network, and a description of our DeepBedMap model architecture.
-
 \subsection{Data Preparation}
 
-Our Convolutional neural network models work on 2D images, so we have to ensure all our datasets are in a suitable raster grid format.
+Our Convolutional neural network model works on 2D images, so we have to ensure all our datasets are in a suitable raster grid format.
 Groundtruth bed elevation points picked from radar surveys (see Table \ref{table:groundtruthdata}) are first compiled together onto a common Antarctic Stereographic Projection (EPSG:3031) using the WGS84 datum, reprojecting if necessary.
+
 These points are then gridded onto a 250 m spatial resolution (pixel-node registered) grid.
 We do so by preprocessing the points first, computing the median elevation for each pixel block in a regular grid.
 The preprocessed points are then run through an adjustable tension continuous curvature spline function with a tension factor set to 0.35 to produce a digital elevation model grid.
@@ -219,13 +217,6 @@ These operations are carried out using Generic Mapping Tools v6.0 \citep[GMT6,][
   \belowtable{} % Table Footnotes
 \end{table}
 
-To create our training dataset, we use a sliding window to obtain smaller square tiles from the high resolution (250 m) groundtruth bed elevation grids, with each tile required to be completely filled with data (i.e. no NaN values).
-The general location of these training tiles can be seen in Figure \ref{fig:2}.
-Besides these groundtruth elevation tiles, we also obtain tiled inputs (see Table \ref{table:datainputs}) corresponding to the same spatial bounding box area.
-To reduce border edge effects, note that we have used no padding (also known as 'valid' padding) in our Generator model's input convolutional layers which means our model input grids ($x$, $w^1$, $w^2$, $w^3$) will cover a larger spatial area than the groundtruth grids ($y$).
-More specifically, the model inputs cover an area of 11x11 km (e.g. 11x11 pixels for BEDMAP2) while the groundtruth grids cover an area of 9x9 km (36x36 pixels).
-As the pixels of our groundtruth grids may not align perfectly with that of our model input grids, we use bilinear interpolation to ensure that all our input grids cover the same spatial bounds as that of our reference groundtruth tiles.
-
 \begin{table*}[ht]
   \caption{Remote Sensing dataset inputs into the DeepBedMap neural network model.}
   \label{table:datainputs}
@@ -245,73 +236,79 @@ As the pixels of our groundtruth grids may not align perfectly with that of our 
   } % Table Footnotes
 \end{table*}
 
-\subsection{Loss Function}
+To create our training dataset, we use a sliding window to obtain smaller square tiles from the high resolution (250 m) groundtruth bed elevation grids, with each tile required to be completely filled with data (i.e. no NaN values).
+The general location of these training tiles can be seen in Figure \ref{fig:2}.
+Besides these groundtruth bed elevation tiles, we also obtain other tiled inputs (see Table \ref{table:datainputs}) corresponding to the same spatial bounding box area.
+To reduce border edge effects, note that we have used no padding (also known as 'valid' padding) in our neural network model's input convolutional layers (see Figure \ref{fig:1}) which means our model input grids ($x$, $w^1$, $w^2$, $w^3$) will cover a larger spatial area than the groundtruth grids ($y$).
+More specifically, the model inputs cover an area of 11x11 km (e.g. 11x11 pixels for BEDMAP2) while the groundtruth grids cover an area of 9x9 km (36x36 pixels).
+As the pixels of our groundtruth grids may not align perfectly with that of our model input grids, we use bilinear interpolation to ensure that all our input grids cover the same spatial bounds as that of our reference groundtruth tiles.
 
-The loss function, or cost function, is a mathematical function that maps a set of input variables to an output loss value.
-The loss value can be thought of as a weighted sum of several error metrics between the neural network's prediction and the expected output or groundtruth.
-It is this loss value which we want to minimize so as to train our neural network model to perform better, and we do this by iteratively optimizing the parameters in our loss function.
+\subsection{Model Design}
 
-Given a low resolution input $x$ alongside conditional inputs $w^1, w^2, \dots, w^i$ (see Table \ref{table:datainputs}), our super-resolution DeepBedMap model learns to estimate a high resolution output $\hat{y}$ which is as similar as possible to the groundtruth image $y$.
+Our DeepBedMap model is a Generative Adversarial Network \citep{GoodfellowGenerativeAdversarialNetworks2014} composed of two neural network models, a Generator $G_\theta$ that produces the bed elevation prediction, and a Discriminator $D_\eta$ critic that will judge the quality of this output.
+The two models are trained to compete against each other, with the Generator producing ever more accurate images to fool the Discriminator, and the Discriminator learning to spot problems with the Generator's prediction in relation to the groundtruth.
+Following this is a mathematical definition of the neural network models and their architecture.
+
+The objective of our 4 times upsampling super-resolution model is to produce a high resolution (250 m) grid of Antarctica's bed elevation $\hat{y}$ given a low resolution (1000 m) BEDMAP2 \citep{FretwellBedmap2improvedice2013} image $x$.
+However, the information contained in BEDMAP2 is insufficient for this regular super-resolution task, so we provide the neural network with more context through network conditioning.
+Specifically, the model is conditioned at the input block stage with three raster grids (see Table \ref{table:datainputs}): 1) ice surface elevation $w^1$, 2) ice surface velocity $w^2$, and 3) snow accumulation $w^3$.
+This can be formulated as follows:
 
 \begin{equation}\label{eq:1}
-  \hat{y} = G(x, w^1, w^2, \dots, w^i)
+  \hat{y} = G_\theta(x, w^1, w^2, w^3)
 \end{equation}
 
-where $G$ is the generator function in a Generative Adversarial Network that produces high resolution image candidates.
-For brevity in the following equations, Equation \eqref{eq:1} is simplified to hide conditional inputs $w^1, w^2, \dots, w^i$, i.e. represent all input images using $x$.
-To train our generator, we update the parameters of our Generator network $\theta_G$ as follows:
+where $G_\theta$ is the Generator (see Figure \ref{fig:1}) that produces high resolution image candidates $\hat{y}$.
+For brevity in the following equations, we simplify Equation \eqref{eq:1} to hide conditional inputs $w^1, w^2, w^3$, i.e. represent all input images using $x$.
+To train our Generative Adversarial Network, we update the parameters of our Generator $\theta$ and Discriminator $\eta$ as follows:
 
-\begin{equation}\label{eq:2}
-  \hat{\theta_G} = \arg\min_{\theta_G} \frac{1}{N}\sum_{n=1}^{N}L_G(G(x_n), y_n)
-\end{equation}
+\begin{align}
+  & \hat{\theta} = \arg\min_{\theta} \frac{1}{N}\sum_{n=1}^{N}L_G(\hat{y}_n, y_n) \label{eq:2}\\
+  & \hat{\eta} = \arg\min_{\eta} \frac{1}{N}\sum_{n=1}^{N}L_D(\hat{y}_n, y_n) \label{eq:3}
+\end{align}
 
-where $L_G$ is the total loss function of generator $G$ that we want to minimize, and $x_n$, $y_n$ are the set of input and groundtruth images over $N$ training samples.
-The generator network's loss $L_G$ is a custom perceptual loss function with four weighted components - content, adversarial, topographic and structural loss - described more fully in Appendix \ref{appendix:A}.
+where $L_G$ and $L_D$ are the total loss functions of the Generator $G$ and Discriminator $D$ that we want to minimize, and $\hat{y}_n$, $y_n$ are the set of predicted and groundtruth high resolution images over $N$ training samples.
+The generator network's loss $L_G$ is a custom perceptual loss function with four weighted components - content, adversarial, topographic and structural loss.
+The discriminator network's loss $L_D$ is designed to maximize the likelihood that predicted images are classified as fake (0) and groundtruth images are classified as real (1).
+The details of these loss functions are described more fully in Appendix \ref{appendix:A}.
 
-The other component to a Generative Adversarial Network is the critic or discriminator network $D$.
-It is trained to distinguish between fake high resolution images $\hat{y}$ and real groundtruth images $y$, and has an objective opposite to that of Generator $G$.
+Noting that the objective of the Generator $G$ is opposite to that of the Discriminator $D$, we can thus formulate our adversarial min-max problem as follows:
 
-Our adversarial min-max problem can thus be formulated as follows:
-
-\begin{equation}\label{eq:3}
+\begin{equation}\label{eq:4}
   \min_{G} \max_{D} V(G,D) = \mathbb{E}_{y \sim P_{\text{data}}(y)}[\ln D(y)] + \mathbb{E}_{x \sim P_{G(x)}}[\ln(1-D(G(x)))]
 \end{equation}
 
-where $P_{\text{data}}(y)$ and $P_{G(x)}$ are the empirical distributions of groundtruth and training input images respectively.
-In the following section, we will describe the model architecture of our Generative Adversarial Network in more detail.
-
-\subsection{Model Architecture}
+where $P_{\text{data}}(y)$ and $P_{G(x)}$ are the empirical distributions over the high resolution groundtruth $y$ and low resolution input images $x$ respectively.
+The goal therefore, is to make these distributions as similar as possible through optimizing the value function $V$.
 
 \begin{figure*}[ht]
   \includegraphics[width=\textwidth]{figures/fig1_deepbedmap_architecture.pdf}
   \caption{
-    DeepBedMap Generator Model Architecture.
+    DeepBedMap Generator model architecture.
     The input module on the left is made up of 4 sub-networks, each one composed of a convolutional neural network that processes the input image into a consistent 9x9 shaped tensor.
     From top to bottom, we have our prior low resolution input BEDMAP2 \citep{FretwellBedmap2improvedice2013}, and conditional inputs REMA \citep{HowatReferenceElevationModel2019}, MEaSUREs Ice Veloctiy \citep{MouginotContinentwideinterferometric2019}, and Snow Accumulation \citep{ArthernAntarcticsnowaccumulation2006}, more details of which can be found in Table \ref{table:datainputs}.
+    Note that the MEaSUREs Ice Velocity input has two channels, one each for the x and y velocity components.
     All the processed inputs are then concatenated together channel-wise before being fed into the core module.
     The core module in the middle is based on the ESRGAN architecture with 12 Residual-in-Residual Dense Blocks \citep[see][for details]{WangESRGANEnhancedSuperResolution2018}, saddled in between a pre-residual and post-residual convolutional layer.
+    A skip connection runs from after the pre-residual layer, to after the post-residual convolution layer.
     The upsampling module on the right is composed of two upsampling blocks (nearest neighbour upsampling followed by a convolutional layer and LeakyReLU activation) that progressively scales our tensors by 2x each time.
     Following this are two deformable convolutional layers \citep{DaiDeformableConvolutionalNetworks2017} which produces our final output super resolution DeepBedMap\_DEM.
   }
   \label{fig:1}
 \end{figure*}
 
-Our Generative Adversarial Network model architecture is adapted from the ESRGAN model \citep{WangESRGANEnhancedSuperResolution2018}, with a few notable differences.
-Specifically, the Generator neural network model is modified to:
+DeepBedMap's model architecture is adapted from the Enhanced Super Resolution Generative Adversarial Network \citep[ESRGAN,][]{WangESRGANEnhancedSuperResolution2018}, with a few notable differences.
+Specifically, the Generator model $G$ has been modified to:
 1) Use a custom conditional input block (see Figure \ref{fig:1}, focusing on input module) consisting of four sub-networks, each one having a different convolution size and stride so as to create identical sized outputs, all of which are then concatenated together channel-wise before being fed into the main body of the ESRGAN-based convolutional neural network (see Figure \ref{fig:1}, focusing on core module).
 2) Use Deformable Convolution \citep{DaiDeformableConvolutionalNetworks2017} instead of standard Convolution in the final two layers (see Figure \ref{fig:1}, focusing on upsampling module) to enhance our model's predictive capability by having it learn dense spatial transformations.
+This Generator model is trained to gradually improve its prediction by comparing the predicted output with groundtruth images in our training regions (see Figure \ref{fig:2}), using the total loss function defined in Equation \eqref{eq:A9}.
 
-The objective of our 4 times upsampling super-resolution model is to produce a high resolution (250 m) grid of Antarctica's bed elevation given a low resolution (1000 m) BEDMAP2 \citep{FretwellBedmap2improvedice2013} image.
-However, the information contained in BEDMAP2 is insufficient for this regular super-resolution task, so we provide the neural network with more context through network conditioning.
-Specifically, the model is conditioned at the input block stage with these raster grids: 1) ice surface elevation, 2) ice surface velocity, and 3) snow accumulation, all of which are covered by satellite observations.
-The non-linear relationship between the low resolution bed elevation prior (BEDMAP2) and these conditioning inputs are then processed through 12 layers of Residual-in-Residual Dense Blocks \citep[see][]{WangESRGANEnhancedSuperResolution2018} and upsampled at the end to produce our super resolution DeepBedMap\_DEM prediction.
-This Generator model gradually improves its prediction by comparing the predicted output with groundtruth images in our training regions (see Figure \ref{fig:2}), using the total loss function defined in Equation \eqref{eq:A9}.
-
-Besides the Generator model, there is a separate adversarial Discriminator model \citep{GoodfellowGenerativeAdversarialNetworks2014} trained to distinguish between fake generated images and real groundtruth images, whose purpose is to push our predictions towards more realistic bed elevation surface textures.
+Besides the Generator model, there is a separate adversarial Discriminator model $D$ (not shown).
 Again, we follow ESRGAN's \citep{WangESRGANEnhancedSuperResolution2018} lead by implementating our adversarial Discriminator network in the style of the Visual Geometry Group (VGG) convolutional neural network model \citep{SimonyanVeryDeepConvolutional2014}.
 The Discriminator model consists of 10 Convolutional-BatchNormalization-LeakyReLU blocks, followed by two fully-connected layers of 100 and 1 neurons respectively.
 For numerical stability, we omit the final fully-connected layer's sigmoid activation function from the Discriminator model's construction, integrating it instead into the binary cross entropy loss functions at Equation \eqref{eq:A2} and Equation \eqref{eq:A3} using the log-sum-exp trick.
-The output of this Discriminator model is a floating point number ranging from 0 (fake) to 1 (real) that scores the Generator model's output image, and this is used to improve the resulting bed elevation surface prediction in our Generative Adversarial Network training process.
+The output of this Discriminator model is a floating point number ranging from 0 (fake) to 1 (real) that scores the Generator model's output image.
+This score is used by both the Discriminator and Generator in the training process, and helps to push our predictions towards more realistic bed elevation surface textures.
 
 
 \section{Results}
@@ -463,6 +460,11 @@ Indeed, the radioglaciology community has begun to compile a more comprehensive 
 
 \section{Details of loss function components} \label{appendix:A}
 
+The loss function, or cost function, is a mathematical function that maps a set of input variables to an output loss value.
+The loss value can be thought of as a weighted sum of several error metrics between the neural network's prediction and the expected output or groundtruth.
+It is this loss value which we want to minimize so as to train our neural network model to perform better, and we do this by iteratively optimizing the parameters in our loss function.
+Following this are the details of the various loss functions that make up the total loss function of our DeepBedMap Generative Adversarial Network.
+
 \subsection{Content Loss}
 
 To bring the pixel values of our generated images closer to that of the groundtruth, we first define our Content Loss function $L_1$.
@@ -540,7 +542,7 @@ Finally, we compile the loss functions for our discriminator and generator netwo
 \end{align}
 
 where $\eta$, $\lambda$, $\theta$, and $\zeta$ are the scaled weights for the content $L_1$, adversarial $L_D$, topographic $L_T$ and structural losses $L_S$ respectively (see Table \ref{table:B1} for values used).
-The loss functions $L_D$ and $L_G$ are minimized in an alternate 1:1 manner so as to solve the entire Generative Adversarial Network's objective function defined in Equation \eqref{eq:3}.
+The loss functions $L_D$ and $L_G$ are minimized in an alternate 1:1 manner so as to solve the entire Generative Adversarial Network's objective function defined in Equation \eqref{eq:4}.
 
 
 \section{Neural Network Training Details} \label{appendix:B}

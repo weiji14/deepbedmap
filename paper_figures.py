@@ -78,13 +78,16 @@ deepbedmap = _load_ipynb_modules("deepbedmap.ipynb")
 
 # %%
 fig = gmt.Figure()
-fig.basemap(
+gmt.makecpt(cmap="jet", series=[-2800, 2800, 200], D="o")
+fig.grdimage(
     region=[-2700000, 2800000, -2200000, 2300000],
-    projection="x1:100000000",
-    frame="wsne",
+    projection="X8c/7c",
+    grid="lowres/bedmap2_bed.tif",
+    cmap=True,
+    I="+d",
+    Q=True,
+    # frame='+t"BEDMAP2"'
 )
-gmt.makecpt(cmap="turbo", series=[-2800, 2800])
-fig.grdimage(grid="lowres/bedmap2_bed.tif", cmap=True, I="+d", frame='+t"BEDMAP2"')
 fig.savefig(fname="paper/figures/fig1a_bedmap2.png")
 fig.show()
 
@@ -92,7 +95,7 @@ fig.show()
 fig = gmt.Figure()
 fig.grdimage(
     grid="https://www.the-cryosphere.net/13/665/2019/tc-13-665-2019-avatar-web.png",
-    frame='+t"REMA"',
+    # frame='+t"REMA"',
 )
 fig.savefig(fname="paper/figures/fig1b_rema.png")
 fig.show()
@@ -101,7 +104,7 @@ fig.show()
 fig = gmt.Figure()
 fig.grdimage(
     grid="https://news.agu.org/files/2019/07/AntarcticaMap.jpg",
-    frame='+t"Ice Velocity"',
+    # frame='+t"Ice Velocity"',
 )
 fig.savefig(fname="paper/figures/fig1c_measures.png")
 fig.show()
@@ -110,9 +113,22 @@ fig.show()
 fig = gmt.Figure()
 fig.grdimage(
     grid="https://wol-prod-cdn.literatumonline.com/cms/attachment/8bbfdd40-ea5b-409e-82a8-63a3b9ce4b7e/jgrd11996-fig-0005.png",
-    frame='+t"Snow Accumulation"',
+    # frame='+t"Snow Accumulation"',
 )
 fig.savefig(fname="paper/figures/fig1d_accumulation.png")
+fig.show()
+
+# %%
+fig = gmt.Figure()
+gmt.makecpt(cmap="oleron", series=[-2000, 4500])
+fig.grdimage(
+    grid="model/deepbedmap3_big_int16.tif",
+    region=[-2700000, 2800000, -2200000, 2300000],
+    projection="x1:30000000",
+    cmap=True,
+    Q=True,
+)
+fig.savefig(fname="paper/figures/fig1e_deepbedmap.png")
 fig.show()
 
 
@@ -147,18 +163,20 @@ def sizes(cl=(64, 9), scale=(30, 2.5), offset="(1.0,0,0)"):
 # %%
 input_layers = [
     # Actual raster images
-    to_flatimage("paper/figures/fig1a_bedmap2.png", to="(-1.8,3,0)", width=2, height=2),
-    to_flatimage("paper/figures/fig1b_rema.png", to="(-1.6,0,0)", width=2, height=2),
     to_flatimage(
-        "paper/figures/fig1c_measures.png", to="(-1.8,-3.5,0)", width=2, height=2
+        "paper/figures/fig1a_bedmap2.png", to="(-1.8,3,0)", width=2, height=1.8
+    ),
+    to_flatimage("paper/figures/fig1b_rema.png", to="(-1.8,0,0)", width=2, height=1.8),
+    to_flatimage(
+        "paper/figures/fig1c_measures.png", to="(-1.8,-3.5,0)", width=2, height=1.6
     ),
     to_flatimage(
-        "paper/figures/fig1d_accumulation.png", to="(-1.8,-5.5,0)", width=2, height=2
+        "paper/figures/fig1d_accumulation.png", to="(-1.8,-5.5,0)", width=2, height=1.8
     ),
     # Input Raster Images
     to_InOut(name="x0_img", **sizes(cl=(1, 11)), to="(-1.2,3,0)"),
     to_InOut(name="w1_img", **sizes(cl=(1, 110), scale=(20, 7.5)), to="(-1.0,0,0)"),
-    to_InOut(name="w2_img", **sizes(cl=(1, 22)), to="(-1.2,-3.5,0)"),
+    to_InOut(name="w2_img", **sizes(cl=(2, 22)), to="(-1.2,-3.5,0)"),
     to_InOut(name="w3_img", **sizes(cl=(1, 11)), to="(-1.2,-5.5,0)"),
     # First Convolution on input image
     to_Conv(name="x0", **sizes(cl=(32, 11)), to="(x0_img-east)"),
