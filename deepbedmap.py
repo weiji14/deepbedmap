@@ -254,6 +254,7 @@ def plot_3d_view(
     elev: int = 60,  # elevation angle above z-plane, value between 0-90
     azim: int = 202.5,  # azimuth from North, e.g. SouthEast is 135
     zmin: int = -1400,  # z-plane minimum elevation, in metres below or above datum
+    cmap: str = "oleron",  # colormap to use
     title: str = None,  # title/label for the plot
     zlabel: str = None,  # z-axis label
 ):
@@ -274,7 +275,7 @@ def plot_3d_view(
         Bx="af",  # add x-axis annotations and minor ticks
         By="af",  # add y-axis annotations and minor ticks
         Bz=f'af+l"{zlabel}"',  # add z-axis annotations, minor ticks and axis label
-        C="oleron",  # colormap to use
+        C=cmap,  # colormap to use
         Jz=0.01,  # zscaling factor, default to 10x vertical exaggeration
         Q="sim",  # surface, image and mesh plot
         N=f"{zmin}",  # z-plane to plot on

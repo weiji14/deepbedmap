@@ -121,10 +121,10 @@ To better resolve the bed elevation of Antarctica, we present DeepBedMap - a nov
 Our super-resolution deep convolutional neural network model is trained on scattered regions in Antarctica where high resolution (250 m) groundtruth bed elevation grids are available.
 The model is then used to generate high resolution bed topography in less well surveyed areas.
 DeepBedMap improves on previous interpolation methods by not restricting itself to a low spatial resolution (1000 m) BEDMAP2 raster image as its prior.
-It takes in additional high spatial resolution datasets, such as Antarctic ice surface velocity and ice surface elevation grids to better inform the bed topography even in the absence of ice-thickness data from direct ice-penetrating radar surveys.
+It takes in additional high spatial resolution datasets, such as ice surface elevation, velocity and snow accumulation to better inform the bed topography even in the absence of ice-thickness data from direct ice-penetrating radar surveys.
 Our DeepBedMap model is based on an adapted Enhanced Super Resolution Generative Adversarial Network architecture, chosen to minimize per-pixel elevation errors while producing realistic topography.
 The final product is a four times upsampled (250 m) bed elevation model of Antarctica that can be used by glaciologists interested in the subglacial terrain, and by ice sheet modellers wanting to run catchment or continent-scale ice sheet model simulations.
-We show that DeepBedMap produces a more accurate digital elevation model than a baseline bicubic interpolation product, and also compare it with other synthetic bed elevation models on reference groundtruth survey tracks.
+We show that DeepBedMap offers a more realistic topographic roughness profile compared to a standard bicubic interpolated BEDMAP2, and envision it to be used alongside other inverse methods to generate the next generation of Antarctic bed elevation models.
 \end{abstract}
 
 
@@ -197,7 +197,7 @@ The preprocessed points are then run through an adjustable tension continuous cu
 This grid is further post-processed to mask out pixels that are more than 3 pixels (750 m) from the nearest groundtruth point.
 These operations are carried out using Generic Mapping Tools v6.0 \citep[GMT6,][]{WesselGenericMappingTools2019}.
 
-\begin{table}[ht]
+\begin{table}[htbp]
   \caption{
     High Resolution groundtruth datasets from ice-penetrating radar surveys (collectively labelled as $y$) used to train our DeepBedMap model.
     Actual training sites can be seen in Figure \ref{fig:2}.
@@ -217,7 +217,7 @@ These operations are carried out using Generic Mapping Tools v6.0 \citep[GMT6,][
   \belowtable{} % Table Footnotes
 \end{table}
 
-\begin{table*}[ht]
+\begin{table*}[htbp]
   \caption{Remote Sensing dataset inputs into the DeepBedMap neural network model.}
   \label{table:datainputs}
   \begin{tabular}{cccc}
@@ -281,7 +281,7 @@ Noting that the objective of the Generator $G$ is opposite to that of the Discri
 where $P_{\text{data}}(y)$ and $P_{G(x)}$ are the empirical distributions over the high resolution groundtruth $y$ and low resolution input images $x$ respectively.
 The goal therefore, is to make these distributions as similar as possible through optimizing the value function $V$.
 
-\begin{figure*}[ht]
+\begin{figure*}[htbp]
   \includegraphics[width=\textwidth]{figures/fig1_deepbedmap_architecture.pdf}
   \caption{
     DeepBedMap Generator model architecture.
@@ -313,9 +313,11 @@ This score is used by both the Discriminator and Generator in the training proce
 
 \section{Results}
 
-\begin{figure*}[ht]
+\subsection{DeepBedMap\_DEM Topography}
+
+\begin{figure*}[htbp]
     \centering
-    \includegraphics[width=0.9\textwidth]{figures/fig2_deepbedmap_dem.png}
+    \includegraphics[width=0.7\textwidth]{figures/fig2_deepbedmap_dem.png}
     \caption{
       DeepBedMap\_DEM over the entire Antarctic continent.
       Plotted on an Antarctic Stereographic Projection (EPSG:3031) with elevation referenced to the WGS84 datum.
@@ -327,20 +329,13 @@ This score is used by both the Discriminator and Generator in the training proce
     \label{fig:2}
 \end{figure*}
 
-\subsection{DeepBedMap\_DEM Topography}
-
 Here we present the output Digital Elevation Model (DEM) of our super-resolution DeepBedMap neural network model, and compare it with bed topography produced by other methods.
 The resulting DEM has a 250 m spatial resolution, and is essentially a four-times upsampled bed elevation grid product of BEDMAP2 \citep{FretwellBedmap2improvedice2013}.
 In Figure \ref{fig:2}, we show that the full Antarctic-wide DeepBedMap\_DEM manages to capture general topographical features across the whole continent.
 The model is only valid for grounded ice regions, but we have produced predictions extending outside of the grounding zone area (including ice shelf cavities) for visual purposes as well as to make it easier to integrate with other grid products.
 
-We highlight a few qualitative observations on closer visual inspection of a zoomed-in DeepBedMap\_DEM.
-Over relatively flat regions in both West and East Antarctica, there are megadune-like structures \citep{ScambosSnowMegadune2014} in our DeepBedMap\_DEM that our DeepBedMap model has likely picked up from using the high resolution ice surface elevation model.
-Over steep topographical areas such as the Transantarctic Mountains and Gamburtsev Subglacial Mountains, DeepBedMap produced wisp-like texture patterns (see Appendix TODO).
-Still, our DeepBedMap\_DEM shows a terrain with strikingly realistic topographical features (see Figure \ref{fig:3}), being rougher than that of BEDMAP2 \citep{FretwellBedmap2improvedice2013} and Bedmachine Antarctica \citep{MorlighemMEaSUREsBedMachineAntarctica2019}, yet still preserving the general topography of the area.
-
-\begin{figure}[ht]
-  \includegraphics[width=0.9\columnwidth]{figures/fig3_qualitative_bed_comparison.png}
+\begin{figure}[htbp]
+  \includegraphics[width=0.75\columnwidth]{figures/fig3_qualitative_bed_comparison.png}
   \caption{
     Comparison of interpolated bed elevation grid products over Pine Island Glacier (see extent in Figure \ref{fig:2}).
     \textbf{a} DeepBedMap (ours) at 250 m resolution.
@@ -350,6 +345,11 @@ Still, our DeepBedMap\_DEM shows a terrain with strikingly realistic topographic
   }
   \label{fig:3}
 \end{figure}
+
+We highlight a few qualitative observations on closer visual inspection of a zoomed-in DeepBedMap\_DEM.
+Over relatively flat regions in both West and East Antarctica, there are megadune-like structures \citep{ScambosSnowMegadune2014} in our DeepBedMap\_DEM that our DeepBedMap model has likely picked up from using the high resolution ice surface elevation model.
+Over steep topographical areas such as the Transantarctic Mountains and Gamburtsev Subglacial Mountains, DeepBedMap produced wisp-like texture patterns (see Appendix \ref{appendix:C}).
+Still, our DeepBedMap\_DEM shows a terrain with strikingly realistic topographical features (see Figure \ref{fig:3}), being rougher than that of BEDMAP2 \citep{FretwellBedmap2improvedice2013} and Bedmachine Antarctica \citep{MorlighemMEaSUREsBedMachineAntarctica2019}, yet still preserving the general topography of the area.
 
 Following this, we make some quantitative bed roughness comparisons between our DeepBedMap\_DEM, BEDMAP2, and BedMachine Antarctica \citep{MorlighemMEaSUREsBedMachineAntarctica2019}.
 
@@ -362,7 +362,7 @@ Using standard deviation as a simple measure of roughness \citep{RippinBasalroug
 Specifically, the surface roughness for a single 250 m pixel is calculated from the standard deviation of elevation values over a square 1250 m area (i.e. 5 pixels) surrounding the centre of the pixel.
 The comparisons are made between our DeepBedMap\_DEM and BEDMAP2 in relation to groundtruth grids from processed Operation IceBridge data.
 
-\begin{figure*}[ht]
+\begin{figure*}[htbp]
   \centering
   \subfloat[DeepBedMap Digital Elevation Model (DEM).]{
     \includegraphics[width=0.4\textwidth]{figures/fig4a_elevation_deepbedmap.png}
@@ -390,7 +390,7 @@ The comparisons are made between our DeepBedMap\_DEM and BEDMAP2 in relation to 
   \label{fig:4}
 \end{figure*}
 
-\begin{figure}[ht]
+\begin{figure}[htbp]
     \includegraphics[width=0.9\columnwidth]{figures/fig5_roughness_transect.png}
     \caption{
       Comparing surface roughness (standard deviation of elevation values) of each interpolated grid product (250 m resolution) over a transect.
@@ -553,7 +553,7 @@ On our Tesla V100 GPU setup, one training run with about 150 epochs takes about 
 This is using a batch size of 128 on a total of 3826 training image tiles, with 202 tiles reserved for validation, i.e. a 95/5 training/validation split.
 We next describe the method used to evaluate each DeepBedMap candidate model, as well as the high-level way in which we semi-automatically arrived at a good model via semi-automatic hyperparameter tuning.
 
-\begin{table*}[ht]
+\begin{table*}[htbp]
   \caption{Optimized Hyperparameter Settings.}
   \label{table:B1}
   \begin{tabular}{lrr}
@@ -593,6 +593,58 @@ Given that we have 4 GPUs, we choose to parallelize the hyperparameter tuning ex
 The estimator first conducts 20 random experimental trials to scan the hyperparameter space, gradually narrowing down to a few candidate hyperparameters in subsequent experiments.
 We set each GPU to run a target of 30 experimental trials (i.e. a total of 120), though unpromising trials that have exploding/vanishing gradients are pruned prematurely to save on time and computational resources.
 The top models from these experiments undergo further visual evaluation, and we continue to conduct further experiments until a suitable candidate model is found.
+
+
+\section{Closeup images of DeepBedMap\_DEM} \label{appendix:C}
+
+\begin{figure*}[htbp]
+  \centering
+  \subfloat[Scott Glacier]{
+    \includegraphics[width=0.3\textwidth]{figures/figc1a_deepbedmap_closeup.png}
+    \label{fig:C1a}
+  }
+  \subfloat[Whillans Ice Stream]{
+    \includegraphics[width=0.3\textwidth]{figures/figc1b_deepbedmap_closeup.png}
+    \label{fig:C1b}
+  }
+  \subfloat[Echelmeyer Ice Stream]{
+    \includegraphics[width=0.3\textwidth]{figures/figc1c_deepbedmap_closeup.png}
+    \label{fig:C1c}
+  }
+  \qquad
+  \subfloat[Evans Ice Stream]{
+    \includegraphics[width=0.3\textwidth]{figures/figc1d_deepbedmap_closeup.png}
+    \label{fig:C1d}
+  }
+  \subfloat[Rutford Ice Stream]{
+    \includegraphics[width=0.3\textwidth]{figures/figc1e_deepbedmap_closeup.png}
+    \label{fig:C1e}
+  }
+  \subfloat[Foundation Ice Stream]{
+    \includegraphics[width=0.3\textwidth]{figures/figc1f_deepbedmap_closeup.png}
+    \label{fig:C1f}
+  }
+  \qquad
+  \subfloat[Totten Glacier]{
+    \includegraphics[width=0.3\textwidth]{figures/figc1g_deepbedmap_closeup.png}
+    \label{fig:C1g}
+  }
+  \subfloat[Byrd Glacier]{
+    \includegraphics[width=0.3\textwidth]{figures/figc1h_deepbedmap_closeup.png}
+    \label{fig:C1h}
+  }
+  \subfloat[Gamburtsev Subglacial Mountains]{
+    \includegraphics[width=0.3\textwidth]{figures/figc1i_deepbedmap_closeup.png}
+    \label{fig:C1i}
+  }
+  \caption{
+    Closeup views of DeepBedMap\_DEM around Antarctica.
+    Top row shows Ross Sea region locations along the Transantarctic Mountains, Siple Coast and Shirase Coast.
+    Middle row shows Weddell Sea region locations.
+    Bottom row shows East Antarctica locations.
+  }
+  \label{fig:C}
+\end{figure*}
 
 \noappendix       %% use this to mark the end of the appendix section
 

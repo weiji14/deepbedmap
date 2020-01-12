@@ -600,6 +600,7 @@ deepbedmap.plot_3d_view(
     img="model/elevdiffmap.nc",  # DeepBedMap - BEDMAP2
     ax=(1, 0),
     zmin=-400,
+    cmap="vik",
     title="c) DeepBedMap - BEDMAP2",
     zlabel="Difference (metres)",
 )
@@ -662,7 +663,7 @@ def prepare_grid(file: str, region: list):
     Prepares a raster grid for further plotting in PyGMT.
     Reads in the grid from file using xarray.open_rasterio,
     selects the first band and slices it using a bounding box region.
-    Also changes coordinates from metres to kilometres.
+    Also changes data type to float32 if required.
     """
     grid = xr.open_rasterio(file).sel(
         band=1, x=slice(region[0], region[1]), y=slice(region[3], region[2])
@@ -702,9 +703,9 @@ oibpoints = data_prep.ascii_to_xyz(pipeline_file="highres/Data_20141121_05.json"
 oibpoints = oibpoints.where(
     cond=(
         (oibpoints.x > region[0])
-        & (oibpoints.x < region[1])
+        & (oibpoints.x < -1300_000)  # (oibpoints.x < region[1])
         & (oibpoints.y > region[2])
-        & (oibpoints.y < region[3])
+        & (oibpoints.y < -425_000)  # (oibpoints.y < region[3])
     )
 )
 oibpoints.dropna(inplace=True)
@@ -891,3 +892,55 @@ fig2.show()
 
 
 # %%
+
+# %% [markdown]
+# ### **Figure C: Closeup images of DeepBedMap_DEM**
+
+# %%
+for letter, (midx, midy) in zip(
+    *["abcdefghi"],
+    [
+        [-200_000, -400_000],  # Transantarctic Mountains - Scott Glacier
+        [-400_000, -550_000],  # Siple Coast - Whillans Ice Stream
+        [-600_000, -1100_000],  # Shirase Coast - Echelmeyer Ice Stream
+        [-1500_000, 350_000],  # Weddell Sea Region - Evans Ice Stream
+        [-1300_000, 150_000],  # Weddell Sea Region - Rutford Ice Stream
+        [-600_000, 350_000],  # Weddell Sea Region - Foundation Ice Stream
+        [2250_000, -1050_000],  # East Antarctica - Totten Glacier
+        [400_000, -950_000],  # East Antarctica - Byrd Glacier
+        [800_000, 200_000],  # East Antarctica - Gamburtsev Subglacial Mountains
+    ],
+):
+    size = 100_000
+    region = [midx - size, midx + size, midy - size, midy + size]
+
+    fig = gmt.Figure()
+    # Plot DeepBedMap Digital Elevation Model (DEM)
+    gmt.makecpt(cmap="oleron", series=[-2000, 4500])
+    fig.grdimage(
+        grid="model/deepbedmap3_big_int16.tif",
+        # grid="@BEDMAP_elevation.nc",
+        region=region,
+        projection="x1:1500000",
+        cmap=True,
+        shading="+d",  # default illumination from azimuth -45deg, intensity of +1
+        Q=True,
+    )
+    # Plot map elements (colorbar, legend, frame)
+    fig.colorbar(
+        position="jBL+jBL+o2.0c/0.5c+w2.0c/0.2c+m",
+        box="+gwhite+p0.5p",
+        frame=["af", 'x+l"Elevation"', "y+lkm"],
+        cmap="+Uk",  # kilo-units, i.e. divide by 1000
+        S=True,  # no lines inside color scalebar
+    )
+    fig.basemap(
+        region=[r / 1000 for r in region],
+        projection="x1:1500",
+        Bx='af+l"Polar Stereographic X (km)"',
+        By='af+l"Polar Stereographic Y (km)"',
+        frame="WSne",
+    )
+    # Save and show the figure
+    fig.savefig(fname=f"paper/figures/figc1{letter}_deepbedmap_closeup.png")
+fig.show()
