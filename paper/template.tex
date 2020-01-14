@@ -441,10 +441,21 @@ Indeed, the radioglaciology community has begun to compile a more comprehensive 
 %% The following commands are for the statements about the availability of data sets and/or software code corresponding to the manuscript.
 %% It is strongly recommended to make use of these sections in case data sets and/or software code have been part of your research the article is based on.
 
-\codeavailability{TEXT} %% use this section when having only software code available
+\codeavailability{
+  Python code for data preparation, neural network model training and visualization of model outputs are freely available at https://github.com/weiji14/deepbedmap.
+  Experimental model runs are also recorded at https://www.comet.ml/weiji14/deepbedmap.
+} %% use this section when having only software code available
 
 
-\dataavailability{TEXT} %% use this section when having only data sets available
+\dataavailability{
+  Pine Island Glacier dataset \citep{BinghamDiverselandscapesPine2017} available on request from Robert Bingham.
+  Carlson Inlet dataset \citep{KingIcestreamnot2011} available on request from Edward King.
+  Bed elevation datasets from Wilkes Subglacial Basin \citep{FerraccioliAirborneradarbed2018} and Rutford Ice Stream \citep{KingSubglaciallandformsRutford2016} available from British Antarctic Survey's Polar Data Centre (https://ramadda.data.bas.ac.uk).
+  Other Antarctic bed elevation datasets available from Center for Remote Sensing of Ice Sheets (https://data.cresis.ku.edu/data/rds) or from National Snow and Ice Data Center (https://nsidc.org/data/IRMCR2/versions/1).
+  BEDMAP2 \citep{FretwellBedmap2improvedice2013} and REMA \citep{HowatIanReferenceElevationModel2018} available from Polar Geospatial Center (http://data.pgc.umn.edu).
+  MEaSUREs ice velocity data \citep{MouginotMEaSUREsPhaseMap2019} available from NSIDC (https://nsidc.org/data/nsidc-0754/versions/1).
+  Antarctic Snow Accummulation data \citep{ArthernAntarcticsnowaccumulation2006} available from British Antarctic Survey (https://secure.antarctica.ac.uk/data/bedmap2/resources/Arthern\_accumulation).
+} %% use this section when having only data sets available
 
 
 \codedataavailability{TEXT} %% use this section when having data sets and software code available
@@ -664,14 +675,19 @@ The top models from these experiments undergo further visual evaluation, and we 
 
 
 
-\authorcontribution{TEXT} %% this section is mandatory
+\authorcontribution{
+  W. J. L. - conceptualization, data curation, formal analysis, methodology, software, visualization, writing – original draft, writing – review \& editing.
+  H. J. H. - funding acquisition, supervision, writing – review \& editing.
+} %% this section is mandatory
 
-\competinginterests{TEXT} %% this section is mandatory even if you declare that no competing interests are present
+\competinginterests{The authors declare that they have no conflict of interest.} %% this section is mandatory even if you declare that no competing interests are present
 
 \disclaimer{TEXT} %% optional section
 
 \begin{acknowledgements}
-TEXT
+  We are grateful to Robert Bingham and Edward King for the Pine Island Glacier and Carlson Inlet data, and to all the other researchers in the British Antarctic Survey and Operation IceBridge team for providing free access to the high resolution bed elevation datasets around Antarctica.
+  A special thanks to Ruzica Dadic for her help in reviewing draft versions of this paper.
+  This research was funded by the Royal Society of New Zealand's Rutherford Discovery Fellowship (Contract: RDF‐VUW1602), with additional support from the Erasmus+ programme and International Glaciological Society early career travel award for presenting earlier versions of this work at the 2019 EGU General Assembly and IGS Symposium on Five Decades of Radioglaciology.
 \end{acknowledgements}
 
 
