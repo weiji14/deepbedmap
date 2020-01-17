@@ -263,7 +263,7 @@ def plot_3d_view(
     The elevation (elev) and azimuth (azim) angle will need to be set accordingly,
     here it is looking from the SSW (202.5deg) at an angle 60deg above the z-plane.
     You can also provide a title (actually an annotation) and z-axis label. Note that
-    there are several hardcoded defaults like the colormap and vertical exaggeration.
+    there are several hardcoded defaults like the vertical exaggeration and axis labels.
     """
     if ax:
         row, col = ax  # split ax tuple into (row, col)
@@ -272,8 +272,8 @@ def plot_3d_view(
     grdview(
         reliefgrid=img,
         B=f"SWZ",  # plot South, West axes, and Z-axis
-        Bx="af",  # add x-axis annotations and minor ticks
-        By="af",  # add y-axis annotations and minor ticks
+        Bx='af+l"Polar Stereographic X (m)"',  # add x-axis annotations and minor ticks
+        By='af+l"Polar Stereographic Y (m)"',  # add y-axis annotations and minor ticks
         Bz=f'af+l"{zlabel}"',  # add z-axis annotations, minor ticks and axis label
         C=cmap,  # colormap to use
         Jz=0.01,  # zscaling factor, default to 10x vertical exaggeration

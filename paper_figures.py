@@ -621,6 +621,60 @@ fig.show()
 # %%
 
 # %% [markdown]
+# ### **Figure 4: Closeup images of DeepBedMap_DEM**
+
+# %%
+for letter, (midx, midy) in zip(
+    *["abcdefghi"],
+    [
+        [-200_000, -400_000],  # Transantarctic Mountains - Scott Glacier
+        [-400_000, -550_000],  # Siple Coast - Whillans Ice Stream
+        [-600_000, -1100_000],  # Shirase Coast - Echelmeyer Ice Stream
+        [-1500_000, 350_000],  # Weddell Sea Region - Evans Ice Stream
+        [-1300_000, 150_000],  # Weddell Sea Region - Rutford Ice Stream
+        [-600_000, 350_000],  # Weddell Sea Region - Foundation Ice Stream
+        [2250_000, -1050_000],  # East Antarctica - Totten Glacier
+        [400_000, -950_000],  # East Antarctica - Byrd Glacier
+        [800_000, 200_000],  # East Antarctica - Gamburtsev Subglacial Mountains
+    ],
+):
+    size = 100_000
+    region = [midx - size, midx + size, midy - size, midy + size]
+
+    fig = gmt.Figure()
+    # Plot DeepBedMap Digital Elevation Model (DEM)
+    gmt.makecpt(cmap="oleron", series=[-2000, 4500])
+    fig.grdimage(
+        grid="model/deepbedmap3_big_int16.tif",
+        # grid="@BEDMAP_elevation.nc",
+        region=region,
+        projection="x1:1500000",
+        cmap=True,
+        shading="+d",  # default illumination from azimuth -45deg, intensity of +1
+        Q=True,
+    )
+    # Plot map elements (colorbar, legend, frame)
+    fig.colorbar(
+        position="jBL+jBL+o2.0c/0.5c+w2.0c/0.2c+m",
+        box="+gwhite+p0.5p",
+        frame=["af", 'x+l"Elevation"', "y+lkm"],
+        cmap="+Uk",  # kilo-units, i.e. divide by 1000
+        S=True,  # no lines inside color scalebar
+    )
+    fig.basemap(
+        region=[r / 1000 for r in region],
+        projection="x1:1500",
+        Bx='af+l"Polar Stereographic X (km)"',
+        By='af+l"Polar Stereographic Y (km)"',
+        frame="WSne",
+    )
+    # Save and show the figure
+    fig.savefig(fname=f"paper/figures/fig4{letter}_deepbedmap_closeup.png")
+fig.show()
+
+# %%
+
+# %% [markdown]
 # ## **Surface Roughness**
 
 # %%
@@ -680,12 +734,25 @@ def prepare_grid(file: str, region: list):
 deepbedmap3grid = prepare_grid(file="model/deepbedmap3_big_int16.tif", region=region)
 groundtruthgrid = prepare_grid(file="highres/20xx_Antarctica_DC8.nc", region=region)
 bedmap2grid = prepare_grid(file="lowres/bedmap2_bed.tif", region=region)
-bilinearbedmap2grid = bedmap2grid.interp_like(other=deepbedmap3grid, method="linear")
+# bilinearbedmap2grid = bedmap2grid.interp_like(other=deepbedmap3grid, method="linear")
+
+cubicbedmap2 = skimage.transform.rescale(
+    image=bedmap2grid.astype(np.int32),
+    scale=4,  # 4x upscaling
+    order=3,  # cubic interpolation
+    mode="reflect",
+    anti_aliasing=True,
+    multichannel=False,
+    preserve_range=True,
+)
+cubicbedmap2grid = xr.DataArray(
+    data=cubicbedmap2[2:-2, 2:-2], coords=deepbedmap3grid.coords
+)
 
 gridDict = {
     "DeepBedMap": deepbedmap3grid,
     "Groundtruth": groundtruthgrid,
-    "BedMap2": bilinearbedmap2grid,
+    "BEDMAP2": cubicbedmap2grid,
 }
 roughDict = {}
 for name, grid in gridDict.items():
@@ -736,26 +803,28 @@ len(oibpoints)
 
 # %%
 elevpoints = {}
-for name, grid in roughDict.items():
-    # elevpoints[name] = gmt.grdtrack(
-    #     points=oibpoints[["x", "y"]],  # endpoints,
-    #     grid=grid,
-    #     newcolname="z",
-    #     R="/".join(str(r) for r in region),
-    #     # E="-1573985/-470866/-993375/-464996+i250",
-    # )
+# Get elevation (z) values
+for name, grid in gridDict.items():
     elevpoints[name] = gmt.grdtrack(
-        points=oibpoints[["x", "y"]],  # endpoints,
-        # points=None,
-        # grid=roughDict["BedMap2"],
+        points=oibpoints[["x", "y"]],
         grid=grid,
-        newcolname="roughness",
+        newcolname="elevation",
         R="/".join(str(r) for r in region),
-        # E=start_stop_inc,
+        # E="-1573985/-470866/-993375/-464996+i250",
     )
     elevpoints[name] = elevpoints[name].dropna()
     elevpoints[name].x = elevpoints[name].x.astype(float)
     print(len(elevpoints[name]), name)
+# Get roughness values
+for name, grid in roughDict.items():
+    roughness = gmt.grdtrack(
+        points=oibpoints[["x", "y"]],
+        grid=grid,
+        newcolname="roughness",
+        R="/".join(str(r) for r in region),
+        # E=start_stop_inc,
+    ).roughness
+    elevpoints[name]["roughness"] = roughness
 
 # %% [raw]
 # # deepbedmap3_error = elevpoints["model/deepbedmap3_thwaites.nc"].z - oibpoints.z
@@ -776,7 +845,7 @@ for name, grid in roughDict.items():
 
 
 # %% [markdown]
-# ### **Figure 4: 2D view of roughness grids over Thwaites Glacier, West Antarctica**
+# ### **Figure 5: 2D view of roughness grids over Thwaites Glacier, West Antarctica**
 
 # %% [raw]
 # fig = gmt.Figure()
@@ -826,12 +895,12 @@ fig.plot(
 )
 fig.legend(position="JBL+jBL+o0.2c", box="+gwhite+p1p")
 # Save and show the figure
-fig.savefig(fname="paper/figures/fig4a_elevation_deepbedmap.png")
+fig.savefig(fname="paper/figures/fig5a_elevation_deepbedmap.png")
 fig.show()
 
 # %%
 for letter, (name, grid) in zip(["b", "c", "d"], roughDict.items()):
-    if name == "BedMap2":
+    if name == "BEDMAP2":
         maxstddev = 100
     else:
         maxstddev = 400
@@ -847,7 +916,7 @@ for letter, (name, grid) in zip(["b", "c", "d"], roughDict.items()):
     gmt.makecpt(cmap="davos", series=[0, maxstddev, maxstddev / 8], M="d")
     fig.grdimage(grid=grid, region=region, cmap=True)
     fig.colorbar(position="JBC+ef", frame=["af", 'x+l"Standard Deviation"', "y+lm"])
-    fig.savefig(fname=f"paper/figures/fig4{letter}_roughness_{name.lower()}.png")
+    fig.savefig(fname=f"paper/figures/fig5{letter}_roughness_{name.lower()}.png")
 
 
 fig.show()
@@ -855,92 +924,33 @@ fig.show()
 # %%
 
 # %% [markdown]
-# ### **Figure 5: 1D Roughness over transect**
+# ### **Figure 6: 1D Elevation and Roughness over transect**
 
 # %%
-fig2 = gmt.Figure()
-fig2.basemap(
-    region=[
-        # -1550,  # elevpoints[grid].x.min(),
-        elevpoints["DeepBedMap"].x.min() / 1000,
-        # -1250,  # elevpoints[grid].x.max(),
-        elevpoints["DeepBedMap"].x.max() / 1000,
-        # -1800,  # elevpoints[grid].elevation.min(),
-        # -400,  # elevpoints[grid].elevation.max(),
-        0,
-        100,
-    ],
-    projection="X12c/6c",
-    Bx='af+l"Polar Stereographic X (km)"',
-    By='af+l"Standard Deviation (m)"',
-    frame=['WSne+t"Roughness over transect"'],
+fig = gmt.Figure()
+deepbedmap.subplot(
+    directive="begin",
+    row=2,
+    col=1,
+    Fs="12c/6c",
+    B="WSne",
+    SC='b+l"Polar Stereographic X (km)"',
 )
-for grid, color in zip(roughDict, ("purple", "orange", "green")):
-    print(grid, color)
-    fig2.plot(
-        x=elevpoints[grid].x,
-        y=elevpoints[grid].roughness,
-        # region=[region[0], region[1], 0, 100],
-        region=[elevpoints[grid].x.min(), elevpoints[grid].x.max(), 0, 100],
-        style="c0.01c",
-        color=color,
-        label=grid,
-    )
-fig2.legend(S=10)  # position="jTR+o0/0", box=True,
-fig2.savefig(fname="paper/figures/fig5_roughness_transect.png")
-fig2.show()
-
-
-# %%
-
-# %% [markdown]
-# ### **Figure C: Closeup images of DeepBedMap_DEM**
-
-# %%
-for letter, (midx, midy) in zip(
-    *["abcdefghi"],
-    [
-        [-200_000, -400_000],  # Transantarctic Mountains - Scott Glacier
-        [-400_000, -550_000],  # Siple Coast - Whillans Ice Stream
-        [-600_000, -1100_000],  # Shirase Coast - Echelmeyer Ice Stream
-        [-1500_000, 350_000],  # Weddell Sea Region - Evans Ice Stream
-        [-1300_000, 150_000],  # Weddell Sea Region - Rutford Ice Stream
-        [-600_000, 350_000],  # Weddell Sea Region - Foundation Ice Stream
-        [2250_000, -1050_000],  # East Antarctica - Totten Glacier
-        [400_000, -950_000],  # East Antarctica - Byrd Glacier
-        [800_000, 200_000],  # East Antarctica - Gamburtsev Subglacial Mountains
-    ],
-):
-    size = 100_000
-    region = [midx - size, midx + size, midy - size, midy + size]
-
-    fig = gmt.Figure()
-    # Plot DeepBedMap Digital Elevation Model (DEM)
-    gmt.makecpt(cmap="oleron", series=[-2000, 4500])
-    fig.grdimage(
-        grid="model/deepbedmap3_big_int16.tif",
-        # grid="@BEDMAP_elevation.nc",
-        region=region,
-        projection="x1:1500000",
-        cmap=True,
-        shading="+d",  # default illumination from azimuth -45deg, intensity of +1
-        Q=True,
-    )
-    # Plot map elements (colorbar, legend, frame)
-    fig.colorbar(
-        position="jBL+jBL+o2.0c/0.5c+w2.0c/0.2c+m",
-        box="+gwhite+p0.5p",
-        frame=["af", 'x+l"Elevation"', "y+lkm"],
-        cmap="+Uk",  # kilo-units, i.e. divide by 1000
-        S=True,  # no lines inside color scalebar
-    )
-    fig.basemap(
-        region=[r / 1000 for r in region],
-        projection="x1:1500",
-        Bx='af+l"Polar Stereographic X (km)"',
-        By='af+l"Polar Stereographic Y (km)"',
-        frame="WSne",
-    )
-    # Save and show the figure
-    fig.savefig(fname=f"paper/figures/figc1{letter}_deepbedmap_closeup.png")
+for zvalue, yrange in (("elevation", [-1600, -400]), ("roughness", [0, 100])):
+    deepbedmap.subplot(directive="set")
+    fig.basemap(region=[-1550, -1300, *yrange], frame=f'yaf+l"{zvalue.title()} (m)"')
+    for grid, color in zip(roughDict, ("purple", "orange", "green")):
+        fig.plot(
+            x=elevpoints[grid].x,
+            y=elevpoints[grid][zvalue],
+            region=[-1550000, -1300000, *yrange],
+            style="c0.01c",
+            color=color,
+            label=grid,
+        )
+    fig.legend(S=10)  # position="jTR+o0/0", box=True,
+deepbedmap.subplot(directive="end")
+fig.savefig(fname="paper/figures/fig6_roughness_transect.png")
 fig.show()
+
+# %%
