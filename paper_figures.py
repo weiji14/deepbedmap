@@ -624,21 +624,10 @@ fig.show()
 # ### **Figure 4: Closeup images of DeepBedMap_DEM**
 
 # %%
-for letter, (midx, midy) in zip(
-    *["abcdefghi"],
-    [
-        [-200_000, -400_000],  # Transantarctic Mountains - Scott Glacier
-        [-400_000, -550_000],  # Siple Coast - Whillans Ice Stream
-        [-600_000, -1100_000],  # Shirase Coast - Echelmeyer Ice Stream
-        [-1500_000, 350_000],  # Weddell Sea Region - Evans Ice Stream
-        [-1300_000, 150_000],  # Weddell Sea Region - Rutford Ice Stream
-        [-600_000, 350_000],  # Weddell Sea Region - Foundation Ice Stream
-        [2250_000, -1050_000],  # East Antarctica - Totten Glacier
-        [400_000, -950_000],  # East Antarctica - Byrd Glacier
-        [800_000, 200_000],  # East Antarctica - Gamburtsev Subglacial Mountains
-    ],
-):
-    size = 100_000
+def closeup_fig(letter: str, midx: int, midy: int, annot_xyt: list, size=100_000):
+    """
+    Produces a closeup figure of a DeepBedMap_DEM area, with text annotations
+    """
     region = [midx - size, midx + size, midy - size, midy + size]
 
     fig = gmt.Figure()
@@ -653,6 +642,10 @@ for letter, (midx, midy) in zip(
         shading="+d",  # default illumination from azimuth -45deg, intensity of +1
         Q=True,
     )
+    # Plot text annotation
+    for x, y, text in annot_xyt:
+        fig.text(x=x, y=y, text=text, font="12p,Helvetica,yellow")
+
     # Plot map elements (colorbar, legend, frame)
     fig.colorbar(
         position="jBL+jBL+o2.0c/0.5c+w2.0c/0.2c+m",
@@ -670,6 +663,53 @@ for letter, (midx, midy) in zip(
     )
     # Save and show the figure
     fig.savefig(fname=f"paper/figures/fig4{letter}_deepbedmap_closeup.png")
+
+    return fig
+
+
+# Transantarctic Mountains - Scott Glacier
+fig = closeup_fig(
+    letter="a", midx=-200_000, midy=-400_000, annot_xyt=[(-230000, -410000, "S")]
+)
+# Siple Coast - Whillans Ice Stream
+fig = closeup_fig(
+    letter="b", midx=-400_000, midy=-550_000, annot_xyt=[(-350000, -540000, "R")]
+)
+# Siple Coast - Bindschadler Ice Stream
+fig = closeup_fig(
+    letter="c", midx=-550_000, midy=-800_000, annot_xyt=[(-610000, -740000, "R")]
+)
+# Weddell Sea Region - Evans Ice Stream
+fig = closeup_fig(
+    letter="d", midx=-1500_000, midy=350_000, annot_xyt=[(-1450000, 320000, "R")]
+)
+# Weddell Sea Region - Rutford Ice Stream
+fig = closeup_fig(
+    letter="e", midx=-1300_000, midy=150_000, annot_xyt=[(-1220000, 150000, "R")]
+)
+# Weddell Sea Region - Foundation Ice Stream
+fig = closeup_fig(
+    letter="f", midx=-600_000, midy=350_000, annot_xyt=[(-630000, 360000, "R")]
+)
+# East Antarctica - Totten Glacier
+fig = closeup_fig(
+    letter="g",
+    midx=2250_000,
+    midy=-1050_000,
+    annot_xyt=[(2270000, -1070000, "R"), (2180000, -970000, "W")],
+)
+# East Antarctica - Byrd Glacier
+fig = closeup_fig(
+    letter="h",
+    midx=400_000,
+    midy=-950_000,
+    annot_xyt=[(380000, -980000, "R"), (400000, -1040000, "S")],
+)
+# East Antarctica - Gamburtsev Subglacial Mountains
+fig = closeup_fig(
+    letter="i", midx=800_000, midy=200_000, annot_xyt=[(710000, 240000, "T")]
+)
+
 fig.show()
 
 # %%
@@ -932,6 +972,7 @@ deepbedmap.subplot(
     directive="begin",
     row=2,
     col=1,
+    A="+jLT",
     Fs="12c/6c",
     B="WSne",
     SC='b+l"Polar Stereographic X (km)"',
@@ -950,7 +991,7 @@ for zvalue, yrange in (("elevation", [-1600, -400]), ("roughness", [0, 100])):
         )
     fig.legend(S=10)  # position="jTR+o0/0", box=True,
 deepbedmap.subplot(directive="end")
-fig.savefig(fname="paper/figures/fig6_roughness_transect.png")
+fig.savefig(fname="paper/figures/fig6_elevation_roughness_transect.png")
 fig.show()
 
 # %%

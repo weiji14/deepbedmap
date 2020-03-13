@@ -133,39 +133,34 @@ We show that DeepBedMap offers a more realistic topographic roughness profile co
 
 \introduction  %% \introduction[modified heading if necessary]
 
-The bed of Antarctica is one of the most challenging surface on Earth to map due to the thick layer of ice covering the continent.
-By measuring bed elevation, we can estimate the thickness and volume of ice in Antarctica, and by knowing the roughness of the bed topography, we can better quantify how ice flows over the continent.
+The bed of the Antarctic ice sheets is one of the most challenging surfaces on Earth to map due to the thick layer of ice cover.
+Knowledge of bed elevation is however essential for estimating the volume of ice currently stored in the ice sheets, and for input to the numerical models that are used to estimate the contribution the ice sheets are to likely to make to sea level in the coming century.
 The Antarctic ice sheet is estimated to hold a sea level equivalent (SLE) of 57.9 ± 0.9 m \citep{MorlighemDeepglacialtroughs2019}.
-Between 2012 and 2016, the Antarctic Ice Sheet was losing mass at an average rate of 199 ± 26 Gt yr–1 (0.55 ± 0.07 mm yr-1 SLE), with most of the ice loss attributed to the acceleration, retreat and rapid thinning of major West Antarctic Ice Sheet outlet glaciers \citep{MeredithPolarregions2019}.
-The roughness of the bed plays an important role in the flow of these outlet glaciers.
+Between 2012 and 2017, the Antarctic Ice Sheet was losing mass at an average rate of 219 ± 43 Gt yr–1 (0.61 ± 0.12 mm yr-1 SLE), with most of the ice loss attributed to the acceleration, retreat and rapid thinning of major West Antarctic Ice Sheet outlet glaciers \citep{TheIMBIEteamMassbalanceAntarctic2018}.
+Bed elevation exerts additional controls on ice flow by routing subglacial water, and providing frictional resistance to flow \citep{SiegertMacroscalebedroughness2004}.
 Bed roughness, especially at short-wavelengths, exerts a frictional force against the flow ice, making it an important influence on ice velocity \citep{BinghamDiverselandscapesPine2017,FalciniQuantifyingbedroughness2018}.
-The bed is therefore an essential component in ice sheet models that quantify projections of future sea level rise.
-This fact is a key justification for the work put in by researchers over the past two decades to compile bed elevation models of Antarctica, notably with the BEDMAP1 \citep{LytheBEDMAPnewice2001} and BEDMAP2 \citep{FretwellBedmap2improvedice2013} products.
+The importance of bed elevation has led to major efforts to compile bed elevation models of Antarctica, notably with the BEDMAP1 \citep{LytheBEDMAPnewice2001} and BEDMAP2 \citep{FretwellBedmap2improvedice2013} products.
+A need for higher spatial resolution Digital Elevation Model (DEM) is also apparent, as ice sheet models move to using sub-kilometer grids in order to quantify glacier ice flow dynamics more accurately \citep{Grahamhighresolutionsyntheticbed2017}.
+Finer grids are especially important at the ice sheet's grounding zone where adaptive mesh refinement schemes focus on \citep[e.g.][]{CornfordAdaptivemeshrefinement2016}, and attention to the bed roughness component is imperative for proper modelling of fast flowing outlet glaciers \citep{DurandImpactbedrockdescription2011,NiasContrastingmodelledsensitivity2016}.
+Here we address the challenge of producing a high resolution DEM while preserving a realistic representation of the bed terrain's roughness.
 
-Two main techniques exist for estimating the subglacial terrain of Antarctica.
-The main method is via the use of ice-penetrating radar - a method that images the ice-bed interface along survey lines \citep[e.g.][]{ShiMultichannelCoherentRadar2010}.
-This method does come with uncertainties due to different interpretations of radargrams, owing to uncertainties due to changing firn density, and potential errors in the semi-automatic bed picks.
-Still, this is the most direct method, though it is geographically limited and involves manual, time consuming work.
+Estimating bed elevation directly from geophysical observations primarily uses ice penetrating radar methods \citep[e.g.][]{RobinRadioechoexploration1970}.
+Airborne radar methods enable reliable along track estimates with low uncertainty (around the 1\% level) introduced by imperfect knowledge of the firn and ice velocity structure, with some potential uncertainty introduced by picking the bed return.
+Radar derived bed estimates remain limited in their geographic coverage \citep{FretwellBedmap2improvedice2013}, and are typically anisotropic in their coverage, with higher spatial sampling in the along track direction than between tracks.
 
-A method to overcome the geographical limitations is via an indirect inversion method - using surface data observations to determine bed characteristics.
-A complex non-linear relationship exists between the surface elevation and bed elevation of glaciers, ice streams and ice sheets \citep{Raymondrelationshipsurfacebasal2005}, meaning one can theoretically use a well resolved surface to infer bed properties \citep[e.g.][]{Farinottimethodestimateice2009}.
+To overcome these limitations indirect methods of estimating bed elevation have been developed, which use surface observations combined with glaciological process knowledge to determine ice thickness \citep[e.g.][]{vanPeltiterativeinversemethod2013}.
+A non-linear relationship exists between the thickness of glaciers, ice streams and ice sheets and how they flow \citep{Raymondrelationshipsurfacebasal2005}, meaning one can theoretically use a well resolved surface to infer bed properties \citep[e.g.][]{Farinottimethodestimateice2009}.
 Using surface observation inputs, such as the glacier outline, surface digital elevation models, surface mass balance, surface rate of elevation change, and surface ice flow velocity, various models have been tested in the Ice Thickness Models Intercomparison eXperiment \citep[ITMIX,][]{FarinottiHowaccurateare2017} to determine ice thickness (surface elevation minus bed elevation).
 While significant inter-model uncertainties do exist, they can be mitigated by combining several models in an ensemble to provide a better consensus estimate \citep{Farinotticonsensusestimateice2019}.
 On a larger scale, the inverse technique has also been applied to the Greenland \citep{MorlighemBedMachinev3Complete2017} and Antarctic \citep{MorlighemDeepglacialtroughs2019} ice sheets, specifically using the mass conservation approach \citep{Morlighemmassconservationapproach2011}.
 
-The shift towards higher spatial resolution Digital Elevation Model (DEM) becomes more urgent as ice sheet models move to using sub-kilometer grids in order to quantify glacier ice flow dynamics more accurately.
-A finer grid is especially important at the ice sheet's grounding zone where adaptive mesh refinement schemes focus on \citep[e.g.][]{CornfordAdaptivemeshrefinement2016}, and wherein attention to the bed roughness component is imperative for proper modelling of fast flowing outlet glaciers \citep{DurandImpactbedrockdescription2011,NiasContrastingmodelledsensitivity2016}.
-The challenge of producing a high resolution DEM while preserving a realistic representation of the bed terrain's roughness is a problem we attempt to address.
-
-Here, we present a deep neural network method that belongs to the inverse modelling category, but one that is trained on direct ice-penetrating radar observations over Antarctica.
+We present a deep neural network method that belongs to the inverse modelling category, but one that is trained on direct ice-penetrating radar observations over Antarctica.
 An artificial neural network, loosely based on biological neural networks, is a system made up of neurons.
 Each neuron comprises of a simple mathematical function that takes an input to produce an output value, and neural networks work by combining many of these neurons together.
 The term deep neural network is used when there is not a direct function mapping between the input data and final output, but two or more layers that are connected to one another \citep[see][for a review]{LeCunDeeplearning2015}.
-They are trained using backpropagation, a procedure whereby the weights or parameters of the neurons' connections are adjusted, so as to minimize the error between the groundtruth and output of the neural network \citep{RumelhartLearningrepresentationsbackpropagating1986}.
-
-Similar work has been done before using artificial neural networks for estimating bed topography \citep[e.g.][]{ClarkeNeuralNetworksApplied2009,MonnierInferencebedtopography2018}, but to our knowledge, none so far in the glaciological community have attempted to use convolutional neural networks that works in a more spatially-aware, 2-dimensional setting.
-Convolutional neural networks differ from standard artificial neural networks in that they use kernels or filters in place of regular neurons \citep[see][for a review]{LeCunDeeplearning2015}.
-They are especially prevalent in the computer vision community, having existed since the 1980s \citep{FukushimaNeocognitronnewalgorithm1982,LeCunBackpropagationAppliedHandwritten1989} and are commonly used in visual pattern recognition tasks \citep[e.g.][]{LecunGradientbasedlearningapplied1998,KrizhevskyImageNetClassificationDeep2012}.
+They are trained using backpropagation, a procedure whereby the weights or parameters of the neurons' connections are adjusted, so as to minimize the error between the groundtruth and output of the neural network \citep{RumelhartLearningrepresentationsbackpropagating1986}. Similar work has been done before using artificial neural networks for estimating bed topography \citep[e.g.][]{ClarkeNeuralNetworksApplied2009,MonnierInferencebedtopography2018}, but to our knowledge, none so far in the glaciological community have attempted to use convolutional neural networks that works in a more spatially-aware, 2-dimensional setting.
+Convolutional neural networks differ from standard artificial neural networks in that they use kernels or filters in place of regular neurons \citep[again, see][for a review]{LeCunDeeplearning2015}.
+The techniques we employ are prevalent in the computer vision community, having existed since the 1980s \citep{FukushimaNeocognitronnewalgorithm1982,LeCunBackpropagationAppliedHandwritten1989} and are commonly used in visual pattern recognition tasks \citep[e.g.][]{LecunGradientbasedlearningapplied1998,KrizhevskyImageNetClassificationDeep2012}.
 Our main contributions are twofold:
 1) Present a high resolution (250 m) bed elevation map of Antarctica that goes beyond the 1km resolution of BEDMAP2 \citep{FretwellBedmap2improvedice2013};
 2) Design a deep convolutional neural network to integrate as many remote sensing datasets as possible which are relevant for estimating Antarctica's bed topography.
@@ -178,9 +173,9 @@ We name our neural network "DeepBedMap", and the resulting digital elevation mod
 
 Super-Resolution involves the processing of a low resolution raster image into a higher resolution one \citep{TsaiMultiframeimagerestoration1984}.
 The problem is especially ill-posed because a specific low resolution input can correspond to many possible high resolution outputs, resulting in the development of several different algorithms aimed at solving this challenge \citep[see][for a review]{NasrollahiSuperresolutioncomprehensivesurvey2014}.
-One promising approach is to use use deep neural networks \citep{LeCunDeeplearning2015} to learn an end-to-end mapping between the low and high resolution images, a method developed originally in the Super-Resolution Convolutional Neural Network paper \citep[SRCNN,][]{DongImageSuperResolutionUsing2014}.
+One promising approach is to use deep neural networks \citep{LeCunDeeplearning2015} to learn an end-to-end mapping between the low and high resolution images, a method coined Super-Resolution Convolutional Neural Network  \citep[SRCNN,][]{DongImageSuperResolutionUsing2014}.
 
-Since SRCNN, multiple developments have been made to further improve the perceptual quality of super resolution neural networks \cite[see][for a review]{YangDeepLearningSingle2018}.
+Since the development of SRCNN, multiple advances have been made to improve the perceptual quality of super resolution neural networks \cite[see][for a review]{YangDeepLearningSingle2018}.
 One way is to use a better loss function, also known as a cost function.
 A loss function is a mathematical function that represents the error between the output of the neural network and the groundtruth (see also Appendix \ref{appendix:A}).
 By having an adversarial component in its loss function, the Super-Resolution Generative Adversarial Network \citep[SRGAN,][]{LedigPhotoRealisticSingleImage2016} manages to produce finer perceptual details.
@@ -188,15 +183,15 @@ Perceptual quality is the extent to which an image looks like a valid natural im
 In this case, perceptual quality is quantified using the Discriminator within a Generative Adversarial Network \citep{GoodfellowGenerativeAdversarialNetworks2014} which takes into account high level features of an image like contrast, texture, etc.
 
 Another way to improve performance is by reconfiguring the neural network's architecture, wherein the layout or building blocks of the neural network are changed.
-By removing unnecessary model components and adding residual \citep{HeDeepResidualLearning2015} connections, the Enhanced Deep Super-Resolution network \citep[EDSR,][]{LimEnhancedDeepResidual2017} features a deeper neural network model that has better performance than older models.
-For our DeepBedMap model in this paper, we choose to adapt an Enhanced Super-Resolution Generative Adversarial Network \citep[ESRGAN,][]{WangESRGANEnhancedSuperResolution2018} that brings together the ideas mentioned above.
-This approach produces state of the art perceptual quality and won the 2018 Perceptual Image Restoration and Manipulation (PIRM) Challenge on Super-Resolution (Third Region) \citep{Blau2018PIRMChallenge2018}.
+By removing unnecessary model components and adding residual connections \citep{HeDeepResidualLearning2015}, the Enhanced Deep Super-Resolution network \citep[EDSR,][]{LimEnhancedDeepResidual2017} features a deeper neural network model that has better performance than older models.
+For our DeepBedMap model, we choose to adapt an Enhanced Super-Resolution Generative Adversarial Network \citep[ESRGAN,][]{WangESRGANEnhancedSuperResolution2018} that brings together the ideas mentioned above.
+This approach produces state of the art perceptual quality and won the 2018 Perceptual Image Restoration and Manipulation Challenge on Super-Resolution (Third Region) \citep{Blau2018PIRMChallenge2018}.
 
 \subsection{Network Conditioning} \label{section:networkconditioning}
 
 Network conditioning means having a neural network process one source of information in the context of other sources \citep{DumoulinFeaturewisetransformations2018}.
 In a geographic context, conditioning is akin to using not just one layer, but also other relevant layers with meaningful links to provide additional information to the task at hand.
-It should be noted that many ways exist to insert extra conditional information into a neural network, such as concatenation-based conditioning, conditional biasing, conditional scaling, and conditional affine transformations \citep{DumoulinFeaturewisetransformations2018}.
+Many ways exist to insert extra conditional information into a neural network, such as concatenation-based conditioning, conditional biasing, conditional scaling, and conditional affine transformations \citep{DumoulinFeaturewisetransformations2018}.
 We choose to use the concatenation-based conditioning approach, whereby all of the individual raster images are concatenated together channel-wise, much like the individual bands of a multispectral satellite image.
 This was deemed the most appropriate conditioning method as all our contextual remote sensing datasets are raster grid images, and also because this approach aligns with related work in the remote sensing field.
 
@@ -212,12 +207,11 @@ Our DeepBedMap model builds upon these ideas and other related DEM super-resolut
 
 Our convolutional neural network model works on 2D images, so we have to ensure all our datasets are in a suitable raster grid format.
 Groundtruth bed elevation points picked from radar surveys (see Table \ref{table:groundtruthdata}) are first compiled together onto a common Antarctic Stereographic Projection (EPSG:3031) using the WGS84 datum, reprojecting where necessary.
-
 These points are then gridded onto a 250 m spatial resolution (pixel-node registered) grid.
-We do so by preprocessing the points first, computing the median elevation for each pixel block in a regular grid.
+We do so by preprocessing the points first using Generic Mapping Tools v6.0 \citep[GMT6,][]{WesselGenericMappingTools2019}, computing the median elevation for each pixel block in a regular grid.
 The preprocessed points are then run through an adjustable tension continuous curvature spline function with a tension factor set to 0.35 to produce a digital elevation model grid.
 This grid is further post-processed to mask out pixels that are more than 3 pixels (750 m) from the nearest groundtruth point.
-These operations are carried out using Generic Mapping Tools v6.0 \citep[GMT6,][]{WesselGenericMappingTools2019}.
+
 
 \begin{table}[htbp]
   \caption{
@@ -375,11 +369,13 @@ The model is only valid for grounded ice regions, but we have produced predictio
   \label{fig:3}
 \end{figure}
 
-Zooming in closer, we highlight a few qualitative observations of DeepBedMap\_DEM's bed topography at Pine Island Glacier (see Figure \ref{fig:3}) and other parts of Antarctica (see Figure \ref{fig:4}).
-DeepBedMap\_DEM shows a terrain with realistic topographical features, having fine-scale bumps and troughs that makes it rougher than that of BEDMAP2 \citep{FretwellBedmap2improvedice2013} and Bedmachine Antarctica \citep{MorlighemMEaSUREsBedMachineAntarctica2019} while still preserving the general topography of the area (see Figure \ref{fig:3}).
-Over steep topographical areas such as the Transantarctic Mountains and Gamburtsev  Subglacial Mountains (see Figure \ref{fig:4a}, \ref{fig:4h}, \ref{fig:4i}), DeepBedMap produced speckle texture patterns.
-Along fast flowing ice streams and glaciers (see Figure \ref{fig:4b}, \ref{fig:4c}, \ref{fig:4d}, \ref{fig:4e}, \ref{fig:4f}, \ref{fig:4g}, \ref{fig:4h}), we can see ridges aligned parallel to the sides of the valley.
-Over relatively flat regions in both West and East Antarctica (e.g. Figure \ref{fig:4g}), there are some wave-like patterns occasionally represented in the terrain.
+Zooming in closer, we highlight a few qualitative observations of DeepBedMap\_DEM's bed topography at Pine Island Glacier (Figure \ref{fig:3}) and other parts of Antarctica (Figure \ref{fig:4}).
+DeepBedMap\_DEM shows a terrain with realistic topographical features, having fine-scale bumps and troughs that makes it rougher than that of BEDMAP2 \citep{FretwellBedmap2improvedice2013} and Bedmachine Antarctica \citep{MorlighemMEaSUREsBedMachineAntarctica2019} while still preserving the general topography of the area (Figure \ref{fig:3}).
+Over steep topographical areas such as the Transantarctic Mountains (Figure \ref{fig:4a}, \ref{fig:4h}), DeepBedMap produced speckle (\textbf{S}) texture patterns.
+Along fast flowing ice streams and glaciers (Figure \ref{fig:4b}, \ref{fig:4c}, \ref{fig:4d}, \ref{fig:4e}, \ref{fig:4f}, \ref{fig:4g}, \ref{fig:4h}), we can see ridges (\textbf{R}) aligned parallel to the sides of the valley, i.e. along flow.
+In some cases, the ridges are also oriented perpendicular to the flow direction such at Whillans Ice Stream (Figure \ref{fig:4b}), Bindschadler Ice Stream (Figure \ref{fig:4c}) and Totten Glacier (Figure \ref{fig:4g}), resulting in intersecting ridges that creates a box-like, honeycomb structure.
+Over relatively flat regions in both West and East Antarctica (e.g. Figure \ref{fig:4g}), there are some hummocky, wave-like (\textbf{W}) patterns occasionally represented in the terrain.
+Terrace (\textbf{T}) features can occasionally be found winding along the side of hills such as at the Gamburtsev Subglacial Mountains \ref{fig:4i}.
 
 
 \begin{figure*}[htbp]
@@ -392,7 +388,7 @@ Over relatively flat regions in both West and East Antarctica (e.g. Figure \ref{
     \includegraphics[width=0.3\textwidth]{figures/fig4b_deepbedmap_closeup.png}
     \label{fig:4b}
   }
-  \subfloat[Echelmeyer Ice Stream]{
+  \subfloat[Bindschadler Ice Stream]{
     \includegraphics[width=0.3\textwidth]{figures/fig4c_deepbedmap_closeup.png}
     \label{fig:4c}
   }
@@ -424,9 +420,11 @@ Over relatively flat regions in both West and East Antarctica (e.g. Figure \ref{
   }
   \caption{
     Closeup views of DeepBedMap\_DEM around Antarctica.
-    Top row shows Ross Sea region locations along the Transantarctic Mountains, Siple Coast and Shirase Coast.
+    Top row shows Siple Coast locations.
     Middle row shows Weddell Sea region locations.
     Bottom row shows East Antarctica locations.
+    Features of interest are annotated in yellow text:
+    Ridges \textbf{R}, Speckle patterns \textbf{S}, Terraces \textbf{T}, Wave patterns \textbf{W}.
   }
   \label{fig:4}
 \end{figure*}
@@ -434,11 +432,10 @@ Over relatively flat regions in both West and East Antarctica (e.g. Figure \ref{
 \subsection{Surface Roughness} \label{section:surfaceroughness}
 
 We compare the roughness of DeepBedMap\_DEM versus BEDMAP2 with groundtruth grids from processed Operation IceBridge data \citep{ShiMultichannelCoherentRadar2010} using standard deviation as a simple measure of roughness \citep{RippinBasalroughnessInstitute2014}.
-Specifically, the surface roughness for a single 250 m pixel is calculated from the standard deviation of elevation values over a square 1250 m area (i.e. 5 pixels) surrounding the centre of the pixel.
-
+We calculate the surface roughness for a single 250 m pixel from the standard deviation of elevation values over a square 1250x1250 m area (i.e. 5x5 pixels) surrounding the central pixel.
 Focusing on Thwaites Glacier, the spatial 2D view of the DeepBedMap\_DEM (Figure \ref{fig:5a}) shows a range of typical topographic features such as hills and canyons.
-The calculated 2D roughness for DeepBedMap (Figure \ref{fig:5b}) and the Groundtruth (Figure \ref{fig:5c}) lie in a similar range from 0 m to 400 m in standard deviation, with small clusters of areas with high roughness values.
-In contrast, the roughness of BEDMAP2 (Figure \ref{fig:5d}) is mostly in the 0 m to 100 m range, and those high roughness cluster areas tend to have a larger area.
+The calculated 2D roughness for both DeepBedMap\_DEM (Figure \ref{fig:5b}) and the Groundtruth (Figure \ref{fig:5c}) lie in a similar range from 0 m to 400 m whereas the roughness of BEDMAP2 (Figure \ref{fig:5d}) is mostly in the 0 m to 100 m range (hence the different colour scale).
+Also, the roughness pattern for both DeepBedMap\_DEM and the Groundtruth appears more curved and clustered into little pockets (especially towards the coastal region on the left, see Figure \ref{fig:5b} and \ref{fig:5c}), whereas the BEDMAP2 roughness pattern follows a more grid-like cluster scheme (see Figure \ref{fig:5d}).
 
 \begin{figure*}[htbp]
   \centering
@@ -463,22 +460,21 @@ In contrast, the roughness of BEDMAP2 (Figure \ref{fig:5d}) is mostly in the 0 m
     Spatial 2D view of grids over Thwaites Glacier, West Antarctica.
     Plotted on an Antarctic Stereographic Projection (EPSG:3031) with elevation and standard deviation values in metres referenced to the WGS84 datum.
     Orange groundtruth points in \textbf{a} correspond to transect sampling locations used in Figure \ref{fig:6}.
-    Note that color scale of \textbf{b} and \textbf{c} is twice that of \textbf{d}.
+    Note that color scale of \textbf{b} and \textbf{c} is four times that of \textbf{d}.
   }
   \label{fig:5}
 \end{figure*}
 
-Taking a 1D transect over these 250 m resolution grids, we illustrate the differences in bed topography and roughness from the coast towards the inland area of Thwaites Glacier (see Figure \ref{fig:6}).
-DeepBedMap\_DEM manages to capture much of the rough topography found in the Operation IceBridge groundtruth data, especially near the coast (see Figure \ref{fig:6}, from -1550 to -1500 on x-scale) where the terrain tends to be rougher.
-Along the retrograde slope (see Figure \ref{fig:6}, from -1500 to -1450 on x-scale), several of the fine-scale bumps and troughs in DeepBedMap\_DEM can be seen to correlate well in position with the groundtruth.
-In contrast, the cubic interpolated BEDMAP2 product lacks such fine-scale bumps and troughs, appearing as a relatively smooth terrain over much of the transect.
-Looking at the roughness statistic, both the DeepBedMap\_DEM and Operation IceBridge groundtruth grids show a tendency towards higher values compared to that of BEDMAP2, the former two having a mean standard deviation of about 40m compared to the latter with a mean of about 10 m.
-Indeed, the BEDMAP2 product has a relatively smooth surface that rarely exceeds a standard deviation value of 20 m along this transect.
+Taking a 1D transect over the 250 m resolution DeepBedMap\_DEM, BEDMAP2 and groundtruth grids, we illustrate the differences in bed topography and roughness from the coast towards the inland area of Thwaites Glacier with a flight trace from Operation IceBridge (see Figure \ref{fig:6}).
+For better comparison, we have calculated the Operation IceBridge groundtruth bed elevation and roughness values from a resampled 250 m grid instead of using its native along-track resolution.
+All three elevation profiles are shown to follow the same general trend from the relatively rough coastal region (Figure \ref{fig:6}a from -1550 to -1500 on x-scale), along the retrograde slope (Figure \ref{fig:6}a from -1500 to -1450 km on x-scale), and into the interior region.
+DeepBedMap\_DEM features a relatively noisy elevation profile with multiple fine-scale (<10 km) bumps and throughs similar to the groundtruth, while BEDMAP2 shows a smoother profile that is almost a moving average of the groundtruth elevation (Figure \ref{fig:6}a).
+Looking at the roughness statistic (Figure \ref{fig:6}b), both the DeepBedMap\_DEM and Operation IceBridge groundtruth grids have a mean standard deviation of about 40 m whereas BEDMAP2 has a mean of about 10 m and rarely exceeds a standard deviation value of 20 m along the transect.
 
 \begin{figure}[htbp]
   \includegraphics[width=0.9\columnwidth]{figures/fig6_elevation_roughness_transect.png}
   \caption{
-    Comparing bed elevation and surface roughness (standard deviation of elevation values) of each interpolated grid product (250 m resolution) over a transect (see Figure \ref{fig:5} for location of transect line).
+    Comparing bed elevation \textbf{a} and surface roughness \textbf{b} (standard deviation of elevation values) of each interpolated grid product (250 m resolution) over a transect (see Figure \ref{fig:5} for location of transect line).
     Purple values are from our super resolution DeepBedMap\_DEM;
     Orange values are from tension spline interpolated Operation IceBridge groundtruth points;
     Green values are from bicubic interpolated BEDMAP2.
@@ -489,26 +485,44 @@ Indeed, the BEDMAP2 product has a relatively smooth surface that rarely exceeds 
 
 \section{Discussion}
 
-\subsection{Qualitative Interpretation}
+\subsection{Interpretation}
 
 In Section \ref{section:deepbedmapdemtopography}, we show that our DeepBedMap model has produced a high resolution (250 m) result (see Figure \ref{fig:3}) that can capture a detailed and realistic picture of the underlying bed topography.
 The fine scale bumps and troughs are the result of the DeepBedMap Generator model learning to produce features that are similar to those found in the high resolution groundtruth datasets it was trained on.
-We are not sure why speckle texture patterns are found over steep mountains, but it is clear that the severe lack of high resolution training datasets leads our model to perform worse over these high gradient areas.
-The ridges found along fast flowing ice streams and glaciers are likely to be streaklines typical along the bed of such regions, formed from the scouring effect of ice.
-Finally, we interpret the wave-like patterns to be megadune structures \citep{ScambosSnowMegadune2014} that our DeepBedMap model has likely picked up from using the high resolution ice surface elevation model \citep{HowatReferenceElevationModel2019}.
+However, there are also artifacts produced by our model.
+For example, the winding terrace (\textbf{T}) features are hard to explain, and though they resemble eskers \citep{DrewsActivelyevolvingsubglacial2017}, their placement along the sides of hills does not support this view.
+Similarly, we are not sure why speckle (\textbf{S}) texture patterns are found over steep mountains, but the lack of high resolution training datasets likely leads our model to perform worse over these high gradient areas.
 
-\subsection{Quantitative Interpretation}
+Yet another issue is that our DeepBedMap\_DEM will often pick up details from the high resolution ice surface elevation model \citep{HowatReferenceElevationModel2019} input dataset, which may not be representative of the true bed topography.
+For example, the ridges (\textbf{R}) found along fast flowing ice streams and glaciers are likely to be the imprints of crevasses or flowstripes \citep{GlasserLongitudinalsurfacestructures2012} observable from the surface.
+An alternative explanation is that the ridges, especially the honeycomb-shaped ones, are rhombohedral moraine deposits formed by soft sediment squeezed up into basal crevasses that are sometimes found at stagnant surging glaciers \citep{Dowdeswellvarietydistributionsubmarine2016,DowdeswellRhombohedralcrevassefillridges2016,SolheimSeafloormorphologyoutside1985}.
+We favour the first intepretation as the positions of these bed features coincide with the surface features, and also because these ridges are more likely to be eroded away in these fast flowing ice stream areas.
+
+The hummocky wave-like (\textbf{W}) patterns we observe over the relatively flat and slower flowing areas are likely to result from surface megadune structures \citep{ScambosSnowMegadune2014}.
+Alternatively, they may be ribbed or rogen morraine features that are formed in an orientation transverse to the ice flow direction  \citep{HattestrandRibbedmorainesSweden1997,HattestrandRibbedmoraineformation1999}.
+While any one of these two explanations may be valid in different regions of Antarctica, we lean towards the conservative interpretation that these features are the result of our DeepBedMap model overfitting to the ice surface elevation data.
 
 In Section \ref{section:surfaceroughness}, we quantify that a well trained DeepBedMap neural network model can produce roughness values more comparable to the groundtruth than a simple interpolated BEDMAP2 product.
 Ordinary interpolation techniques such as bicubic interpolation only take in a low resolution image as input, and their results are inherently smooth by nature.
 The groundtruth grids show that rough areas do exist on a fine scale, and so the high resolution models we produce should reflect that.
 
+DeepBedMap\_DEM manages to capture much of the rough topography found in the Operation IceBridge groundtruth data, especially near the coast (see Figure \ref{fig:6}a, from -1550 to -1500 on x-scale) where the terrain tends to be rougher.
+Along the retrograde slope (see Figure \ref{fig:6}a, from -1500 to -1450 km on x-scale), several of the fine-scale (<10 km) bumps and troughs in DeepBedMap\_DEM can be seen to correlate well in position with the groundtruth.
+In contrast, the cubic interpolated BEDMAP2 product lacks such fine-scale (<10 km) bumps and troughs, appearing as a relatively smooth terrain over much of the transect.
+Previous studies that estimated basal shear stress over Thwaites Glacier have found a band of strong bed extending about 80-100 km from the grounding line, with pockets of weak bed interspersed between bands of strong bed further upstream \citep{JoughinBasalconditionsPine2009,SergienkoRegularPatternsFrictional2013}, a pattern that is broadly consistent with our DeepBedMap\_DEM roughness results (see Figure \ref{fig:5b}).
+In general, DeepBedMap\_DEM produces a topography that is much more rougher, with standard deviation values more in line with those observed in the groundtruth (see Figure \ref{fig:6}b).
+The roughness values for BEDMAP2 are consistently lower throughout the transect, a natural consequence from interpolating a 1000 m DEM to a 250 m spatial resolution.
+Recent studies have stressed the importance of form drag (basal drag due to bed topography) over skin drag (or basal friction) on the basal traction of Pine Island Glacier \citep{BinghamDiverselandscapesPine2017,Kyrke-SmithRelevanceDetailBasal2018}, and our DeepBedMap super-resolution work here shows strong potential in meeting that demand as a realistic high resolution bed topography dataset for ice sheet modelling studies.
+
 \subsection{Limitations}
 
 Our DeepBedMap model is trained only on a small fraction of the area of Antarctica, simply because the convolutional neural network cannot be trained on sparse survey point measurements.
 The topography generated by our model is quite sensitive to the accuracy of its data inputs (see Table \ref{table:groundtruthdata} and \ref{table:datainputs}), and though this is a problem faced by many other inverse methods, neural network models like ours can be particularly biased towards the training dataset.
+
+An inherent assumption in our methodology is that our training data sets have sampled the variable bed lithology of Antarctica \citep{CoxGeoMAPdatasetAntarctic2018} sufficiently.
+This is unlikely to be true, introducing uncertainty in our result as different lithologies may cause the same macro-scale bed landscapes to result in a range of surface features.
 In particular, our experimental model's topography is likely skewed towards the distribution of our training regions that tend to reside in coastal regions, especially over ice streams in West Antarctica (see Figure \ref{fig:2}).
-Besides collecting more radio-echo sounding datasets to sample these regions more densely, swath reprocessing of old datasets that have that capability may prove useful to adding to the training set \citep{HolschuhSwathtopographyfuture2019}.
+Besides collecting more radio-echo sounding datasets to sample these regions more densely, swath reprocessing of old datasets that have that capability \citep{HolschuhSwathtopographyfuture2019} may be another useful addition to the training set.
 
 \subsection{Future directions}
 
@@ -527,18 +541,16 @@ Taken together, these advances will lead to an even more accurate and higher res
 
 \conclusions  %% \conclusions[modified heading if necessary]
 
-Our DeepBedMap convolutional neural network method presents a data-driven approach to resolve the bed topography of Antarctica.
+Our DeepBedMap convolutional neural network method presents a data-driven approach to better resolve the bed topography of Antarctica using existing data.
 It is an improvement beyond simple interpolation techniques, generating realistic high spatial resolution (250 m) topography that preserves detail in bed roughness and is adaptable for catchment to continent-scale studies on ice sheets.
 Unlike other inverse methods that rely on some explicit parameterization of ice-flow physics, our model uses deep learning to find suitable neural network parameters via an iterative error minimization approach.
-
-Our method emphasizes the value of densely spaced bed elevation datasets sampled over a more diverse portion of Antarctica.
-There is a need for more high resolution surveys (<250 m line spacing), preferably swath datasets, that capture a more representative picture of Antarctica's varied bed topography.
-Using Graphical Processing Units (GPUs) for training and inference allows our neural network method to scale easily, and the addition of more training datasets will allow it to perform better.
+This makes the resulting model particularly sensitive to our training data set, emphasizing the value of densely spaced bed elevation datasets and the need for such sampling over a more diverse range of Antarctic substrate types.
+The use of Graphical Processing Units (GPUs) for training and inference allows our neural network method to scale easily, and the addition of more training datasets will allow it to perform better.
 
 The work here is not intended to discourage the usage of other inverse modelling techniques, but to introduce an independent methodology, with an outlook towards combining the strengths of the two.
 Once properly trained, our DeepBedMap model runs quickly and produces realistic rough topography, which when merged with more physically based mass conservation inverse approaches \citep[e.g.][]{MorlighemDeepglacialtroughs2019} will likely result in more efficient ways of generating accurate bed elevation maps of Antarctica.
 One side product resulting from this work is a test-driven development framework that can be used to measure and compare the performance of upcoming bed terrain models.
-Indeed, the radioglaciology community has begun to compile a more comprehensive bed elevation/ice thickness dataset for Antarctica, and there has been discussions to combine various terrain interpolation techniques in an ensemble to collaboratively create the new BEDMAP3.
+The radioglaciology community has already begun to compile a new comprehensive bed elevation/ice thickness dataset for Antarctica, and there has been discussions to combine various terrain interpolation techniques in an ensemble to collaboratively create the new BEDMAP3.
 
 
 
@@ -548,7 +560,7 @@ Indeed, the radioglaciology community has begun to compile a more comprehensive 
 
 \codeavailability{
   Python code for data preparation, neural network model training and visualization of model outputs are freely available at https://github.com/weiji14/deepbedmap.
-  Experimental model runs are also recorded at https://www.comet.ml/weiji14/deepbedmap.
+  Model training experiment runs are also recorded at https://www.comet.ml/weiji14/deepbedmap.
 } %% use this section when having only software code available
 
 
@@ -729,8 +741,8 @@ The top models from these experiments undergo further visual evaluation, and we 
 
 
 \authorcontribution{
-  W. J. L. - conceptualization, data curation, formal analysis, methodology, software, visualization, writing – original draft, writing – review \& editing.
-  H. J. H. - funding acquisition, supervision, writing – review \& editing.
+  W. J. L. - conceptualisation, data curation, formal analysis, methodology, software, visualization, writing – original draft, writing – review \& editing.
+  H. J. H. - conceptualisation, funding acquisition, supervision, writing – review \& editing.
 } %% this section is mandatory
 
 \competinginterests{The authors declare that they have no conflict of interest.} %% this section is mandatory even if you declare that no competing interests are present
