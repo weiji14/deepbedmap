@@ -642,9 +642,9 @@ def closeup_fig(letter: str, midx: int, midy: int, annot_xyt: list, size=100_000
         shading="+d",  # default illumination from azimuth -45deg, intensity of +1
         Q=True,
     )
-    # Plot text annotation
+    # Plot text annotation, black text against white background
     for x, y, text in annot_xyt:
-        fig.text(x=x, y=y, text=text, font="12p,Helvetica,yellow")
+        fig.text(x=x, y=y, text=text, font="12p,Helvetica-Bold,black", G="white")
 
     # Plot map elements (colorbar, legend, frame)
     fig.colorbar(
@@ -667,9 +667,10 @@ def closeup_fig(letter: str, midx: int, midy: int, annot_xyt: list, size=100_000
     return fig
 
 
+# %%
 # Transantarctic Mountains - Scott Glacier
 fig = closeup_fig(
-    letter="a", midx=-200_000, midy=-400_000, annot_xyt=[(-230000, -410000, "S")]
+    letter="a", midx=-200_000, midy=-400_000, annot_xyt=[(-230000, -390000, "S")]
 )
 # Siple Coast - Whillans Ice Stream
 fig = closeup_fig(
