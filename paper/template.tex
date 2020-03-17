@@ -88,14 +88,16 @@
 
 %% The [] brackets identify the author with the corresponding affiliation. 1, 2, 3, etc. should be inserted.
 
-%% If an author is deceased, please add a further affiliation and mark the respective author name(s) with a dagger, e.g. "\Author[2,$\dag$]{Anton}{Aman}" with the affiliations "\affil[2]{University of ...}" and "\affil[$\dag$]{deceased, 1 July 2019}"
+%% If an author is deceased, please mark the respective author name(s) with a dagger, e.g. "\Author[2,$\dag$]{Anton}{Aman}", and add a further "\affil[$\dag$]{deceased, 1 July 2019}".
+
+%% If authors contributed equally, please mark the respective author names with an asterisk, e.g. "\Author[2,*]{Anton}{Aman}" and "\Author[3,*]{Bradley}{Bman}" and add a further affiliation: "\affil[*]{These authors contributed equally to this work.}".
+
 
 \correspondence{W. J. Leong (weiji.leong@vuw.ac.nz)}
 
 \runningtitle{DeepBedMap Antarctica}
 
 \runningauthor{W. J. Leong and H. J. Horgan}
-
 
 
 
@@ -722,7 +724,7 @@ The estimator first conducts 20 random experimental trials to scan the hyperpara
 We set each GPU to run a target of 30 experimental trials (i.e. a total of 120), though unpromising trials that have exploding/vanishing gradients are pruned prematurely to save on time and computational resources.
 The top models from these experiments undergo further visual evaluation, and we continue to conduct further experiments until a suitable candidate model is found.
 
-\noappendix       %% use this to mark the end of the appendix section
+\noappendix       %% use this to mark the end of the appendix section. Otherwise the figures might be numbered incorrectly (e.g. 10 instead of 1).
 
 %% Regarding figures and tables in appendices, the following two options are possible depending on your general handling of figures and tables in the manuscript environment:
 
@@ -802,6 +804,8 @@ The top models from these experiments undergo further visual evaluation, and we 
 
 %% When figures and tables are placed at the end of the MS (article in one-column style), please add \clearpage
 %% between bibliography and first table and/or figure as well as between each table and/or figure.
+
+% The figure files should be labelled correctly with Arabic numerals (e.g. fig01.jpg, fig02.png).
 
 
 %% ONE-COLUMN FIGURES
