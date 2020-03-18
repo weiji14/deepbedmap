@@ -447,7 +447,22 @@ _ = subprocess.run(
     ],
     stdout=subprocess.PIPE,
 )
-
+# Compress pdf following https://tex.stackexchange.com/a/19047
+pdfcompress = lambda pdfpath: subprocess.run(
+    [
+        "gs",
+        "-sDEVICE=pdfwrite",
+        "-dCompatibilityLevel=1.4",
+        "-dNOPAUSE",
+        "-dQUIET",
+        "-dBATCH",
+        "-dPrinted=false",
+        f"-sOutputFile={pdfpath}_compressed.pdf",
+        f"{pdfpath}.pdf",
+    ],
+    stdout=subprocess.PIPE,
+)
+_ = pdfcompress(pdfpath="paper/figures/fig1_deepbedmap_architecture")
 # %%
 IPython.display.IFrame(
     src="paper/figures/fig1_deepbedmap_architecture.pdf", width=900, height=450
@@ -538,7 +553,8 @@ fig.basemap(
     frame="WSne",
 )
 # Save and show the figure
-fig.savefig(fname="paper/figures/fig2_deepbedmap_dem.png")
+fig.savefig(fname="paper/figures/fig2_deepbedmap_dem.pdf", dpi=300)
+_ = pdfcompress(pdfpath="paper/figures/fig2_deepbedmap_dem")
 fig.show()
 
 
@@ -612,7 +628,6 @@ deepbedmap.plot_3d_view(
     zlabel="Bed elevation (metres)",
 )
 deepbedmap.subplot(directive="end")
-fig.savefig(fname="paper/figures/fig3_qualitative_bed_comparison.eps", crop=False)
 fig.savefig(
     fname="paper/figures/fig3_qualitative_bed_comparison.png", dpi=300, crop=False
 )
@@ -624,13 +639,23 @@ fig.show()
 # ### **Figure 4: Closeup images of DeepBedMap_DEM**
 
 # %%
-def closeup_fig(letter: str, midx: int, midy: int, annot_xyt: list, size=100_000):
+def closeup_fig(
+    letter: str,
+    name: str,
+    midx: int,
+    midy: int,
+    annot_xyt: list,
+    size: int = 100_000,
+    fig: gmt.Figure = None,
+):
     """
     Produces a closeup figure of a DeepBedMap_DEM area, with text annotations
     """
     region = [midx - size, midx + size, midy - size, midy + size]
 
-    fig = gmt.Figure()
+    if fig is None:  # initialize figure if no Figure is given
+        fig = gmt.Figure()
+
     # Plot DeepBedMap Digital Elevation Model (DEM)
     gmt.makecpt(cmap="oleron", series=[-2000, 4500])
     fig.grdimage(
@@ -644,9 +669,23 @@ def closeup_fig(letter: str, midx: int, midy: int, annot_xyt: list, size=100_000
     )
     # Plot text annotation, black text against white background
     for x, y, text in annot_xyt:
-        fig.text(x=x, y=y, text=text, font="12p,Helvetica-Bold,black", G="white")
-
-    # Plot map elements (colorbar, legend, frame)
+        fig.text(
+            x=x,
+            y=y,
+            text=text,
+            font="12p,Helvetica-Bold,black",
+            G="white",
+            region=region,
+            projection="x1:1500000",
+        )
+    # Plot map elements (frame, colorbar)
+    fig.basemap(
+        region=[r / 1000 for r in region],
+        projection="x1:1500",
+        Bx='af+l"Polar Stereographic X (km)"',
+        By='af+l"Polar Stereographic Y (km)"',
+        frame=f'WSne+t"{letter}) {name}"',
+    )
     fig.colorbar(
         position="jBL+jBL+o2.0c/0.5c+w2.0c/0.2c+m",
         box="+gwhite+p0.5p",
@@ -654,63 +693,107 @@ def closeup_fig(letter: str, midx: int, midy: int, annot_xyt: list, size=100_000
         cmap="+Uk",  # kilo-units, i.e. divide by 1000
         S=True,  # no lines inside color scalebar
     )
-    fig.basemap(
-        region=[r / 1000 for r in region],
-        projection="x1:1500",
-        Bx='af+l"Polar Stereographic X (km)"',
-        By='af+l"Polar Stereographic Y (km)"',
-        frame="WSne",
-    )
     # Save and show the figure
-    fig.savefig(fname=f"paper/figures/fig4{letter}_deepbedmap_closeup.png")
+    # fig.savefig(fname=f"paper/figures/fig4{letter}_deepbedmap_closeup.png")
 
     return fig
 
 
 # %%
+fig = gmt.Figure()
+deepbedmap.subplot(directive="begin", row=3, col=3, B="wsne", Fs="15c/15c", M="1c/1c")
 # Transantarctic Mountains - Scott Glacier
+deepbedmap.subplot(directive="set")
 fig = closeup_fig(
-    letter="a", midx=-200_000, midy=-400_000, annot_xyt=[(-230000, -390000, "S")]
+    letter="a",
+    name="Scott Glacier",
+    midx=-200_000,
+    midy=-400_000,
+    annot_xyt=[(-230000, -390000, "S")],
+    fig=fig,
 )
 # Siple Coast - Whillans Ice Stream
+deepbedmap.subplot(directive="set")
 fig = closeup_fig(
-    letter="b", midx=-400_000, midy=-550_000, annot_xyt=[(-350000, -540000, "R")]
+    letter="b",
+    name="Whillans Ice Stream",
+    midx=-400_000,
+    midy=-550_000,
+    annot_xyt=[(-350000, -540000, "R")],
+    fig=fig,
 )
 # Siple Coast - Bindschadler Ice Stream
+deepbedmap.subplot(directive="set")
 fig = closeup_fig(
-    letter="c", midx=-550_000, midy=-800_000, annot_xyt=[(-610000, -740000, "R")]
+    letter="c",
+    name="Bindschadler Ice Stream",
+    midx=-550_000,
+    midy=-800_000,
+    annot_xyt=[(-610000, -740000, "R")],
+    fig=fig,
 )
 # Weddell Sea Region - Evans Ice Stream
+deepbedmap.subplot(directive="set")
 fig = closeup_fig(
-    letter="d", midx=-1500_000, midy=350_000, annot_xyt=[(-1450000, 320000, "R")]
+    letter="d",
+    name="Evans Ice Stream",
+    midx=-1500_000,
+    midy=350_000,
+    annot_xyt=[(-1450000, 320000, "R")],
+    fig=fig,
 )
 # Weddell Sea Region - Rutford Ice Stream
+deepbedmap.subplot(directive="set")
 fig = closeup_fig(
-    letter="e", midx=-1300_000, midy=150_000, annot_xyt=[(-1220000, 150000, "R")]
+    letter="e",
+    name="Rutford Ice Stream",
+    midx=-1300_000,
+    midy=150_000,
+    annot_xyt=[(-1220000, 150000, "R")],
+    fig=fig,
 )
 # Weddell Sea Region - Foundation Ice Stream
+deepbedmap.subplot(directive="set")
 fig = closeup_fig(
-    letter="f", midx=-600_000, midy=350_000, annot_xyt=[(-630000, 360000, "R")]
+    letter="f",
+    name="Foundation Ice Stream",
+    midx=-600_000,
+    midy=350_000,
+    annot_xyt=[(-630000, 360000, "R")],
+    fig=fig,
 )
 # East Antarctica - Totten Glacier
+deepbedmap.subplot(directive="set")
 fig = closeup_fig(
     letter="g",
+    name="Totten Glacier",
     midx=2250_000,
     midy=-1050_000,
     annot_xyt=[(2270000, -1070000, "R"), (2180000, -970000, "W")],
+    fig=fig,
 )
 # East Antarctica - Byrd Glacier
+deepbedmap.subplot(directive="set")
 fig = closeup_fig(
     letter="h",
+    name="Byrd Glacier",
     midx=400_000,
     midy=-950_000,
     annot_xyt=[(380000, -980000, "R"), (400000, -1040000, "S")],
+    fig=fig,
 )
 # East Antarctica - Gamburtsev Subglacial Mountains
+deepbedmap.subplot(directive="set")
 fig = closeup_fig(
-    letter="i", midx=800_000, midy=200_000, annot_xyt=[(710000, 240000, "T")]
+    letter="i",
+    name="Gamburtsev Subglacial Mountains",
+    midx=800_000,
+    midy=200_000,
+    annot_xyt=[(710000, 240000, "T")],
+    fig=fig,
 )
-
+deepbedmap.subplot(directive="end")
+fig.savefig(fname=f"paper/figures/fig4_deepbedmap_closeups.eps", dpi=300)
 fig.show()
 
 # %%
@@ -888,41 +971,20 @@ for name, grid in roughDict.items():
 # %% [markdown]
 # ### **Figure 5: 2D view of roughness grids over Thwaites Glacier, West Antarctica**
 
-# %% [raw]
-# fig = gmt.Figure()
-# fig.basemap(
-#     region=kmregion,
-#     projection="X14c",
-#     Bx='af+l"Polar Stereographic X (km)"',
-#     By='af+l"Polar Stereographic Y (km)"',
-#     frame=['WSne+t"DeepBedMap DEM"'],
-# )
-# fig.grdimage(grid=gridDict["DeepBedMap"], region=region, cmap="gray")
-# gmt.makecpt(cmap="vik", series=[-250, 250])
-# fig.plot(
-#     x=elevpoints["DeepBedMap"].x,
-#     y=elevpoints["DeepBedMap"].y,
-#     color=deepbedmap3_error,
-#     style="c0.1c",
-#     pen="+cl",
-#     cmap=True,
-# )
-# fig.colorbar(position="JMR", cmap=True, frame=["af", "y+lm"])
-# fig.savefig("temp.png")
-# fig.show()
-
-
 # %%
 ## Copied cpt from GenericMappingTools/gmt @ 3fb8efa8bf2c3016d6b22d8e9f0e84dbcc1965ae
 fig = gmt.Figure()
+deepbedmap.subplot(directive="begin", row=2, col=2, Fs="17c/17c", C="1.5c", M="0c/1c")
+deepbedmap.subplot(directive="set")
+
 fig.basemap(
     region=kmregion,
     projection="X14c",
     Bx='af+l"Polar Stereographic X (km)"',
     By='af+l"Polar Stereographic Y (km)"',
-    frame=['WSne+t"DeepBedMap DEM"'],
+    frame=['WSne+t"a) DeepBedMap DEM"'],
 )
-# Plot DeepBedMap DEM
+# Plot Figure 5a DeepBedMap DEM
 gmt.makecpt(cmap="oleron", series=[-2000, 2500])
 fig.grdimage(grid=gridDict["DeepBedMap"], region=region)
 fig.colorbar(position="JBC", frame=["af", 'x+l"Elevation"', "y+lm"])
@@ -932,34 +994,37 @@ fig.plot(
     y=oibpoints.y,
     color="orange",
     style="c0.1c",
-    label='"Groundtruth points"',
+    label='"Transect points"',
 )
 fig.legend(position="JBL+jBL+o0.2c", box="+gwhite+p1p")
 # Save and show the figure
-fig.savefig(fname="paper/figures/fig5a_elevation_deepbedmap.png")
-fig.show()
+# fig.savefig(fname="paper/figures/fig5a_elevation_deepbedmap.png")
+# fig.show()
 
 # %%
+# Plot Figures 5b, c, d 2D roughness grids
 for letter, (name, grid) in zip(["b", "c", "d"], roughDict.items()):
+    deepbedmap.subplot(directive="set")
     if name == "BEDMAP2":
         maxstddev = 100
     else:
         maxstddev = 400
-    fig = gmt.Figure()
+    # fig = gmt.Figure()
     fig.basemap(
         region=kmregion,
         projection="X14c",
         Bx='af+l"Polar Stereographic X (km)"',
         By='af+l"Polar Stereographic Y (km)"',
-        frame=[f'WSne+t"{name} roughness"'],
+        frame=[f'WSne+t"{letter}) {name} roughness"'],
     )
     print(float(grid.min()), float(grid.max()))
     gmt.makecpt(cmap="davos", series=[0, maxstddev, maxstddev / 8], M="d")
     fig.grdimage(grid=grid, region=region, cmap=True)
     fig.colorbar(position="JBC+ef", frame=["af", 'x+l"Standard Deviation"', "y+lm"])
-    fig.savefig(fname=f"paper/figures/fig5{letter}_roughness_{name.lower()}.png")
+    # fig.savefig(fname=f"paper/figures/fig5{letter}_roughness_{name.lower()}.png")
 
-
+deepbedmap.subplot(directive="end")
+fig.savefig(fname="paper/figures/fig5_elevation_roughness_grids.eps", dpi=300)
 fig.show()
 
 # %%
@@ -986,13 +1051,13 @@ for zvalue, yrange in (("elevation", [-1600, -400]), ("roughness", [0, 100])):
             x=elevpoints[grid].x,
             y=elevpoints[grid][zvalue],
             region=[-1550000, -1300000, *yrange],
-            style="c0.01c",
+            style="c0.02c",
             color=color,
             label=grid,
         )
     fig.legend(S=10)  # position="jTR+o0/0", box=True,
 deepbedmap.subplot(directive="end")
-fig.savefig(fname="paper/figures/fig6_elevation_roughness_transect.png")
+fig.savefig(fname="paper/figures/fig6_elevation_roughness_transect.eps", dpi=300)
 fig.show()
 
 # %%
