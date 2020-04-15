@@ -11,7 +11,7 @@
 \def\UnpoolColor{rgb:blue,2;green,1;black,0.3}
 \def\FcColor{rgb:blue,5;red,2.5;white,5}
 \def\FcReluColor{rgb:blue,5;red,5;white,4}
-\def\SoftmaxColor{rgb:magenta,5;black,7}
+\def\SoftmaxColor{rgb:magenta,5;black,7}   
 
 \newcommand{\copymidarrow}{\tikz \draw[-Stealth,line width=0.8mm,draw={rgb:blue,4;red,1;green,1;black,3}] (-0.3,0) -- ++(0.3,0);}
 
@@ -22,7 +22,7 @@
 
 \tikzset{font=\small}
 
-\node[canvas is xy plane at z=0] (temp) at (-1.8,3,0){
+\node[canvas is xy plane at z=0] (temp) at (-1.8,4,0){
     \includegraphics[width=2cm,height=1.8cm]{paper/figures/fig1a_bedmap2.png}
 };
 
@@ -30,18 +30,18 @@
     \includegraphics[width=2cm,height=1.8cm]{paper/figures/fig1b_rema.png}
 };
 
-\node[canvas is xy plane at z=0] (temp) at (-1.8,-3.5,0){
+\node[canvas is xy plane at z=0] (temp) at (-1.8,-4.5,0){
     \includegraphics[width=2cm,height=1.6cm]{paper/figures/fig1c_measures.png}
 };
 
-\node[canvas is xy plane at z=0] (temp) at (-1.8,-5.5,0){
+\node[canvas is xy plane at z=0] (temp) at (-1.8,-8,0){
     \includegraphics[width=2cm,height=1.8cm]{paper/figures/fig1d_accumulation.png}
 };
 
-\pic[shift={ (1.0,0,0) }] at (-1.2,3,0){
+\pic[shift={ (1.0,0,0) }] at (-1.2,4,0){
     Box={
         name=x0_img,
-        caption= ,
+        caption=BEDMAP2,
         xlabel={ 1, },
         zlabel=11,
         fill={rgb:green,1;black,3},
@@ -54,7 +54,7 @@
 \pic[shift={ (1.0,0,0) }] at (-1.0,0,0){
     Box={
         name=w1_img,
-        caption= ,
+        caption=REMA,
         xlabel={ 1, },
         zlabel=110,
         fill={rgb:green,1;black,3},
@@ -64,10 +64,10 @@
         }
     };
 
-\pic[shift={ (1.0,0,0) }] at (-1.2,-3.5,0){
+\pic[shift={ (1.0,0,0) }] at (-1.2,-4.5,0){
     Box={
         name=w2_img,
-        caption= ,
+        caption=MEaSUREs,
         xlabel={ 2, },
         zlabel=22,
         fill={rgb:green,1;black,3},
@@ -77,10 +77,10 @@
         }
     };
 
-\pic[shift={ (1.0,0,0) }] at (-1.2,-5.5,0){
+\pic[shift={ (1.0,0,0) }] at (-1.2,-8,0){
     Box={
         name=w3_img,
-        caption= ,
+        caption=Accumulation,
         xlabel={ 1, },
         zlabel=11,
         fill={rgb:green,1;black,3},
@@ -231,7 +231,7 @@
 
 \draw [connection]  (w3_-east)    -- node {\midarrow} (concat-west);
 
-\pic[shift={ (0,-1.5,0) }] at (w3_img-west)
+\pic[shift={ (0,-2.5,0) }] at (w3_img-east)
     {Box={
         name=input-module-label,
         caption=Input Module,
@@ -294,6 +294,18 @@ RightBandedBox={
     to [out=60,in=120]
     node {\copymidarrow}
     ([xshift=0.6cm] post-residual-east);
+
+\pic[shift={ (1.7,2.5,0) }] at (rrdb-blocks-west)
+    {Box={
+        name=,
+        caption=Skip,
+        fill=\PoolColor,
+        opacity=0,
+        height=0,
+        width=0,
+        depth=0
+        }
+    };
 
 \pic[shift={ (0.3,0,0) }] at (input-module-label-east)
     {Box={
@@ -410,7 +422,7 @@ RightBandedBox={
 \draw [connection]  (final-conv-block2-east)    -- node {\midarrow} (deepbedmap-dem-west);
 
 \node[canvas is xy plane at z=0] (temp) at (21,0,0){
-    \includegraphics[width=5cm,height=5cm]{paper/figures/fig1e_deepbedmap.png}
+    \includegraphics[width=5cm,height=4.090909090909091cm]{paper/figures/fig1e_deepbedmap.png}
 };
 
 \pic[shift={ (0.3,0,0) }] at (core-module-label-east)
@@ -420,24 +432,24 @@ RightBandedBox={
         fill=\PoolColor,
         opacity=0.2,
         height=0.1,
-        width=32,
+        width=33,
         depth=0.1
         }
     };
 
-\pic[shift={ (3,-2.4,0) }] at (deepbedmap-dem-east)
+\pic[shift={ (2.7,-3,0) }] at (deepbedmap-dem-east)
     {Box={
         name=key,
         caption=Key:,
         fill=\PoolColor,
-        opacity=0.0,
-        height=0.1,
+        opacity=0,
+        height=0,
         width=0,
-        depth=0.1
+        depth=0
         }
     };
 
-\pic[shift={(-1.2,-1.6,0)}] at (key-southwest)
+\pic[shift={(-1.2,-2,0)}] at (key-southwest)
     {Box={
         name=conv,
         caption=Convolution\\Layer,
@@ -464,7 +476,7 @@ RightBandedBox={
     }
 };
 
-\pic[shift={ (0,-2,0) }] at (conv-southwest){
+\pic[shift={ (0,-2.5,0) }] at (conv-southwest){
     Box={
         name=upsample,
         caption=NN\\Upsample,

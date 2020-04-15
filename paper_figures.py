@@ -164,20 +164,29 @@ def sizes(cl=(64, 9), scale=(30, 2.5), offset="(1.0,0,0)"):
 input_layers = [
     # Actual raster images
     to_flatimage(
-        "paper/figures/fig1a_bedmap2.png", to="(-1.8,3,0)", width=2, height=1.8
+        "paper/figures/fig1a_bedmap2.png", to="(-1.8,4,0)", width=2, height=1.8
     ),
     to_flatimage("paper/figures/fig1b_rema.png", to="(-1.8,0,0)", width=2, height=1.8),
     to_flatimage(
-        "paper/figures/fig1c_measures.png", to="(-1.8,-3.5,0)", width=2, height=1.6
+        "paper/figures/fig1c_measures.png", to="(-1.8,-4.5,0)", width=2, height=1.6
     ),
     to_flatimage(
-        "paper/figures/fig1d_accumulation.png", to="(-1.8,-5.5,0)", width=2, height=1.8
+        "paper/figures/fig1d_accumulation.png", to="(-1.8,-8,0)", width=2, height=1.8
     ),
     # Input Raster Images
-    to_InOut(name="x0_img", **sizes(cl=(1, 11)), to="(-1.2,3,0)"),
-    to_InOut(name="w1_img", **sizes(cl=(1, 110), scale=(20, 7.5)), to="(-1.0,0,0)"),
-    to_InOut(name="w2_img", **sizes(cl=(2, 22)), to="(-1.2,-3.5,0)"),
-    to_InOut(name="w3_img", **sizes(cl=(1, 11)), to="(-1.2,-5.5,0)"),
+    to_InOut(name="x0_img", **sizes(cl=(1, 11)), to="(-1.2,4,0)", caption="BEDMAP2"),
+    to_InOut(
+        name="w1_img",
+        **sizes(cl=(1, 110), scale=(20, 7.5)),
+        to="(-1.0,0,0)",
+        caption="REMA",
+    ),
+    to_InOut(
+        name="w2_img", **sizes(cl=(2, 22)), to="(-1.2,-4.5,0)", caption="MEaSUREs"
+    ),
+    to_InOut(
+        name="w3_img", **sizes(cl=(1, 11)), to="(-1.2,-8,0)", caption="Accumulation"
+    ),
     # First Convolution on input image
     to_Conv(name="x0", **sizes(cl=(32, 11)), to="(x0_img-east)"),
     to_Conv(name="w1", **sizes(cl=(32, 110), scale=(20, 7.5)), to="(w1_img-east)"),
@@ -210,8 +219,8 @@ input_layers = [
     # Label for Input Module
     to_Pool(
         name="input-module-label",
-        offset="(0,-1.5,0)",
-        to="(w3_img-west)",
+        offset="(0,-2.5,0)",
+        to="(w3_img-east)",
         caption=r"Input Module",
         width=24,
         height=0.1,
@@ -249,6 +258,16 @@ rrdb_layers_simple = [
     to_connection(of="rrdb-blocks", to="post-residual"),
     # Skip Connection
     to_curvedskip(of="pre-residual", to="post-residual", xoffset=0.6),
+    to_Pool(
+        name="",
+        offset="(1.7,2.5,0)",
+        to="(rrdb-blocks-west)",
+        caption=r"Skip",
+        width=0,
+        height=0,
+        depth=0,
+        opacity=0,
+    ),
     # Label for Core RRDB module
     to_Pool(
         name="core-module-label",
@@ -367,7 +386,7 @@ upsampling_layers = [
     to_connection(of="final-conv-block2", to="deepbedmap-dem"),
     #
     to_flatimage(
-        "paper/figures/fig1e_deepbedmap.png", to="(21,0,0)", width=5, height=5
+        "paper/figures/fig1e_deepbedmap.png", to="(21,0,0)", width=5, height=5 * 18 / 22
     ),
     # Label for Upsampling Module
     to_Pool(
@@ -375,7 +394,7 @@ upsampling_layers = [
         offset="(0.3,0,0)",
         to="(core-module-label-east)",
         caption=r"Upsampling Module",
-        width=32,
+        width=33,
         height=0.1,
         depth=0.1,
         opacity=0.2,
@@ -384,19 +403,19 @@ upsampling_layers = [
 legend_key = [
     to_Pool(
         name="key",
-        offset="(3,-2.4,0)",
+        offset="(2.7,-3,0)",
         to="(deepbedmap-dem-east)",
         caption=r"Key:",
         width=0,
-        height=0.1,
-        depth=0.1,
-        opacity=0.0,
+        height=0,
+        depth=0,
+        opacity=0,
     ),
     to_Conv(
         name="conv",
         s_filer="\scriptsize Pixels",
         n_filer=("'Channels'", 0, 0),
-        offset="(-1.2,-1.6,0)",
+        offset="(-1.2,-2,0)",
         to="(key-southwest)",
         width=64 / 30,
         height=3.6,
@@ -412,7 +431,7 @@ legend_key = [
     # to_RRDB(name="rrdb-block", **sizes(offset="(2,0,0)"), to="(convrelu-east)", caption=r"RRDB"),
     to_Upsample(
         name="upsample",
-        **sizes(offset="(0,-2,0)"),
+        **sizes(offset="(0,-2.5,0)"),
         to="(conv-southwest)",
         caption=r"NN\\Upsample",
     ),
@@ -465,7 +484,15 @@ pdfcompress = lambda pdfpath: subprocess.run(
 _ = pdfcompress(pdfpath="paper/figures/fig1_deepbedmap_architecture")
 # %%
 IPython.display.IFrame(
-    src="paper/figures/fig1_deepbedmap_architecture.pdf", width=900, height=450
+    to_InOut(
+        name="deepbedmap-dem",
+        **sizes(cl=(1, 36), offset="(1.2,0,0)"),
+        to="(final-conv-block2-east)",
+        caption=r"DeepBedMap\\DEM",
+    ),
+    src="paper/figures/fig1_deepbedmap_architecture_compressed.pdf",
+    width=900,
+    height=450,
 )
 
 
@@ -858,8 +885,6 @@ def prepare_grid(file: str, region: list):
 deepbedmap3grid = prepare_grid(file="model/deepbedmap3_big_int16.tif", region=region)
 groundtruthgrid = prepare_grid(file="highres/20xx_Antarctica_DC8.nc", region=region)
 bedmap2grid = prepare_grid(file="lowres/bedmap2_bed.tif", region=region)
-# bilinearbedmap2grid = bedmap2grid.interp_like(other=deepbedmap3grid, method="linear")
-
 cubicbedmap2 = skimage.transform.rescale(
     image=bedmap2grid.astype(np.int32),
     scale=4,  # 4x upscaling
@@ -873,10 +898,27 @@ cubicbedmap2grid = xr.DataArray(
     data=cubicbedmap2[2:-2, 2:-2], coords=deepbedmap3grid.coords
 )
 
+bedmachinegrid = prepare_grid(
+    file="netcdf:model/BedMachineAntarctica_2019-11-05_v01.nc:bed", region=region
+)
+cubicbedmachine = skimage.transform.rescale(
+    image=bedmachinegrid.astype(np.int32),
+    scale=2,  # 2x upscaling
+    order=3,  # cubic interpolation
+    mode="reflect",
+    anti_aliasing=True,
+    multichannel=False,
+    preserve_range=True,
+)
+cubicbedmachinegrid = xr.DataArray(
+    data=cubicbedmachine[1:-1, 1:-1], coords=deepbedmap3grid.coords
+)
+
 gridDict = {
     "DeepBedMap": deepbedmap3grid,
     "Groundtruth": groundtruthgrid,
-    "BEDMAP2": cubicbedmap2grid,
+    # "BEDMAP2": cubicbedmap2grid,
+    "BedMachine": cubicbedmachinegrid,
 }
 roughDict = {}
 for name, grid in gridDict.items():
@@ -1004,11 +1046,13 @@ fig.legend(position="JBL+jBL+o0.2c", box="+gwhite+p1p")
 # %%
 # Plot Figures 5b, c, d 2D roughness grids
 for letter, (name, grid) in zip(["b", "c", "d"], roughDict.items()):
-    deepbedmap.subplot(directive="set")
     if name == "BEDMAP2":
-        maxstddev = 100
+        maxstddev = 100  # lower scale as few pixels with high standard dev
+    elif name == "BedMachine":
+        maxstddev = 200
     else:
         maxstddev = 400
+    deepbedmap.subplot(directive="set")
     # fig = gmt.Figure()
     fig.basemap(
         region=kmregion,
