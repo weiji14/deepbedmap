@@ -48,6 +48,7 @@ Also a convenient [flat file](https://en.wikipedia.org/wiki/Flat-file_database) 
     ├── data_prep.ipynb/py (paired jupyter notebook/python script that prepares the data)
     ├── deepbedmap.ipynb/py (paired jupyter notebook/python script that predicts an Antarctic bed digital elevation model)
     ├── environment.yml (conda binary packages to install)
+    ├── paper_figures.ipynb/py (paired jupyter notebook/python script to produce figures for DeepBedMap paper
     ├── srgan_train.ipynb/py (paired jupyter notebook/python script that trains the ESRGAN neural network model)
     └── test_ipynb.ipynb/py (paired jupyter notebook/python script that runs doctests in the other jupyter notebooks!)
 ```

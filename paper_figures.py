@@ -443,7 +443,7 @@ legend_key = [
     ),
 ]
 
-# %%
+# %% {"jupyter": {"outputs_hidden": true}}
 arch = [
     to_head("paper/figures/PlotNeuralNet"),
     to_cor(),
@@ -484,12 +484,6 @@ pdfcompress = lambda pdfpath: subprocess.run(
 _ = pdfcompress(pdfpath="paper/figures/fig1_deepbedmap_architecture")
 # %%
 IPython.display.IFrame(
-    to_InOut(
-        name="deepbedmap-dem",
-        **sizes(cl=(1, 36), offset="(1.2,0,0)"),
-        to="(final-conv-block2-east)",
-        caption=r"DeepBedMap\\DEM",
-    ),
     src="paper/figures/fig1_deepbedmap_architecture_compressed.pdf",
     width=900,
     height=450,
