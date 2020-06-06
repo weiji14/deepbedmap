@@ -438,7 +438,7 @@ def xyz_to_grid(
             if outfile is not None:  # kind == "file"
                 file_context = gmt.helpers.dummy_context(outfile)
             else:  # kind == "grid"
-                file_context = lib.virtualfile_from_grid(grid.z)
+                file_context = lib.virtualfile_from_grid(grid)
                 outfile = tmpfile.name
             with file_context as infile:
                 kwargs = {"T": "", "G": f"{outfile}"}
