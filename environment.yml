@@ -7,7 +7,6 @@ dependencies:
   - anaconda::cudatoolkit=10.0[md5=4388ad6015992501b042eea5197eb447]
   - conda-forge::gmt=6.0.0[md5=8ff88c21814f6233560ee9bca71974ba]
   - conda-forge::pip=19.2.1[md5=f607b2d79d7c31147699e57687c227c3]
+  - conda-forge::pipenv=2020.6.2[md5=aad127c32e89991f7ded9bff0b001acb]
   - conda-forge::python=3.7.3[md5=e9385633516bf38da68e983b4f8b9e2a]
   - conda-forge::libspatialindex=1.9.0[md5=073f205d9ec981d11350e568b0ea4120]
-  - pip:
-    - pipenv==2018.11.26
