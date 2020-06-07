@@ -52,7 +52,6 @@ Also a convenient [flat file](https://en.wikipedia.org/wiki/Flat-file_database) 
     ├── srgan_train.ipynb/py (paired jupyter notebook/python script that trains the ESRGAN neural network model)
     └── test_ipynb.ipynb/py (paired jupyter notebook/python script that runs doctests in the other jupyter notebooks!)
 ```
-
 </details>
 
 # Getting started
