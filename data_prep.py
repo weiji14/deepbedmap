@@ -404,22 +404,13 @@ def xyz_to_grid(
             [170.60728, 298.23764, 537.49774]]], dtype=float32)
     """
     ## Preprocessing with blockmedian
-    with gmt.helpers.GMTTempFile(suffix=".txt") as tmpfile:
-        with gmt.clib.Session() as lib:
-            file_context = lib.virtualfile_from_matrix(matrix=xyz_data.values)
-            with file_context as infile:
-                kwargs = {"V": "", "R": region, "I": f"{spacing}+e"}
-                arg_str = " ".join(
-                    [infile, gmt.helpers.build_arg_string(kwargs), "->" + tmpfile.name]
-                )
-                lib.call_module(module="blockmedian", args=arg_str)
-            x, y, z = np.loadtxt(fname=tmpfile.name, unpack=True)
+    df = gmt.blockmedian(table=xyz_data, region=region, spacing=f"{spacing}+e")
 
     ## XYZ point data to NetCDF grid via GMT surface
     grid = gmt.surface(
-        x=x,
-        y=y,
-        z=z,
+        x=df.x,
+        y=df.y,
+        z=df.z,
         region=region,
         spacing=f"{spacing}+e",
         T=tension,

@@ -228,27 +228,14 @@ def subplot(directive: str, row: int = None, col: int = None, **kwargs):
             elif directive == "set":
                 rowcol = f"{row},{col}"
         arg_str = " ".join(
-            filter(None, [directive, rowcol, gmt.helpers.build_arg_string(kwargs)])
+            a for a in [directive, rowcol, gmt.helpers.build_arg_string(kwargs)] if a
         )
         lib.call_module(module="subplot", args=arg_str)
 
 
 # %%
-def grdview(reliefgrid: str, **kwargs):
-    """Thin wrapper around https://docs.generic-mapping-tools.org/latest/grdview.html"""
-    kind = gmt.helpers.data_kind(reliefgrid, None, None)
-    with gmt.clib.Session() as lib:
-        if kind == "file":
-            file_context = gmt.helpers.dummy_context(reliefgrid)
-        elif kind == "grid":
-            file_context = lib.virtualfile_from_grid(reliefgrid)
-        with file_context as fname:
-            arg_str = " ".join([fname, gmt.helpers.build_arg_string(kwargs)])
-            lib.call_module(module="grdview", args=arg_str)
-
-
-# %%
 def plot_3d_view(
+    fig: gmt.figure.Figure,  # PyGMT figure class to plot in
     img: str,  # filename (or xr.DataArray in the future) of the DEM to plot
     ax: tuple = None,  # optional (row, col) specifying gmt subplot position to use
     elev: int = 60,  # elevation angle above z-plane, value between 0-90
@@ -269,19 +256,22 @@ def plot_3d_view(
         row, col = ax  # split ax tuple into (row, col)
         subplot(directive="set", row=row, col=col, A=f'"{title}"')
 
-    grdview(
-        reliefgrid=img,
-        B=f"SWZ",  # plot South, West axes, and Z-axis
-        Bx='af+l"Polar Stereographic X (m)"',  # add x-axis annotations and minor ticks
-        By='af+l"Polar Stereographic Y (m)"',  # add y-axis annotations and minor ticks
-        Bz=f'af+l"{zlabel}"',  # add z-axis annotations, minor ticks and axis label
-        C=cmap,  # colormap to use
-        Jz=0.01,  # zscaling factor, default to 10x vertical exaggeration
-        Q="sim",  # surface, image and mesh plot
-        N=f"{zmin}",  # z-plane to plot on
-        p=f"{azim}/{elev}",  # perspective using azimuth/elevation
+    fig.grdview(
+        grid=img,
+        frame=[
+            f"SWZ",  # plot South, West axes, and Z-axis
+            'xaf+l"Polar Stereographic X (m)"',  # add x-axis annotations and minor ticks
+            'yaf+l"Polar Stereographic Y (m)"',  # add y-axis annotations and minor ticks
+            f'zaf+l"{zlabel}"',  # add z-axis annotations, minor ticks and axis label
+        ],
+        cmap=cmap,  # colormap to use
+        zscale=0.01,  # zscaling factor, default to 10x vertical exaggeration
+        surftype="sim",  # surface, image and mesh plot
+        plane=zmin,  # z-plane to plot on
+        perspective=[azim, elev],  # perspective using azimuth/elevation
     )
-    return None  # should return instantiated PyGMT fig/Figure class
+
+    return fig
 
 
 # %% [markdown]
@@ -452,6 +442,7 @@ plt.show()
 fig = gmt.Figure()
 subplot(directive="begin", row=2, col=2, A="+jCT+o-4c/-5c", Fs="9c/9c", M="2c/3c")
 plot_3d_view(
+    fig=fig,
     img="model/deepbedmap3.nc",  # DeepBedMap
     ax=(0, 0),
     zmin=-1400,
@@ -459,6 +450,7 @@ plot_3d_view(
     zlabel="Bed elevation (metres)",
 )
 plot_3d_view(
+    fig=fig,
     img="model/cubicbedmap.nc",  # BEDMAP2
     ax=(0, 1),
     zmin=-1400,
@@ -466,6 +458,7 @@ plot_3d_view(
     zlabel="Bed elevation (metres)",
 )
 plot_3d_view(
+    fig=fig,
     img="model/elevdiffmap.nc",  # DeepBedMap - BEDMAP2
     ax=(1, 0),
     zmin=-400,
@@ -473,6 +466,7 @@ plot_3d_view(
     zlabel="Difference (metres)",
 )
 plot_3d_view(
+    fig=fig,
     img="model/synthetichr.nc",  # Synthetic High Resolution product
     ax=(1, 1),
     zmin=-1400,
@@ -744,14 +738,14 @@ _ = data_prep.save_array_to_grid(
 # %%
 # Adapted from https://docs.generic-mapping-tools.org/latest/gallery/ex42.html
 fig = gmt.Figure()
-#!gmt makecpt -Coleron -T-4500/4500 > deepbedmap.cpt
+gmt.makecpt(cmap="oleron", series=[-4500, 4500])
 fig.grdimage(
     grid="model/deepbedmap3_big_int16.tif",
-    region="-2700000/2800000/-2200000/2300000",
+    region=[-2700000, 2800000, -2200000, 2300000],
     projection="x1:60000000",
     frame="f",  # add minor tick labels only
-    C="deepbedmap.cpt",
+    cmap=True,
     Q=True,
 )
-fig.savefig(fname="deepbedmap.png")
+fig.savefig(fname="deepbedmap_dem.png")
 fig.show()

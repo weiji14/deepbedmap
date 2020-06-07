@@ -620,6 +620,7 @@ deepbedmap.subplot(
     directive="begin", row=2, col=2, A="+jCT+o-4c/-5c", Fs="9c/9c", M="2c/3c"
 )
 deepbedmap.plot_3d_view(
+    fig=fig,
     img="model/deepbedmap3.nc",  # DeepBedMap
     ax=(0, 0),
     zmin=-1400,
@@ -627,6 +628,7 @@ deepbedmap.plot_3d_view(
     zlabel="Bed elevation (metres)",
 )
 deepbedmap.plot_3d_view(
+    fig=fig,
     img="model/cubicbedmap.nc",  # BEDMAP2
     ax=(0, 1),
     zmin=-1400,
@@ -634,6 +636,7 @@ deepbedmap.plot_3d_view(
     zlabel="Bed elevation (metres)",
 )
 deepbedmap.plot_3d_view(
+    fig=fig,
     img="model/elevdiffmap.nc",  # DeepBedMap - BEDMAP2
     ax=(1, 0),
     zmin=-400,
@@ -642,6 +645,7 @@ deepbedmap.plot_3d_view(
     zlabel="Difference (metres)",
 )
 deepbedmap.plot_3d_view(
+    fig=fig,
     img="model/bedmachinea.nc",  # BedMachine Antarctica
     ax=(1, 1),
     zmin=-1400,
