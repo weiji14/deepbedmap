@@ -63,9 +63,7 @@ Launch in [Pangeo Binder](https://pangeo-binder.readthedocs.io) (Interactive jup
 
 [![Binder](https://binder.pangeo.io/badge_logo.svg)](https://binder.pangeo.io/v2/gh/weiji14/deepbedmap/master)
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/gshanbhag525/deepbedmap/blob/master/data_prep.ipynb)
-
-[![Open Repository In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/gshanbhag525/deepbedmap)
+[![Open All Collab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/gshanbhag525/deepbedmap)
 
 
 ## Installation
