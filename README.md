@@ -62,6 +62,9 @@ Launch in [Pangeo Binder](https://pangeo-binder.readthedocs.io) (Interactive jup
 
 [![Binder](https://binder.pangeo.io/badge_logo.svg)](https://binder.pangeo.io/v2/gh/weiji14/deepbedmap/master)
 
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/gshanbhag525/deepbedmap/blob/master/notebooks/data_prep.ipynb)
+
 ## Installation
 
 ![Installation steps](https://yuml.me/diagram/scruffy/class/[Git|clone-repo]->[Conda|install-binaries-and-pipenv],[Conda]->[Pipenv|install-python-libs])
