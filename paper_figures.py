@@ -20,6 +20,7 @@
 # Code used to produce each figure in the DeepBedMap paper.
 
 # %%
+import itertools
 import os
 import subprocess
 
@@ -658,6 +659,7 @@ fig.savefig(
 )
 fig.show()
 
+
 # %%
 
 # %% [markdown]
@@ -1103,3 +1105,111 @@ fig.savefig(fname="paper/figures/fig6_elevation_roughness_transect.eps", dpi=300
 fig.show()
 
 # %%
+
+# %% [markdown]
+# ## **Plots in Author Comments**
+#
+# At https://tc.copernicus.org/preprints/tc-2020-74/#discussion
+
+# %% [markdown]
+# ### **Figure 1 at https://doi.org/10.5194/tc-2020-74-AC2**
+#
+# Similar to Figure 3 in the preprint, but showing Synthetic HRES grid
+# from https://doi.org/10.4225/15/57464ADE22F50
+
+# %%
+fig = gmt.Figure()
+deepbedmap.subplot(
+    directive="begin", row=2, col=2, A="+jCT+o-4c/-5c", Fs="9c/9c", M="2c/3c"
+)
+deepbedmap.plot_3d_view(
+    fig=fig,
+    img="model/deepbedmap3.nc",  # DeepBedMap
+    ax=(0, 0),
+    zmin=-1400,
+    title="a) DeepBedMap",  # ours
+    zlabel="Bed elevation (metres)",
+)
+deepbedmap.plot_3d_view(
+    fig=fig,
+    img="model/cubicbedmap.nc",  # BEDMAP2
+    ax=(0, 1),
+    zmin=-1400,
+    title="b) BEDMAP2",
+    zlabel="Bed elevation (metres)",
+)
+deepbedmap.plot_3d_view(
+    fig=fig,
+    img="model/synthetichr.nc",  # Synthetic HRES
+    ax=(1, 0),
+    zmin=-1400,
+    title="c) Synthetic HRES",
+    zlabel="Bed elevation (metres)",
+)
+deepbedmap.plot_3d_view(
+    fig=fig,
+    img="model/bedmachinea.nc",  # BedMachine Antarctica
+    ax=(1, 1),
+    zmin=-1400,
+    title="d) BedMachine",
+    zlabel="Bed elevation (metres)",
+)
+deepbedmap.subplot(directive="end")
+fig.savefig(
+    fname="paper/figures/figure-1_qualitative_bed_comparison.png", dpi=300, crop=False
+)
+fig.show()
+
+# %% [markdown]
+# ### **Figure 1 of https://doi.org/10.5194/tc-2020-74-AC3**
+#
+# Plots over upstream and downstream parts of Thwaites Glacier
+#
+# See also Holschuh, N., Christianson, K., Paden, J., Alley, R. B., & Anandakrishnan, S. (2020).
+# Linking postglacial landscapes to glacier dynamics using swath radar at Thwaites Glacier, Antarctica. Geology.
+# https://doi.org/10.1130/G46772.1
+
+# %%
+#!gmt grdcut model/deepbedmap3_big_int16.tif -Gdeepbedmap3_thwaites_int16.tif -R-1435000/-1275000/-475000/-432500
+gridDict = {
+    "Groundtruth": "highres/20xx_Antarctica_TO.nc",
+    "DeepBedMap": "model/deepbedmap3_thwaites.nc",
+    # "BedMachine": "model/BedMachineAntarctica_2019-11-05_v01.nc",
+    "BEDMAP2": "lowres/bedmap2_bed.tif",
+}
+fig = gmt.Figure()
+deepbedmap.subplot(
+    directive="begin", row=3, col=1, A="+jLT+gwhite", B="WSne", Bx="fg", By="f", Fs="8c"
+)
+region = [-1435000, -1275000, -475000, -432500]
+for i, (name, grid) in enumerate(gridDict.items()):
+    print(i, name, grid)
+    deepbedmap.subplot(directive="set", row=i, col=0, A=f'"{name}"')
+    gmt.makecpt(cmap="oleron", series=[-1500, -500])
+    fig.grdimage(
+        grid=grid,
+        region=region,
+        projection="x1:500000",
+        cmap=True,
+        shading="+d",
+        Q=True,
+    )
+    fig.colorbar(
+        region=region,
+        projection="x1:500000",
+        position="JMR+w6.0c/0.3c+v",
+        box="+gwhite+p0.5p",
+        frame=["af", 'x+l"Elevation"', "y+lkm"],
+        cmap="+Uk",  # kilo-units, i.e. divide by 1000
+        S=True,  # no lines inside color scalebar
+    )
+    fig.basemap(
+        region=[r / 1000 for r in region],
+        projection="x1:500",
+        frame="WSne",
+        Bx='af50g+l"Polar Stereographic X (km)"' if i == 2 else False,
+        By='af50g+l"Polar Stereographic Y (km)"',
+    )
+deepbedmap.subplot(directive="end")
+fig.savefig(fname=f"paper/figures/figure-1_thwaites_glacier_anisotropy.png", dpi=300)
+fig.show()
