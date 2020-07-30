@@ -1657,7 +1657,7 @@ def objective(
 
 
 # %%
-n_trials = 30
+n_trials = 60
 if n_trials == 1:  # run training once only, i.e. just test the objective function
     objective(enable_livelossplot=True, enable_comet_logging=True)
 elif n_trials > 1:  # perform hyperparameter tuning with multiple experimental trials
@@ -1672,7 +1672,7 @@ elif n_trials > 1:  # perform hyperparameter tuning with multiple experimental t
         study_name="DeepBedMap_tuning",
         storage=f"sqlite:///model/logs/train_on_{hostname}.db",
         sampler=sampler,
-        pruner=optuna.pruners.MedianPruner(n_warmup_steps=15),
+        pruner=optuna.pruners.HyperbandPruner(reduction_factor=3),
         load_if_exists=True,
     )
     study.optimize(func=objective, n_trials=n_trials, n_jobs=1)
@@ -1685,6 +1685,4 @@ if n_trials > 1:
         storage=f"sqlite:///model/logs/train_on_{hostname}.db",
     )
     topten_df = study.trials_dataframe().nsmallest(n=10, columns="value")
-    IPython.display.display(
-        topten_df.drop(labels=["intermediate_values"], axis="columns", level=0)
-    )
+    IPython.display.display(topten_df)
