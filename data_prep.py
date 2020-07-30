@@ -468,6 +468,30 @@ for i, grid in enumerate(grids):
         )
 
 # %% [markdown]
+# ### 2.4 Get a proper test region grid
+#
+# If you want to train the model to 'fit' a particular region of Antarctica better,
+# do it here! Just enter the (xmin, xmax, ymin, ymax) bounding box.
+# The example below is for the Thwaites Glacier (THW) region.
+
+# %%
+# !gmt grdcut -R-1525000/-1275000/-650000/-300000 highres/20xx_Antarctica_DC8.nc -Ghighres/20xx_Antarctica_DC8_THW.nc
+
+# %%
+fig = gmt.Figure()
+fig.grdimage(
+    grid="highres/20xx_Antarctica_DC8_THW.nc",
+    projection="x1:2000000",
+    frame=["WSne", "af"],
+    cmap="oleron",
+)
+fig.colorbar(S=True, position="JMR+n", frame="af")
+fig.show()
+
+
+# %%
+
+# %% [markdown]
 # ## 3. Tile data
 
 # %% [markdown]

@@ -86,7 +86,7 @@ if cupy.is_available():
 # %%
 def load_data_into_memory(
     refresh_cache: bool = True,
-    quilt_hash: str = "e11988479975a091dd52e44b142370c37a03409f41cb6fec54fd7382ee1f99bc",
+    quilt_hash: str = "580960bc97696f7ca89dba61fb6225a2ff631d49876fefef8dc05a033f13e14f",
 ) -> (chainer.datasets.dict_dataset.DictDataset, str):
     """
     Downloads the prepackaged tiled data from quilt based on a hash,
@@ -1128,12 +1128,13 @@ def train_eval_discriminator(
     xp = chainer.backend.get_array_module(input_arrays["Y"])
 
     # @given("fake generated images from a generator")
-    fake_images = g_model.forward(
-        x=input_arrays["X"],
-        w1=input_arrays["W1"],
-        w2=input_arrays["W2"],
-        w3=input_arrays["W3"],
-    ).array
+    with chainer.using_config(name="enable_backprop", value=False):
+        fake_images = g_model.forward(
+            x=input_arrays["X"],
+            w1=input_arrays["W1"],
+            w2=input_arrays["W2"],
+            w3=input_arrays["W3"],
+        ).array
     fake_labels = xp.zeros(shape=(len(fake_images), 1)).astype(xp.int32)
 
     # @given("real groundtruth images")
@@ -1380,8 +1381,8 @@ def save_model_weights_and_architecture(
 # %%
 @functools.lru_cache()
 def get_fixed_test_inputs(
-    test_filepath: str = "highres/2007tx",
-    indexers: dict = {"y": slice(1, -2), "x": slice(1, -2)},  # custom index-based crop
+    test_filepath: str = "highres/20xx_Antarctica_DC8_THW",
+    indexers: dict = {},  # {"y": slice(1, -2), "x": slice(1, -2)},  # custom index-based crop
 ) -> (xr.DataArray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, pd.DataFrame):
     """
     Cached way of getting the fixed (non-model) data array inputs for our hardcoded
@@ -1409,8 +1410,8 @@ def get_fixed_test_inputs(
 # %%
 def get_deepbedmap_test_result(
     model=None,
-    test_filepath: str = "highres/2007tx",
-    indexers: dict = {"y": slice(1, -2), "x": slice(1, -2)},  # custom index-based crop
+    test_filepath: str = "highres/20xx_Antarctica_DC8_THW",
+    indexers: dict = {},  # {"y": slice(1, -2), "x": slice(1, -2)},  # custom index-based crop
     model_weights_path: str = "model/weights/srgan_generator_model_weights.npz",
 ) -> (float, xr.DataArray):
     """
@@ -1429,12 +1430,13 @@ def get_deepbedmap_test_result(
     if model is None:
         deepbedmap = _load_ipynb_modules("deepbedmap.ipynb")
         model = deepbedmap.load_trained_model(model_weights_path=model_weights_path)
-    Y_hat = model.forward(
-        x=model.xp.asarray(a=X_tile),
-        w1=model.xp.asarray(a=W1_tile),
-        w2=model.xp.asarray(a=W2_tile),
-        w3=model.xp.asarray(a=W3_tile),
-    ).array
+    with chainer.using_config(name="enable_backprop", value=False):
+        Y_hat = model.forward(
+            x=model.xp.asarray(a=X_tile),
+            w1=model.xp.asarray(a=W1_tile),
+            w2=model.xp.asarray(a=W2_tile),
+            w3=model.xp.asarray(a=W3_tile),
+        ).array
 
     # Create xarray grid from model prediction
     grid = xr.DataArray(
@@ -1594,10 +1596,20 @@ def objective(
         ## Evaluate model and produce image of test area
         rmse_test, predicted_test_grid = get_deepbedmap_test_result(model=g_model)
         experiment.log_metric(name="rmse_test", value=rmse_test)
+        fig = gmt.Figure()
+        fig.grdimage(
+            grid=predicted_test_grid,
+            projection="x1:2000000",
+            frame=["WSne", "af"],
+            cmap="oleron",
+        )
+        fig.colorbar(S=True, position="JMR+n", frame="af")
+        fig.savefig(f"model/images/{experiment.get_key()}.png")
         experiment.log_image(
             name="predicted_test_grid",
-            image_data=np.flipud(predicted_test_grid.data),
-            image_colormap="BrBG",
+            # image_data=np.flipud(predicted_test_grid.data),
+            image_data=f"model/images/{experiment.get_key()}.png",
+            # image_colormap="BrBG",
         )
         trial.report(value=rmse_test, step=i)
 
