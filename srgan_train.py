@@ -1334,6 +1334,7 @@ def save_model_weights_and_architecture(
     trained_model,
     model_basename: str = "srgan_generator_model",
     save_path: str = "model/weights",
+    save_architecture: bool = True,
 ) -> (str, str):
     """
     Save the trained neural network's parameter weights and architecture (computational
@@ -1349,25 +1350,28 @@ def save_model_weights_and_architecture(
 
     os.makedirs(name=save_path, exist_ok=True)
 
-    # Save generator model's parameter weights in Numpy Zipped format
+    # Save generator/discriminator model's parameter weights in Numpy Zipped format
     model_weights_path: str = os.path.join(save_path, f"{model_basename}_weights.npz")
     chainer.serializers.save_npz(file=model_weights_path, obj=trained_model)
 
     # Save generator model's architecture in Graphviz DOT format
-    model_architecture_path: str = os.path.join(
-        save_path, f"{model_basename}_architecture.dot"
-    )
-    args = {
-        "x": trained_model.xp.random.rand(128, 1, 11, 11).astype("float32"),
-        "w1": trained_model.xp.random.rand(128, 1, 110, 110).astype("float32"),
-        "w2": trained_model.xp.random.rand(128, 2, 22, 22).astype("float32"),
-        "w3": trained_model.xp.random.rand(128, 1, 11, 11).astype("float32"),
-    }
-    graph = chainer.computational_graph.build_computational_graph(
-        outputs=trained_model.forward(**args)
-    )
-    with open(file=model_architecture_path, mode="w") as outgraph:
-        outgraph.writelines([f"{line};\n" for line in graph.dump().split(";")])
+    if save_architecture:
+        model_architecture_path: str = os.path.join(
+            save_path, f"{model_basename}_architecture.dot"
+        )
+        args = {
+            "x": trained_model.xp.random.rand(128, 1, 11, 11).astype("float32"),
+            "w1": trained_model.xp.random.rand(128, 1, 110, 110).astype("float32"),
+            "w2": trained_model.xp.random.rand(128, 2, 22, 22).astype("float32"),
+            "w3": trained_model.xp.random.rand(128, 1, 11, 11).astype("float32"),
+        }
+        graph = chainer.computational_graph.build_computational_graph(
+            outputs=trained_model.forward(**args)
+        )
+        with open(file=model_architecture_path, mode="w") as outgraph:
+            outgraph.writelines([f"{line};\n" for line in graph.dump().split(";")])
+    else:
+        model_architecture_path = None
 
     return model_weights_path, model_architecture_path
 
@@ -1623,19 +1627,32 @@ def objective(
             experiment.end()
             raise optuna.structs.TrialPruned()
 
-    # Save neural network model weights and generator model architecture
-    model_weights_path, model_architecture_path = save_model_weights_and_architecture(
-        trained_model=g_model, save_path=f"model/weights/{experiment.get_key()}"
-    )
-    with open(file=model_architecture_path) as outgraph:
-        experiment.set_model_graph(graph=outgraph.read())
-    experiment.log_asset(
-        file_data=model_weights_path, file_name=os.path.basename(model_weights_path)
-    )
-    experiment.log_asset(
-        file_data=model_architecture_path,
-        file_name=os.path.basename(model_architecture_path),
-    )
+    # Save generator and discriminator neural network model weights,
+    # and save only generator model architecture
+    for model_basename, trained_model in {
+        "srgan_generator_model": g_model,
+        "srgan_discriminator_model": d_model,
+    }.items():
+        save_architecture = True if "generator_model" in model_basename else False
+        (
+            model_weights_path,
+            model_architecture_path,
+        ) = save_model_weights_and_architecture(
+            trained_model=trained_model,
+            model_basename=model_basename,
+            save_path=f"model/weights/{experiment.get_key()}",
+            save_architecture=save_architecture,
+        )
+        experiment.log_asset(
+            file_data=model_weights_path, file_name=os.path.basename(model_weights_path)
+        )
+        if model_architecture_path is not None:  # save_architecture == False
+            with open(file=model_architecture_path) as outgraph:
+                experiment.set_model_graph(graph=outgraph.read())
+            experiment.log_asset(
+                file_data=model_architecture_path,
+                file_name=os.path.basename(model_architecture_path),
+            )
     for f in glob.glob(f"model/weights/{experiment.get_key()}/*"):
         shutil.copy2(src=f, dst="model/weights")
     shutil.rmtree(path=f"model/weights/{experiment.get_key()}")
@@ -1672,7 +1689,11 @@ elif n_trials > 1:  # perform hyperparameter tuning with multiple experimental t
         study_name="DeepBedMap_tuning",
         storage=f"sqlite:///model/logs/train_on_{hostname}.db",
         sampler=sampler,
-        pruner=optuna.pruners.HyperbandPruner(reduction_factor=3),
+        pruner=optuna.pruners.HyperbandPruner(
+            min_resource=15,  # minimum number of epochs (i.e. warmup period)
+            max_resource=150,  # maximum number of epochs
+            reduction_factor=3,
+        ),
         load_if_exists=True,
     )
     study.optimize(func=objective, n_trials=n_trials, n_jobs=1)

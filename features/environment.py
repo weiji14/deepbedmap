@@ -116,7 +116,8 @@ def _download_model_weights_from_comet(
     # Use key to access url to the experiment's asset which is the npz weight file
     assets = experiment.asset_list
     for asset in experiment.asset_list:
-        if asset["fileName"].endswith(".npz"):  # make sure we pick the .npz file
+        # make sure we pick the correct generator_model_weights.npz file
+        if asset["fileName"].endswith("generator_model_weights.npz"):
             asset_id = asset["assetId"]
             break
 
