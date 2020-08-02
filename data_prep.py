@@ -475,7 +475,7 @@ for i, grid in enumerate(grids):
 # The example below is for the Thwaites Glacier (THW) region.
 
 # %%
-# !gmt grdcut -R-1525000/-1275000/-650000/-300000 highres/20xx_Antarctica_DC8.nc -Ghighres/20xx_Antarctica_DC8_THW.nc
+# !gmt grdcut -R-1524500/-1274500/-650000/-300000 highres/20xx_Antarctica_DC8.nc -Ghighres/20xx_Antarctica_DC8_THW.nc
 
 # %%
 fig = gmt.Figure()

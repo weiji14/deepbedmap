@@ -147,7 +147,7 @@ def get_deepbedmap_model_inputs(
             left=-1_594_000.0, bottom=-166_500.0, right=-1_575_000.0, top=-95_500.0
         ),
         rasterio.coords.BoundingBox(
-            left=-1_525_000.0, bottom=-650_000.0, right=-1_275_000.0, top=-300_000.0
+            left=-1_524_500.0, bottom=-650_000.0, right=-1_274_500.0, top=-300_000.0
         ),
     ]:
         # Quickly pull from cached quilt storage if using (hardcoded) test region
@@ -376,11 +376,12 @@ synthetichr_grid = data_prep.save_array_to_grid(
 
 # %%
 def load_trained_model(
-    experiment_key: str = "055b697548e048b78202cfebb78d6d8c",  # or simply use "latest"
+    experiment_key: str = "83748fcb506849d78c275d33f8dd3893",  # or simply use "latest"
     model_weights_path: str = "model/weights/srgan_generator_model_weights.npz",
 ):
     """
-    Returns a trained Generator DeepBedMap neural network model.
+    Returns a trained Generator DeepBedMap neural network model,
+    and the hyperparameters that were used to train it.
 
     The model's weights and hyperparameters settings are retrieved from
     https://comet.ml/weiji14/deepbedmap using an `experiment_key` setting
@@ -390,23 +391,24 @@ def load_trained_model(
 
     # Download either 'latest' model weights from Comet.ML or one using experiment_key
     # Will also get the hyperparameters "num_residual_blocks" and "residual_scaling"
-    num_residual_blocks, residual_scaling = _download_model_weights_from_comet(
+    hyperparameters = _download_model_weights_from_comet(
         experiment_key=experiment_key, download_path=model_weights_path
     )
 
     # Architect the model with appropriate "num_residual_blocks" and "residual_scaling"
     model = srgan_train.GeneratorModel(
-        num_residual_blocks=num_residual_blocks, residual_scaling=residual_scaling
+        num_residual_blocks=int(hyperparameters["num_residual_blocks"]),
+        residual_scaling=float(hyperparameters["residual_scaling"]),
     )
 
     # Load trained neural network weights into model
     chainer.serializers.load_npz(file=model_weights_path, obj=model)
 
-    return model
+    return model, hyperparameters
 
 
 # %%
-model = load_trained_model()
+model, _ = load_trained_model()
 
 # %% [markdown]
 # ## 2.2 Make prediction on area of interest

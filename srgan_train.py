@@ -53,7 +53,7 @@ import livelossplot
 import optuna
 import ssim.functions
 
-from features.environment import _load_ipynb_modules
+from features.environment import _load_ipynb_modules, _download_model_weights_from_comet
 
 try:  # check if CUDA_VISIBLE_DEVICES environment variable is set
     os.environ["CUDA_VISIBLE_DEVICES"]
@@ -1331,18 +1331,16 @@ def trainer(
 
 # %%
 def save_model_weights_and_architecture(
-    trained_model,
-    model_basename: str = "srgan_generator_model",
-    save_path: str = "model/weights",
-    save_architecture: bool = True,
-) -> (str, str):
+    generator_model, discriminator_model, save_path: str = "model/weights"
+) -> (str, str, str):
     """
     Save the trained neural network's parameter weights and architecture (computational
     graph) respectively to zipped Numpy (.npz) and Graphviz DOT (.dot) format.
 
-    >>> model = GeneratorModel(num_residual_blocks=1)
-    >>> _, _ = save_model_weights_and_architecture(
-    ...     trained_model=model, save_path="/tmp/weights"
+    >>> g_model = GeneratorModel(num_residual_blocks=1)
+    >>> d_model = DiscriminatorModel()
+    >>> _, _, _ = save_model_weights_and_architecture(
+    ...     generator_model=g_model, discriminator_model=d_model, save_path="/tmp/weights"
     ... )
     >>> os.path.exists(path="/tmp/weights/srgan_generator_model_architecture.dot")
     True
@@ -1351,29 +1349,38 @@ def save_model_weights_and_architecture(
     os.makedirs(name=save_path, exist_ok=True)
 
     # Save generator/discriminator model's parameter weights in Numpy Zipped format
-    model_weights_path: str = os.path.join(save_path, f"{model_basename}_weights.npz")
-    chainer.serializers.save_npz(file=model_weights_path, obj=trained_model)
+    generator_model_weights_path: str = os.path.join(
+        save_path, f"srgan_generator_model_weights.npz"
+    )
+    chainer.serializers.save_npz(file=generator_model_weights_path, obj=generator_model)
+    discriminator_model_weights_path: str = os.path.join(
+        save_path, f"srgan_discriminator_model_weights.npz"
+    )
+    chainer.serializers.save_npz(
+        file=discriminator_model_weights_path, obj=discriminator_model
+    )
 
     # Save generator model's architecture in Graphviz DOT format
-    if save_architecture:
-        model_architecture_path: str = os.path.join(
-            save_path, f"{model_basename}_architecture.dot"
-        )
-        args = {
-            "x": trained_model.xp.random.rand(128, 1, 11, 11).astype("float32"),
-            "w1": trained_model.xp.random.rand(128, 1, 110, 110).astype("float32"),
-            "w2": trained_model.xp.random.rand(128, 2, 22, 22).astype("float32"),
-            "w3": trained_model.xp.random.rand(128, 1, 11, 11).astype("float32"),
-        }
-        graph = chainer.computational_graph.build_computational_graph(
-            outputs=trained_model.forward(**args)
-        )
-        with open(file=model_architecture_path, mode="w") as outgraph:
-            outgraph.writelines([f"{line};\n" for line in graph.dump().split(";")])
-    else:
-        model_architecture_path = None
+    model_architecture_path: str = os.path.join(
+        save_path, f"srgan_generator_model_architecture.dot"
+    )
+    args = {
+        "x": generator_model.xp.random.rand(128, 1, 11, 11).astype("float32"),
+        "w1": generator_model.xp.random.rand(128, 1, 110, 110).astype("float32"),
+        "w2": generator_model.xp.random.rand(128, 2, 22, 22).astype("float32"),
+        "w3": generator_model.xp.random.rand(128, 1, 11, 11).astype("float32"),
+    }
+    graph = chainer.computational_graph.build_computational_graph(
+        outputs=generator_model.forward(**args)
+    )
+    with open(file=model_architecture_path, mode="w") as outgraph:
+        outgraph.writelines([f"{line};\n" for line in graph.dump().split(";")])
 
-    return model_weights_path, model_architecture_path
+    return (
+        generator_model_weights_path,
+        discriminator_model_weights_path,
+        model_architecture_path,
+    )
 
 
 # %% [markdown]
@@ -1433,7 +1440,7 @@ def get_deepbedmap_test_result(
     # Run input datasets through trained neural network model
     if model is None:
         deepbedmap = _load_ipynb_modules("deepbedmap.ipynb")
-        model = deepbedmap.load_trained_model(model_weights_path=model_weights_path)
+        model, _ = deepbedmap.load_trained_model(model_weights_path=model_weights_path)
     with chainer.using_config(name="enable_backprop", value=False):
         Y_hat = model.forward(
             x=model.xp.asarray(a=X_tile),
@@ -1481,6 +1488,7 @@ def objective(
     ),
     enable_livelossplot: bool = False,  # Default: False, no plots makes it go faster!
     enable_comet_logging: bool = True,  # Default: True, log experiment to Comet.ML
+    resume_experiment_key: str = "83748fcb506849d78c275d33f8dd3893",  # Default: None
 ) -> float:
     """
     Objective function for tuning the Hyperparameters of our DeepBedMap model.
@@ -1500,6 +1508,7 @@ def objective(
         project_name="deepbedmap",
         disabled=not enable_comet_logging,
     )
+    base_model_weight_path: str = f"model/weights/{experiment.get_key()}"
 
     # Don't use cached stuff if it's a FixedTrial or the first trial
     if not hasattr(trial, "number") or trial.number == 0:
@@ -1523,20 +1532,40 @@ def objective(
     )
 
     ## Compile Model
-    num_residual_blocks: int = trial.suggest_int(
-        name="num_residual_blocks", low=12, high=12
-    )
-    residual_scaling: float = trial.suggest_discrete_uniform(
-        name="residual_scaling", low=0.1, high=0.3, q=0.05
-    )
-    learning_rate: float = trial.suggest_discrete_uniform(
-        name="learning_rate", high=2.0e-4, low=1.0e-4, q=0.1e-4
-    )
+    if resume_experiment_key is None:
+        num_residual_blocks: int = trial.suggest_int(
+            name="num_residual_blocks", low=12, high=12
+        )
+        residual_scaling: float = trial.suggest_discrete_uniform(
+            name="residual_scaling", low=0.1, high=0.3, q=0.05
+        )
+        learning_rate: float = trial.suggest_discrete_uniform(
+            name="learning_rate", high=2.0e-4, low=1.0e-4, q=0.1e-4
+        )
+    else:  # resume training from a previous experiment
+        for _model_type in ["generator_model", "discriminator_model"]:
+            hyperparameters = _download_model_weights_from_comet(
+                experiment_key=resume_experiment_key,
+                download_path=f"{base_model_weight_path}/srgan_{_model_type}_weights.npz",
+            )
+        num_residual_blocks = int(hyperparameters["num_residual_blocks"])
+        residual_scaling = float(hyperparameters["residual_scaling"])
+        learning_rate = float(hyperparameters["generator_lr"])
+
     g_model, g_optimizer, d_model, d_optimizer = compile_srgan_model(
         num_residual_blocks=num_residual_blocks,
         residual_scaling=residual_scaling,
         learning_rate=learning_rate,
     )
+    if resume_experiment_key is not None:
+        chainer.serializers.load_npz(
+            file=f"{base_model_weight_path}/srgan_generator_model_weights.npz",
+            obj=g_model,
+        )
+        chainer.serializers.load_npz(
+            file=f"{base_model_weight_path}/srgan_discriminator_model_weights.npz",
+            obj=d_model,
+        )
     experiment.log_parameters(
         dic={
             "num_residual_blocks": g_model.num_residual_blocks,
@@ -1551,7 +1580,7 @@ def objective(
     )
 
     ## Run Trainer and save trained model
-    epochs: int = trial.suggest_int(name="num_epochs", low=90, high=150)
+    epochs: int = trial.suggest_int(name="num_epochs", low=15, high=150)
     experiment.log_parameter(name="num_epochs", value=epochs)
 
     metric_names = [
@@ -1568,6 +1597,8 @@ def objective(
     train_iter.reset()
     dev_iter.reset()
 
+    base_rmse = 1000  # will save and upload models that beat this score
+    best_rmse_test = base_rmse
     for i in range(epochs):
         metrics_dict = trainer(
             i=i,
@@ -1617,6 +1648,41 @@ def objective(
         )
         trial.report(value=rmse_test, step=i)
 
+        # Save generator and discriminator neural network model weights,
+        # and save only generator model architecture
+        if rmse_test < best_rmse_test:
+            best_rmse_test = rmse_test
+            (
+                g_model_weights_path,
+                d_model_weights_path,
+                g_model_architecture_path,
+            ) = save_model_weights_and_architecture(
+                generator_model=g_model,
+                discriminator_model=d_model,
+                save_path=base_model_weight_path,
+            )
+
+        # Upload neural network weights if this is the final epoch,
+        # or if the trial should be pruned and we have a good RMSE_test result
+        if best_rmse_test < base_rmse and (i == epochs - 1 or trial.should_prune()):
+            experiment.log_asset(
+                file_data=g_model_weights_path,
+                file_name=os.path.basename(g_model_weights_path),
+            )
+            experiment.log_asset(
+                file_data=d_model_weights_path,
+                file_name=os.path.basename(d_model_weights_path),
+            )
+            with open(file=g_model_architecture_path) as outgraph:
+                experiment.set_model_graph(graph=outgraph.read())
+            experiment.log_asset(
+                file_data=g_model_architecture_path,
+                file_name=os.path.basename(g_model_architecture_path),
+            )
+            for f in glob.glob(f"{base_model_weight_path}/*"):
+                shutil.copy2(src=f, dst="model/weights")
+            shutil.rmtree(path=base_model_weight_path)
+
         ## Pruning unpromising trials with vanishing/exploding gradients
         if (
             trial.should_prune()
@@ -1626,36 +1692,6 @@ def objective(
         ):
             experiment.end()
             raise optuna.structs.TrialPruned()
-
-    # Save generator and discriminator neural network model weights,
-    # and save only generator model architecture
-    for model_basename, trained_model in {
-        "srgan_generator_model": g_model,
-        "srgan_discriminator_model": d_model,
-    }.items():
-        save_architecture = True if "generator_model" in model_basename else False
-        (
-            model_weights_path,
-            model_architecture_path,
-        ) = save_model_weights_and_architecture(
-            trained_model=trained_model,
-            model_basename=model_basename,
-            save_path=f"model/weights/{experiment.get_key()}",
-            save_architecture=save_architecture,
-        )
-        experiment.log_asset(
-            file_data=model_weights_path, file_name=os.path.basename(model_weights_path)
-        )
-        if model_architecture_path is not None:  # save_architecture == False
-            with open(file=model_architecture_path) as outgraph:
-                experiment.set_model_graph(graph=outgraph.read())
-            experiment.log_asset(
-                file_data=model_architecture_path,
-                file_name=os.path.basename(model_architecture_path),
-            )
-    for f in glob.glob(f"model/weights/{experiment.get_key()}/*"):
-        shutil.copy2(src=f, dst="model/weights")
-    shutil.rmtree(path=f"model/weights/{experiment.get_key()}")
 
     ## Upload final predicted figure with scalebar
     predicted_test_grid.plot.imshow(
