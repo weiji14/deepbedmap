@@ -1488,7 +1488,7 @@ def objective(
     ),
     enable_livelossplot: bool = False,  # Default: False, no plots makes it go faster!
     enable_comet_logging: bool = True,  # Default: True, log experiment to Comet.ML
-    resume_experiment_key: str = "83748fcb506849d78c275d33f8dd3893",  # Default: None
+    resume_experiment_key: str = "7859d894438a407381f1ad6097fa6bf7",  # Default: None
 ) -> float:
     """
     Objective function for tuning the Hyperparameters of our DeepBedMap model.
@@ -1710,7 +1710,7 @@ def objective(
 
 
 # %%
-n_trials = 60
+n_trials = 90
 if n_trials == 1:  # run training once only, i.e. just test the objective function
     objective(enable_livelossplot=True, enable_comet_logging=True)
 elif n_trials > 1:  # perform hyperparameter tuning with multiple experimental trials
