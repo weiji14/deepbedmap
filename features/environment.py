@@ -116,7 +116,8 @@ def _download_model_weights_from_comet(
     # Use key to access url to the experiment's asset which is the npz weight file
     assets = experiment.asset_list
     for asset in experiment.asset_list:
-        if asset["fileName"].endswith(".npz"):  # make sure we pick the .npz file
+        # make sure we pick the correct .npz file
+        if asset["fileName"] == os.path.basename(download_path):
             asset_id = asset["assetId"]
             break
 
@@ -126,12 +127,12 @@ def _download_model_weights_from_comet(
         model_weight_file.write(experiment.get_asset(asset_id=asset_id))
 
     # Get hyperparameters needed to recreate DeepBedMap model architecture properly
-    parameters: dict = (
+    hyperparameters: dict = (
         pd.io.json.json_normalize(data=experiment.parameters)
         .set_index(keys="name")
         .valueCurrent.to_dict()
     )
-    return int(parameters["num_residual_blocks"]), float(parameters["residual_scaling"])
+    return hyperparameters
 
 
 @fixture

@@ -113,6 +113,7 @@ def get_image_with_bounds(filepaths: list, indexers: dict = None) -> xr.DataArra
 
 # %%
 test_filepaths = ["highres/2007tx", "highres/2010tr", "highres/istarxx"]
+# test_filepaths = ["highres/20xx_Antarctica_DC8_THW"]
 groundtruth = get_image_with_bounds(
     filepaths=[f"{t}.nc" for t in test_filepaths],
     # indexers={"y": slice(1, -2), "x": slice(1, -2)},  # for 2007tx
@@ -140,12 +141,21 @@ def get_deepbedmap_model_inputs(
     """
     data_prep = _load_ipynb_modules("data_prep.ipynb")
 
-    if window_bound == rasterio.coords.BoundingBox(
-        left=-1_594_000.0, bottom=-166_500.0, right=-1_575_000.0, top=-95_500.0
-    ):
+    bounds_str = "_".join(str(int(b)) for b in (window_bound)).replace("-", "m")
+    if window_bound in [
+        rasterio.coords.BoundingBox(
+            left=-1_594_000.0, bottom=-166_500.0, right=-1_575_000.0, top=-95_500.0
+        ),
+        rasterio.coords.BoundingBox(
+            left=-1_631_500.0, bottom=-259_000.0, right=-1_536_500.0, top=-95_000.0
+        ),
+        rasterio.coords.BoundingBox(
+            left=-1_524_500.0, bottom=-650_000.0, right=-1_274_500.0, top=-300_000.0
+        ),
+    ]:
         # Quickly pull from cached quilt storage if using (hardcoded) test region
-        quilt.install(package="weiji14/deepbedmap/model/test", force=True)
-        pkg = quilt.load(pkginfo="weiji14/deepbedmap/model/test")
+        quilt.install(package=f"weiji14/deepbedmap/model/test/{bounds_str}", force=True)
+        pkg = quilt.load(pkginfo=f"weiji14/deepbedmap/model/test/{bounds_str}")
         X_tile = pkg.X_tile()
         W1_tile = pkg.W1_tile()
         W2_tile = pkg.W2_tile()
@@ -170,12 +180,14 @@ def get_deepbedmap_model_inputs(
                     window_bounds=[[*window_bound]],
                     resolution=500,
                     padding=padding,
+                    gapfiller=0.0,
                 ),
                 data_prep.selective_tile(
                     filepath="netcdf:misc/antarctic_ice_vel_phase_map_v01.nc:VY",
                     window_bounds=[[*window_bound]],
                     resolution=500,
                     padding=padding,
+                    gapfiller=0.0,
                 ),
             ],
             axis=1,
@@ -210,11 +222,20 @@ print(X_tile.shape, W1_tile.shape, W2_tile.shape, W3_tile.shape)
 # Build quilt package for datasets covering our test region
 reupload = False
 if reupload == True:
-    quilt.build(package="weiji14/deepbedmap/model/test/W1_tile", path=W1_tile)
-    quilt.build(package="weiji14/deepbedmap/model/test/W2_tile", path=W2_tile)
-    quilt.build(package="weiji14/deepbedmap/model/test/W3_tile", path=W3_tile)
-    quilt.build(package="weiji14/deepbedmap/model/test/X_tile", path=X_tile)
-    quilt.push(package="weiji14/deepbedmap/model/test", is_public=True)
+    bounds_str = "_".join(str(int(b)) for b in (window_bound)).replace("-", "m")
+    quilt.build(
+        package=f"weiji14/deepbedmap/model/test/{bounds_str}/W1_tile", path=W1_tile
+    )
+    quilt.build(
+        package=f"weiji14/deepbedmap/model/test/{bounds_str}/W2_tile", path=W2_tile
+    )
+    quilt.build(
+        package=f"weiji14/deepbedmap/model/test/{bounds_str}/W3_tile", path=W3_tile
+    )
+    quilt.build(
+        package=f"weiji14/deepbedmap/model/test/{bounds_str}/X_tile", path=X_tile
+    )
+    quilt.push(package=f"weiji14/deepbedmap/model/test/{bounds_str}", is_public=True)
 
 
 # %%
@@ -358,11 +379,12 @@ synthetichr_grid = data_prep.save_array_to_grid(
 
 # %%
 def load_trained_model(
-    experiment_key: str = "055b697548e048b78202cfebb78d6d8c",  # or simply use "latest"
+    experiment_key: str = "77126218f3504a06adbc7dfe3851bb28",  # or simply use "latest"
     model_weights_path: str = "model/weights/srgan_generator_model_weights.npz",
 ):
     """
-    Returns a trained Generator DeepBedMap neural network model.
+    Returns a trained Generator DeepBedMap neural network model,
+    and the hyperparameters that were used to train it.
 
     The model's weights and hyperparameters settings are retrieved from
     https://comet.ml/weiji14/deepbedmap using an `experiment_key` setting
@@ -372,23 +394,24 @@ def load_trained_model(
 
     # Download either 'latest' model weights from Comet.ML or one using experiment_key
     # Will also get the hyperparameters "num_residual_blocks" and "residual_scaling"
-    num_residual_blocks, residual_scaling = _download_model_weights_from_comet(
+    hyperparameters = _download_model_weights_from_comet(
         experiment_key=experiment_key, download_path=model_weights_path
     )
 
     # Architect the model with appropriate "num_residual_blocks" and "residual_scaling"
     model = srgan_train.GeneratorModel(
-        num_residual_blocks=num_residual_blocks, residual_scaling=residual_scaling
+        num_residual_blocks=int(hyperparameters["num_residual_blocks"]),
+        residual_scaling=float(hyperparameters["residual_scaling"]),
     )
 
     # Load trained neural network weights into model
     chainer.serializers.load_npz(file=model_weights_path, obj=model)
 
-    return model
+    return model, hyperparameters
 
 
 # %%
-model = load_trained_model()
+model, _ = load_trained_model()
 
 # %% [markdown]
 # ## 2.2 Make prediction on area of interest
@@ -726,7 +749,7 @@ with chainer.using_config(name="cudnn_deterministic", value=True):
 _ = data_prep.save_array_to_grid(
     window_bound=window_bound_big,
     array=Y_hat.astype(dtype=np.int16),
-    outfilepath="model/deepbedmap3_big_int16",
+    outfilepath="model/deepbedmap_dem",
     dtype=np.int16,
     tiled=True,
     compression=rasterio.enums.Compression.lzw.value,  # Lempel-Ziv-Welch, lossless
@@ -740,7 +763,7 @@ _ = data_prep.save_array_to_grid(
 fig = gmt.Figure()
 gmt.makecpt(cmap="oleron", series=[-4500, 4500])
 fig.grdimage(
-    grid="model/deepbedmap3_big_int16.tif",
+    grid="model/deepbedmap_dem.tif",
     region=[-2700000, 2800000, -2200000, 2300000],
     projection="x1:60000000",
     frame="f",  # add minor tick labels only

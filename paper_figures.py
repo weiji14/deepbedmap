@@ -123,7 +123,7 @@ fig.show()
 fig = gmt.Figure()
 gmt.makecpt(cmap="oleron", series=[-2000, 4500])
 fig.grdimage(
-    grid="model/deepbedmap3_big_int16.tif",
+    grid="model/deepbedmap_dem.tif",
     region=[-2700000, 2800000, -2200000, 2300000],
     projection="x1:30000000",
     cmap=True,
@@ -444,7 +444,7 @@ legend_key = [
     ),
 ]
 
-# %% {"jupyter": {"outputs_hidden": true}}
+# %%
 arch = [
     to_head("paper/figures/PlotNeuralNet"),
     to_cor(),
@@ -521,7 +521,7 @@ fig = gmt.Figure()
 # Plot DeepBedMap Digital Elevation Model (DEM)
 gmt.makecpt(cmap="oleron", series=[-2000, 4500])
 fig.grdimage(
-    grid="model/deepbedmap3_big_int16.tif",
+    grid="model/deepbedmap_dem.tif",
     # grid="@BEDMAP_elevation.nc",
     region=[-2700000, 2800000, -2200000, 2300000],
     projection="x1:30000000",
@@ -530,7 +530,7 @@ fig.grdimage(
 )
 # Plot Antactic grounding line
 fig.coast(
-    region="model/deepbedmap3_big_int16.tif",
+    region="model/deepbedmap_dem.tif",
     projection="s0/-90/-71/1:30000000",
     area_thresh="+ag",
     resolution="i",
@@ -686,7 +686,7 @@ def closeup_fig(
     # Plot DeepBedMap Digital Elevation Model (DEM)
     gmt.makecpt(cmap="oleron", series=[-2000, 4500])
     fig.grdimage(
-        grid="model/deepbedmap3_big_int16.tif",
+        grid="model/deepbedmap_dem.tif",
         # grid="@BEDMAP_elevation.nc",
         region=region,
         projection="x1:1500000",
@@ -816,7 +816,7 @@ fig = closeup_fig(
     name="Gamburtsev Subglacial Mountains",
     midx=800_000,
     midy=200_000,
-    annot_xyt=[(710000, 240000, "T")],
+    annot_xyt=[(750000, 280000, "T")],
     fig=fig,
 )
 deepbedmap.subplot(directive="end")
@@ -880,9 +880,9 @@ def prepare_grid(file: str, region: list):
 
 
 # %%
-#!gmt grdcut model/deepbedmap3_big_int16.tif -Gmodel/deepbedmap3_thwaites.nc -R-1550000/-1250000/-550000/-300000
-# deepbedmap3grid = prepare_grid(file="model/deepbedmap3_thwaites.nc", region=region)
-deepbedmap3grid = prepare_grid(file="model/deepbedmap3_big_int16.tif", region=region)
+#!gmt grdcut model/deepbedmap_dem.tif -Gmodel/deepbedmap_thwaites.nc -R-1550000/-1250000/-550000/-300000
+# deepbedmap3grid = prepare_grid(file="model/deepbedmap_thwaites.nc", region=region)
+deepbedmap3grid = prepare_grid(file="model/deepbedmap_dem.tif", region=region)
 groundtruthgrid = prepare_grid(file="highres/20xx_Antarctica_DC8.nc", region=region)
 bedmap2grid = prepare_grid(file="lowres/bedmap2_bed.tif", region=region)
 cubicbedmap2 = skimage.transform.rescale(
@@ -993,7 +993,7 @@ for name, grid in roughDict.items():
     elevpoints[name]["roughness"] = roughness
 
 # %% [raw]
-# # deepbedmap3_error = elevpoints["model/deepbedmap3_thwaites.nc"].z - oibpoints.z
+# # deepbedmap3_error = elevpoints["model/deepbedmap_thwaites.nc"].z - oibpoints.z
 # # cubicbedmap_error = elevpoints["lowres/bedmap2_bed.tif"].z - oibpoints.z
 # deepbedmap3_error = (
 #     elevpoints["DeepBedMap"].roughness - elevpoints["Groundtruth"].roughness
@@ -1048,10 +1048,8 @@ fig.legend(position="JBL+jBL+o0.2c", box="+gwhite+p1p")
 for letter, (name, grid) in zip(["b", "c", "d"], roughDict.items()):
     if name == "BEDMAP2":
         maxstddev = 100  # lower scale as few pixels with high standard dev
-    elif name == "BedMachine":
-        maxstddev = 200
     else:
-        maxstddev = 400
+        maxstddev = 200
     deepbedmap.subplot(directive="set")
     # fig = gmt.Figure()
     fig.basemap(
@@ -1170,10 +1168,10 @@ fig.show()
 # https://doi.org/10.1130/G46772.1
 
 # %%
-#!gmt grdcut model/deepbedmap3_big_int16.tif -Gdeepbedmap3_thwaites_int16.tif -R-1435000/-1275000/-475000/-432500
+#!gmt grdcut model/deepbedmap_dem.tif -Gdeepbedmap_thwaites.tif -R-1435000/-1275000/-475000/-432500
 gridDict = {
     "Groundtruth": "highres/20xx_Antarctica_TO.nc",
-    "DeepBedMap": "model/deepbedmap3_thwaites.nc",
+    "DeepBedMap": "model/deepbedmap_thwaites.tif",
     # "BedMachine": "model/BedMachineAntarctica_2019-11-05_v01.nc",
     "BEDMAP2": "lowres/bedmap2_bed.tif",
 }
