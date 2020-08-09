@@ -1,9 +1,30 @@
-% Response to Anonymous Referee #2's comments
-% \documentclass[tc, manuscript]{copernicus}
-% \usepackage{graphicx}
-% \usepackage{xcolor}
-%
-% \begin{document}
+\documentclass{article}
+\usepackage[a4paper,width=150mm,top=25mm,bottom=25mm]{geometry}
+\usepackage[natbib,style=apa,backend=biber]{biblatex}
+\bibliography{author_comments_2.bib}
+\usepackage{graphicx}
+\usepackage[dvipsnames]{xcolor}
+
+
+\begin{document}
+
+\noindent{
+  \textbf{\underline{KEY}}
+
+  {
+    \color{blue}
+    Reviewer comments (blue)
+  }
+
+  Response (black)
+
+  {
+    \color{ForestGreen}
+    New or changed text (green)
+  }
+}
+
+\section*{Response to Anonymous Referee \#2's comments}
 
 \noindent{\bf General comments}
 
@@ -46,6 +67,11 @@ Specifically, the conditional simulation method applied by \citet{GoffConditiona
 In DeepBedMap, we attempt to capture bed topography directly from gridded pixels,  while incorporating extra knowledge from satellite remote sensing datasets to fill in larger gaps between flightlines, much like in BedMachine Antarctica \citep{MorlighemDeepglacialtroughs2019}.
 Neither one method is perfect, and we see all of them as complementary.
 
+{
+  \color{ForestGreen}
+  Mentioned the spatial statistical papers at lines 49-56.
+}
+
 \noindent{\bf Specific comments}
 
 \begin{quote}
@@ -63,6 +89,11 @@ Ideally we would be able to run the model independent of BEDMAP2, however, this 
 Note that the provided DeepBedMap DEM model is only one `possible' version, generated from one model training run we deemed best according to our training metric, and we may have biased our model towards resolving short wavelength features, compared to BedMachine Antarctica which recovers large scale features like ridges and valleys well.
 That is not to say we cannot combine super resolution with inversion techniques, and as mentioned in text, the DeepBedMap model architecture should be applicable to any reference bed, be it BedMachine Antarctica or the upcoming BEDMAP3.
 
+{
+  \color{ForestGreen}
+   Noted these points at lines 319-320, 342-345.
+}
+
 \begin{quote}
 \color{blue}
   This is a valuable exercise and using machine learning to do this is definitely a good idea and worth publishing, but I don’t think we are there yet.
@@ -72,6 +103,11 @@ That is not to say we cannot combine super resolution with inversion techniques,
 There is certainly more work to do on both the modelling and data collection side (see our reply to Reviewer 1).
 It should be mentioned though that bed interpolation exercises such as ours and BedMachine Antarctica help tell us where the data gaps are.
 As more datasets are gathered from targeted acquisitions, marine swath bathymetry, etc, these method will become even more powerful.
+
+{
+  \color{ForestGreen}
+   Mentioned where future efforts of the glaciological community should focus on at lines 336-368.
+}
 
 \begin{quote}
 \color{blue}
@@ -87,6 +123,11 @@ Currently we use a basic Discriminator designed for standard computer vision tas
 That is not to say that we cannot incorporate glaciology specific criteria such as ice flow direction into the Discriminator model design, which would push the Generator model to produce more realistic results.
 Alternatively, we can adjust the loss function weights to dampen the effects of the REMA ice surface elevation input, as our model may have overfitted to the REMA surface DEM.
 
+{
+  \color{ForestGreen}
+   Added sentence on how Discriminator model can be improved at lines 319-320.
+}
+
 \begin{quote}
 \color{blue}
   Even along the flight line of OIB (figure 6) the roughness of DeepBedMap seems exacerbated and not necessarily representative of the actual roughness measured by the radar.
@@ -99,6 +140,11 @@ In regard to roughness, our neural network model was trained by minimizing the e
 Incorporating roughness into the loss function would be a useful exercise.
 "Better" is indeed a subjective term that is dependent on the current baseline, and we will consider using another title for the formal publication.
 
+{
+  \color{ForestGreen}
+   Title and abstract have been tempered.
+}
+
 \begin{quote}
 \color{blue}
 Another problem is that it is not straightforward to constrain the model with radar data, and this is not mentioned in the text.
@@ -110,6 +156,11 @@ We agree that the pixel-based DeepBedMap model is unable to constrain itself eas
 The along track resolution of radar bed picks are much smaller than the 250 m pixels, and it it not easy to preserve roughness from radar unless smaller pixels are used.
 This may change once we start using swath radar data for training instead of interpolating our own grid from radar point data collected along flightlines.
 
+{
+  \color{ForestGreen}
+   Limitation mentioned at lines 313-316.
+}
+
 \begin{quote}
 \color{blue}
   I also did not understand the paragraph line 204-205: why would we use the inferred bed under ice shelves when clearly surface features do not reflect the shape of the bathymetry?
@@ -120,6 +171,11 @@ The intention was to provide a means for others to more easily interpolate their
 There is a choice of different grounding lines, and rather than enforce one, we would prefer to let others cut and blend it with their own bathymetry dataset, smoothed out over any selected distance.
 We now intend to provide a mask file with the final product, allowing the user to apply this ice shelf mask directly, or use one of their own.
 We will also clarify this intention better in text so as not to suggest that we have managed to super resolve the under ice shelf bathymetry.
+
+{
+  \color{ForestGreen}
+   Intention clarified at lines 218-224.
+}
 
 \begin{quote}
 \color{blue}
@@ -140,87 +196,11 @@ typo:
 
 Once again, thank you very much for your constructive feedback.
 
-\bibliographystyle{copernicus}
-\bibliography{example.bib}
-\begin{thebibliography}{7}
-\providecommand{\natexlab}[1]{#1}
-\providecommand{\url}[1]{{\tt #1}}
-\providecommand{\urlprefix}{URL }
-\expandafter\ifx\csname urlstyle\endcsname\relax
-  \providecommand{\doi}[1]{https://doi.org/\discretionary{}{}{}#1}\else
-  \providecommand{\doi}{https://doi.org/\discretionary{}{}{}\begingroup
-  \urlstyle{rm}\Url}\fi
+{
+  \color{ForestGreen}
+   Fixed at line 337.
+}
 
-\bibitem[{Fretwell et~al.(2013)Fretwell, Pritchard, Vaughan, Bamber, Barrand,
-  Bell, Bianchi, Bingham, Blankenship, Casassa, Catania, Callens, Conway, Cook,
-  Corr, Damaske, Damm, Ferraccioli, Forsberg, Fujita, Gim, Gogineni, Griggs,
-  Hindmarsh, Holmlund, Holt, Jacobel, Jenkins, Jokat, Jordan, King, Kohler,
-  Krabill, {Riger-Kusk}, Langley, Leitchenkov, Leuschen, Luyendyk, Matsuoka,
-  Mouginot, Nitsche, Nogi, Nost, Popov, Rignot, Rippin, Rivera, Roberts, Ross,
-  Siegert, Smith, Steinhage, Studinger, Sun, Tinto, Welch, Wilson, Young,
-  Xiangbin, and Zirizzotti}]{FretwellBedmap2improvedice2013}
-Fretwell, P., Pritchard, H.~D., Vaughan, D.~G., Bamber, J.~L., Barrand, N.~E.,
-  Bell, R., Bianchi, C., Bingham, R.~G., Blankenship, D.~D., Casassa, G.,
-  Catania, G., Callens, D., Conway, H., Cook, A.~J., Corr, H. F.~J., Damaske,
-  D., Damm, V., Ferraccioli, F., Forsberg, R., Fujita, S., Gim, Y., Gogineni,
-  P., Griggs, J.~A., Hindmarsh, R. C.~A., Holmlund, P., Holt, J.~W., Jacobel,
-  R.~W., Jenkins, A., Jokat, W., Jordan, T., King, E.~C., Kohler, J., Krabill,
-  W., {Riger-Kusk}, M., Langley, K.~A., Leitchenkov, G., Leuschen, C.,
-  Luyendyk, B.~P., Matsuoka, K., Mouginot, J., Nitsche, F.~O., Nogi, Y., Nost,
-  O.~A., Popov, S.~V., Rignot, E., Rippin, D.~M., Rivera, A., Roberts, J.,
-  Ross, N., Siegert, M.~J., Smith, A.~M., Steinhage, D., Studinger, M., Sun,
-  B., Tinto, B.~K., Welch, B.~C., Wilson, D., Young, D.~A., Xiangbin, C., and
-  Zirizzotti, A.: Bedmap2: Improved Ice Bed, Surface and Thickness Datasets for
-  {{Antarctica}}, The Cryosphere, 7, 375--393, \doi{10.5194/tc-7-375-2013},
-  2013.
+\printbibliography
 
-\bibitem[{Goff et~al.(2014)Goff, Powell, Young, and
-  Blankenship}]{GoffConditionalsimulationThwaites2014}
-Goff, J.~A., Powell, E.~M., Young, D.~A., and Blankenship, D.~D.: Conditional
-  Simulation of {{Thwaites Glacier}} ({{Antarctica}}) Bed Topography for Flow
-  Models: {{Incorporating}} Inhomogeneous Statistics and Channelized
-  Morphology, Journal of Glaciology, 60, 635--646, \doi{10.3189/2014JoG13J200},
-  2014.
-
-\bibitem[{Graham et~al.(2017)Graham, Roberts, {Galton-Fenzi}, Young,
-  Blankenship, and Siegert}]{Grahamhighresolutionsyntheticbed2017}
-Graham, F.~S., Roberts, J.~L., {Galton-Fenzi}, B.~K., Young, D., Blankenship,
-  D., and Siegert, M.~J.: A High-Resolution Synthetic Bed Elevation Grid of the
-  {{Antarctic}} Continent, Earth System Science Data, 9, 267--279,
-  \doi{10.5194/essd-9-267-2017}, 2017.
-
-\bibitem[{Leong and Horgan(2019{\natexlab{a}})}]{LeongDeepBedMapUsingdeep2019}
-Leong, W.~J. and Horgan, H.~J.: {{DeepBedMap}}: {{Using}} a Deep Neural Network
-  to Better Resolve the Bed Topography of {{Antarctica}}, in: {{EGU General
-  Assembly}}, {Vienna, Austria}, 2019{\natexlab{a}}.
-
-\bibitem[{Leong and
-  Horgan(2019{\natexlab{b}})}]{LeongDeepBedMapsuperresolutiondeep2019}
-Leong, W.~J. and Horgan, H.~J.: {{DeepBedMap}}: {{A}} Super-Resolution Deep
-  Neural Network for Resolving the Bed Topography of {{Antarctica}}, in: {{IGS
-  Five Decades}} of {{Radioglaciology Symposium}}, {Stanford, California,
-  United States}, 2019{\natexlab{b}}.
-
-\bibitem[{Morlighem(2019)}]{MorlighemMEaSUREsBedMachineAntarctica2019}
-Morlighem, M.: {{MEaSUREs BedMachine Antarctica}}, {{Version}} 1,
-  \doi{10.5067/C2GFER6PTOS4}, 2019.
-
-\bibitem[{Morlighem et~al.(2019)Morlighem, Rignot, Binder, Blankenship, Drews,
-  Eagles, Eisen, Ferraccioli, Forsberg, Fretwell, Goel, Greenbaum, Gudmundsson,
-  Guo, Helm, Hofstede, Howat, Humbert, Jokat, Karlsson, Lee, Matsuoka, Millan,
-  Mouginot, Paden, Pattyn, Roberts, Rosier, Ruppel, Seroussi, Smith, Steinhage,
-  Sun, van~den Broeke, van Ommen, van Wessem, and
-  Young}]{MorlighemDeepglacialtroughs2019}
-Morlighem, M., Rignot, E., Binder, T., Blankenship, D., Drews, R., Eagles, G.,
-  Eisen, O., Ferraccioli, F., Forsberg, R., Fretwell, P., Goel, V., Greenbaum,
-  J.~S., Gudmundsson, H., Guo, J., Helm, V., Hofstede, C., Howat, I., Humbert,
-  A., Jokat, W., Karlsson, N.~B., Lee, W.~S., Matsuoka, K., Millan, R.,
-  Mouginot, J., Paden, J., Pattyn, F., Roberts, J., Rosier, S., Ruppel, A.,
-  Seroussi, H., Smith, E.~C., Steinhage, D., Sun, B., van~den Broeke, M.~R.,
-  van Ommen, T.~D., van Wessem, M., and Young, D.~A.: Deep Glacial Troughs and
-  Stabilizing Ridges Unveiled beneath the Margins of the {{Antarctic}} Ice
-  Sheet, Nature Geoscience, \doi{10.1038/s41561-019-0510-8}, 2019.
-
-\end{thebibliography}
-
-% \end{document}
+\end{document}

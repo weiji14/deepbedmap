@@ -1,10 +1,31 @@
-% Response to Martin Siegert's comments
-% \documentclass[tc, manuscript]{copernicus}
-% \usepackage{graphicx}
-% \usepackage{xcolor}
-%
-%
-%\begin{document}
+\documentclass{article}
+\usepackage[a4paper,width=150mm,top=25mm,bottom=25mm]{geometry}
+\usepackage[natbib,style=apa,backend=biber]{biblatex}
+\bibliography{author_comments_1.bib}
+\usepackage{graphicx}
+\usepackage[dvipsnames]{xcolor}
+
+
+\begin{document}
+
+\noindent{
+  \textbf{\underline{KEY}}
+
+  {
+    \color{blue}
+    Reviewer comments (blue)
+  }
+
+  Response (black)
+
+  {
+    \color{ForestGreen}
+    New or changed text (green)
+  }
+}
+
+\section*{Response to Martin Siegert's comments}
+
 
 \noindent{\bf General comments}
 
@@ -37,6 +58,11 @@ The DeepBedMap neural network model works by minimizing the elevation error betw
 So the main product is bed elevation, with roughness being a secondary statistic derived from this generated bed elevation.
 It is certainly possible to incorporate roughness (or any other statistical measure) into the loss function, to yield the desired surface, and this will be explored in future work.
 
+{
+  \color{ForestGreen}
+  Added note on rougher bed and explanation at lines 297-300.
+}
+
 \begin{quote}
 \color{blue}
   2. how roughness anisotropy is captured, as this is known to occur and should be critical to more accurate modelling.
@@ -63,6 +89,11 @@ There are therefore inherent assumptions that the topography of the current bed 
 Provided that the direction of this surface velocity and aspect are the same as bed roughness anisotropy, as demonstrated in \citep{HolschuhLinkingpostglaciallandscapes2020}, the neural network will be able to recognize it and perform accordingly.
 However, if the ice flow direction and surface aspect is not associated with bed anisotropy, then this assumption will be violated and the model will not perform well.
 
+{
+  \color{ForestGreen}
+  Added new paragraph on how bed anisotropy is captured at lines 304-311.
+}
+
 \begin{quote}
 \color{blue}
   3. how bed geology influences the roughness.
@@ -76,6 +107,11 @@ To have geology as an input variable, we would ideally need to convert it from a
 If the geology is given as a categorical variable (e.g. sedimentary, igneous or metamorphic), this may be harder to incorporate into neural networks that typically work with quantitative data.
 Though it is possible to train Generative Adversarial Networks on qualitative data, it would require a more elaborate model architecture and loss function.
 
+{
+  \color{ForestGreen}
+  Expanded section on how geology can be incorported in future studies at lines 328-334.
+}
+
 \begin{quote}
 \color{blue}
   4. that there appear to be major gaps and to emphasize that radar is the only tool for solving this.
@@ -85,6 +121,11 @@ Indeed, there is only so much we can extrapolate outside of the regions we have 
 Radio echo sounding is the best tool to not only provide the background coarse resolution dataset, but also the high resolution datasets needed for training.
 Swath processing of existing datasets would be of great benefit.
 Targeted acquisition of high resolution grids over a range of bed and flow types would also be beneficial.
+
+{
+  \color{ForestGreen}
+  Emphasized importance of radar at lines 339-342.
+}
 
 \begin{quote}
 \color{blue}
@@ -105,6 +146,11 @@ In fact, this main branch would simply be a Single Image Super Resolution proble
 The supporting conditional branches would then improve on the result of this naive super resolution method, and in particular, the ice velocity input would provide information on ice flow direction.
 This modular neural network design would be more complicated to set up and train, but it will no doubt increase the available training data by at least an order of magnitude, and lead to better results.
 
+{
+  \color{ForestGreen}
+  Added new paragraph on using formerly glaciated beds at lines 346-359.
+}
+
 \begin{quote}
 \color{blue}
   That said, much of these issues can be addressed in future work.
@@ -113,57 +159,6 @@ This modular neural network design would be more complicated to set up and train
 
 We hope this paper lays a foundation, and we too look forward to continuing this work and collaborating with others in the future.
 
-\bibliographystyle{copernicus}
-%\bibliography{example.bib}
-\begin{thebibliography}{4}
-\providecommand{\natexlab}[1]{#1}
-\providecommand{\url}[1]{{\tt #1}}
-\providecommand{\urlprefix}{URL }
-\expandafter\ifx\csname urlstyle\endcsname\relax
-  \providecommand{\doi}[1]{https://doi.org/\discretionary{}{}{}#1}\else
-  \providecommand{\doi}{https://doi.org/\discretionary{}{}{}\begingroup
-  \urlstyle{rm}\Url}\fi
+\printbibliography
 
-\bibitem[{Fretwell et~al.(2013)Fretwell, Pritchard, Vaughan, Bamber, Barrand,
-  Bell, Bianchi, Bingham, Blankenship, Casassa, Catania, Callens, Conway, Cook,
-  Corr, Damaske, Damm, Ferraccioli, Forsberg, Fujita, Gim, Gogineni, Griggs,
-  Hindmarsh, Holmlund, Holt, Jacobel, Jenkins, Jokat, Jordan, King, Kohler,
-  Krabill, {Riger-Kusk}, Langley, Leitchenkov, Leuschen, Luyendyk, Matsuoka,
-  Mouginot, Nitsche, Nogi, Nost, Popov, Rignot, Rippin, Rivera, Roberts, Ross,
-  Siegert, Smith, Steinhage, Studinger, Sun, Tinto, Welch, Wilson, Young,
-  Xiangbin, and Zirizzotti}]{FretwellBedmap2improvedice2013}
-Fretwell, P., Pritchard, H.~D., Vaughan, D.~G., Bamber, J.~L., Barrand, N.~E.,
-  Bell, R., Bianchi, C., Bingham, R.~G., Blankenship, D.~D., Casassa, G.,
-  Catania, G., Callens, D., Conway, H., Cook, A.~J., Corr, H. F.~J., Damaske,
-  D., Damm, V., Ferraccioli, F., Forsberg, R., Fujita, S., Gim, Y., Gogineni,
-  P., Griggs, J.~A., Hindmarsh, R. C.~A., Holmlund, P., Holt, J.~W., Jacobel,
-  R.~W., Jenkins, A., Jokat, W., Jordan, T., King, E.~C., Kohler, J., Krabill,
-  W., {Riger-Kusk}, M., Langley, K.~A., Leitchenkov, G., Leuschen, C.,
-  Luyendyk, B.~P., Matsuoka, K., Mouginot, J., Nitsche, F.~O., Nogi, Y., Nost,
-  O.~A., Popov, S.~V., Rignot, E., Rippin, D.~M., Rivera, A., Roberts, J.,
-  Ross, N., Siegert, M.~J., Smith, A.~M., Steinhage, D., Studinger, M., Sun,
-  B., Tinto, B.~K., Welch, B.~C., Wilson, D., Young, D.~A., Xiangbin, C., and
-  Zirizzotti, A.: Bedmap2: Improved Ice Bed, Surface and Thickness Datasets for
-  {{Antarctica}}, The Cryosphere, 7, 375--393, \doi{10.5194/tc-7-375-2013},
-  2013.
-
-\bibitem[{Holschuh et~al.(2020)Holschuh, Christianson, Paden, Alley, and
-  Anandakrishnan}]{HolschuhLinkingpostglaciallandscapes2020}
-Holschuh, N., Christianson, K., Paden, J., Alley, R., and Anandakrishnan, S.:
-  Linking Postglacial Landscapes to Glacier Dynamics Using Swath Radar at
-  {{Thwaites Glacier}}, {{Antarctica}}, Geology, \doi{10.1130/G46772.1}, 2020.
-
-\bibitem[{Howat et~al.(2019)Howat, Porter, Smith, Noh, and
-  Morin}]{HowatReferenceElevationModel2019}
-Howat, I.~M., Porter, C., Smith, B.~E., Noh, M.-J., and Morin, P.: The
-  {{Reference Elevation Model}} of {{Antarctica}}, The Cryosphere, 13,
-  665--674, \doi{10.5194/tc-13-665-2019}, 2019.
-
-\bibitem[{Mouginot et~al.(2019)Mouginot, Rignot, and
-  Scheuchl}]{MouginotMEaSUREsPhaseMap2019}
-Mouginot, J., Rignot, E., and Scheuchl, B.: {{MEaSUREs Phase Map}} of
-  {{Antarctic Ice Velocity}}, {{Version}} 1, \doi{10.5067/PZ3NJ5RXRH10}, 2019.
-
-\end{thebibliography}
-
-%\end{document}
+\end{document}
