@@ -1488,7 +1488,8 @@ def objective(
     ),
     enable_livelossplot: bool = False,  # Default: False, no plots makes it go faster!
     enable_comet_logging: bool = True,  # Default: True, log experiment to Comet.ML
-    resume_experiment_key: str = "7859d894438a407381f1ad6097fa6bf7",  # Default: None
+    resume_experiment_key: str = "055b697548e048b78202cfebb78d6d8c",  # Default: None
+    reload_d_model_weights: bool = False,  # Default: False, Reload discriminator model weights
 ) -> float:
     """
     Objective function for tuning the Hyperparameters of our DeepBedMap model.
@@ -1532,6 +1533,9 @@ def objective(
     )
 
     ## Compile Model
+    learning_rate: float = trial.suggest_discrete_uniform(
+        name="learning_rate", high=2.0e-4, low=1.0e-4, q=0.1e-4
+    )
     if resume_experiment_key is None:
         num_residual_blocks: int = trial.suggest_int(
             name="num_residual_blocks", low=12, high=12
@@ -1539,18 +1543,19 @@ def objective(
         residual_scaling: float = trial.suggest_discrete_uniform(
             name="residual_scaling", low=0.1, high=0.3, q=0.05
         )
-        learning_rate: float = trial.suggest_discrete_uniform(
-            name="learning_rate", high=2.0e-4, low=1.0e-4, q=0.1e-4
-        )
     else:  # resume training from a previous experiment
-        for _model_type in ["generator_model", "discriminator_model"]:
+        for _model_type in (
+            ["generator_model", "discriminator_model"]
+            if reload_d_model_weights
+            else ["generator_model"]
+        ):
             hyperparameters = _download_model_weights_from_comet(
                 experiment_key=resume_experiment_key,
                 download_path=f"{base_model_weight_path}/srgan_{_model_type}_weights.npz",
             )
         num_residual_blocks = int(hyperparameters["num_residual_blocks"])
         residual_scaling = float(hyperparameters["residual_scaling"])
-        learning_rate = float(hyperparameters["generator_lr"])
+        # learning_rate = float(hyperparameters["generator_lr"])
 
     g_model, g_optimizer, d_model, d_optimizer = compile_srgan_model(
         num_residual_blocks=num_residual_blocks,
@@ -1562,10 +1567,11 @@ def objective(
             file=f"{base_model_weight_path}/srgan_generator_model_weights.npz",
             obj=g_model,
         )
-        chainer.serializers.load_npz(
-            file=f"{base_model_weight_path}/srgan_discriminator_model_weights.npz",
-            obj=d_model,
-        )
+        if reload_d_model_weights:
+            chainer.serializers.load_npz(
+                file=f"{base_model_weight_path}/srgan_discriminator_model_weights.npz",
+                obj=d_model,
+            )
     experiment.log_parameters(
         dic={
             "num_residual_blocks": g_model.num_residual_blocks,
@@ -1597,8 +1603,8 @@ def objective(
     train_iter.reset()
     dev_iter.reset()
 
-    base_rmse = 1000  # will save and upload models that beat this score
-    best_rmse_test = base_rmse
+    base_rmse = 500  # will save and upload models that beat this score
+    best_rmse_test = 250
     for i in range(epochs):
         metrics_dict = trainer(
             i=i,
@@ -1673,15 +1679,21 @@ def objective(
                 file_data=d_model_weights_path,
                 file_name=os.path.basename(d_model_weights_path),
             )
-            with open(file=g_model_architecture_path) as outgraph:
-                experiment.set_model_graph(graph=outgraph.read())
-            experiment.log_asset(
-                file_data=g_model_architecture_path,
-                file_name=os.path.basename(g_model_architecture_path),
-            )
+            try:
+                with open(file=g_model_architecture_path) as outgraph:
+                    experiment.set_model_graph(graph=outgraph.read())
+                experiment.log_asset(
+                    file_data=g_model_architecture_path,
+                    file_name=os.path.basename(g_model_architecture_path),
+                )
+            except FileNotFoundError:
+                print(f"Could not find {g_model_architecture_path}")
             for f in glob.glob(f"{base_model_weight_path}/*"):
                 shutil.copy2(src=f, dst="model/weights")
-            shutil.rmtree(path=base_model_weight_path)
+            try:
+                shutil.rmtree(path=base_model_weight_path)
+            except FileNotFoundError:
+                pass
 
         ## Pruning unpromising trials with vanishing/exploding gradients
         if (
