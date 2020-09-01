@@ -1,0 +1,124 @@
+\documentclass{article}
+\usepackage[a4paper,width=150mm,top=25mm,bottom=25mm]{geometry}
+\usepackage{graphicx}
+\usepackage[dvipsnames]{xcolor}
+
+
+\begin{document}
+
+\noindent{
+  \textbf{\underline{KEY}}
+
+  {
+    \color{blue}
+    Reviewer comments (blue)
+  }
+
+  Response (black)
+
+  {
+    \color{ForestGreen}
+    New or changed text (green)
+  }
+}
+
+\section*{Response to Editor's comments}
+
+\noindent{\bf General comments}
+
+\begin{quote}
+\color{blue}
+Dear Wei Ji and Huw Josepth,
+
+Thanks for your careful reply to both reviewers and the improved version of your manuscript. Based on that, I am happy to accept your paper for publication in The Cryosphere after some minor revisions have been done (see below).
+
+Thanks for having choosing The Cryosphere to publish this nice and innovative piece of work!
+
+Regards,
+Olivier Gagliardini
+\end{quote}
+
+Thank you for taking the time to make a thorough review of the manuscript.
+Please find a point-by-point response to the comments below.
+
+\bigskip
+\noindent{\bf Specific comments}
+
+\begin{quote}
+\color{blue}
+section 3.1 (or elsewhere?): would be nice to quantify the dataset used for the training relative to the whole dataset (number of pixels / total number of pixels or surface area relative to the total area).
+\end{quote}
+
+We have calculated this using:
+Area of training tiles / Grounded area of Antarctica (excluding ice shelves and islands)
+$9506 m^2 / 12213965 m^2 = 0.07783\%$
+
+{
+  \color{ForestGreen}
+   Clarified at Lines 307-308 that training area is less than 0.1\% of Antarctica's grounded ice area.
+}
+
+\begin{quote}
+\color{blue}
+below Eq. (3): are theta and eta vector or scalar parameters?
+\end{quote}
+
+Neither, the parameters in the neural network model are a group of tensors (n-dimensional arrays), each with different shapes depending on the neural network layer.
+
+{
+  \color{ForestGreen}
+  Changed 'parameters' to 'neural network parameters' at Line 159.
+}
+
+\begin{quote}
+\color{blue}
+line 160: avoid starting a new sentence by a symbol (here you can continue the sentence with "and, ")
+\end{quote}
+
+{
+  \color{ForestGreen}
+  Done at Line 160.
+}
+
+\begin{quote}
+\color{blue}
+line 176 (and check all along the manuscript): see Fig. 1
+\end{quote}
+
+{
+  \color{ForestGreen}
+  Changed all instances of `Figure' to `Fig.' throughout the manuscript.
+}
+
+\begin{quote}
+\color{blue}
+line 243-244: I don't understand why the resampling is needed for a 1d comparison? Why not using the native dataset?
+\end{quote}
+
+The Operation IceBridge data comes as xyz points.
+While these xyz points could be plotted directly in Fig 6a (which is comparing bed elevation values), it won't be possible for Fig 6b as the roughness values are calculated from 2D grids (see lines 232-234), hence why a resampling is still needed.
+
+
+\begin{quote}
+\color{blue}
+line 329: see Tables 1 and 2
+\end{quote}
+
+{
+  \color{ForestGreen}
+  Done at Line 311.
+}
+
+\begin{quote}
+\color{blue}
+line 379: more than independent, I understand your method is complementary as it rely on an initial BedMachine or BEDMAP DEM, correct? As far as I understand, it would not work without an input from a large scale DEM like BedMachine or BEDMAP, which would be the requirement for an independent method?
+\end{quote}
+
+True, we should clarify that it is just a complementary and alternative method rather than one which is fully independent.
+
+{
+  \color{ForestGreen}
+  Changed "independent" to "alternative" at Line 380.
+}
+
+\end{document}

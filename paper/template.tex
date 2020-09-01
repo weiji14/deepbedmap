@@ -266,7 +266,7 @@ This grid is further post-processed to mask out pixels that are more than 3 pixe
 
 To create the training dataset, we use a sliding window to obtain square tiles cropped from the high resolution (250 m) groundtruth bed elevation grids, with each tile required to be completely filled with data (i.e. no NaN values).
 Besides these groundtruth bed elevation tiles, we also obtain other tiled inputs (see Table \ref{table:datainputs}) corresponding to the same spatial bounding box area.
-To reduce border edge artifacts in the prediction, the neural network model's input convolutional layers (see Figure \ref{fig:1}) use no padding (also known as `valid' padding) when performing the initial convolution operation.
+To reduce border edge artifacts in the prediction, the neural network model's input convolutional layers (see Fig. \ref{fig:1}) use no padding (also known as `valid' padding) when performing the initial convolution operation.
 This means that the model input grids ($x$, $w^1$, $w^2$, $w^3$) have to cover a larger spatial area than the groundtruth grids ($y$).
 More specifically, the model inputs cover an area of 11x11 km (e.g. 11x11 pixels for BEDMAP2) while the groundtruth grids cover an area of 9x9 km (36x36 pixels).
 As the pixels of the groundtruth grids may not align perfectly with that of the model's input grids, we use bilinear interpolation to ensure that all the input grids cover the same spatial bounds as that of the reference groundtruth tiles.
@@ -287,7 +287,7 @@ This can be formulated as follows:
   \hat{y} = G_\theta(x, w^1, w^2, w^3)
 \end{equation}
 
-where $G_\theta$ is the Generator (see Figure \ref{fig:1}) that produces high resolution image candidates $\hat{y}$.
+where $G_\theta$ is the Generator (see Fig. \ref{fig:1}) that produces high resolution image candidates $\hat{y}$.
 For brevity in the following equations, we simplify Equation \eqref{eq:1} to hide conditional inputs $w^1, w^2, w^3$, so that all input images are represented using $x$.
 To train the Generative Adversarial Network, we update the parameters of the Generator $\theta$ and Discriminator $\eta$ as follows:
 
@@ -296,8 +296,7 @@ To train the Generative Adversarial Network, we update the parameters of the Gen
   & \hat{\eta} = \arg\min_{\eta} \frac{1}{N}\sum_{n=1}^{N}L_D(\hat{y}_n, y_n) \label{eq:3}
 \end{align}
 
-where new estimates of the parameters $\hat{\theta}$ and $\hat{\eta}$ are produced by minimizing the total loss functions $L_G$ and $L_D$ respectively for the Generator $G$ and Discriminator $D$.
-$\hat{y}_n$, $y_n$ are the set of predicted and groundtruth high resolution images over $N$ training samples.
+where new estimates of the neural network parameters $\hat{\theta}$ and $\hat{\eta}$ are produced by minimizing the total loss functions $L_G$ and $L_D$ respectively for the Generator $G$ and Discriminator $D$, and $\hat{y}_n$, $y_n$ are the set of predicted and groundtruth high resolution images over $N$ training samples.
 The generator network's loss $L_G$ is a custom perceptual loss function with four weighted components - content, adversarial, topographic and structural loss.
 The discriminator network's loss $L_D$ is designed to maximize the likelihood that predicted images are classified as fake (0) and groundtruth images are classified as real (1).
 Details of these loss functions are described in Appendix \ref{appendix:A}.
@@ -324,7 +323,7 @@ The overall goal of the entire network is to make the distribution of generated 
 \end{figure*}
 
 DeepBedMap's model architecture is adapted from the Enhanced Super Resolution Generative Adversarial Network \citep[ESRGAN,][]{WangESRGANEnhancedSuperResolution2019}.
-The Generator model $G$ (see Figure \ref{fig:1}) consists of an input, core, and upsampling module.
+The Generator model $G$ (see Fig. \ref{fig:1}) consists of an input, core, and upsampling module.
 The input module is made up of four sub-networks, each one composed of a convolutional neural network that processes the input image into a consistent 9x9 shaped tensor.
 Note that the MEaSUREs Ice Velocity \citep{MouginotMEaSUREsPhaseMap2019} input has two channels, one each for the x and y velocity components.
 All the processed inputs are then concatenated together channel-wise before being fed into the core module.
@@ -333,7 +332,7 @@ A skip connection runs from the pre-residual layer's output to the post-residual
 This skip connection \citep{HeIdentityMappingsDeep2016} helps with the neural network training process by allowing the model to also consider minimally processed information from the input module, instead of solely relying on derived information from the residual block layers when performing the upsampling.
 The upsampling module is composed of two upsampling blocks, specifically a nearest neighbour upsampling followed by a convolutional layer and Leaky Rectified Linear Unit \citep[LeakyReLU,][]{MaasRectifiernonlinearitiesimprove2013} activation, that progressively scales the tensors by 2x each time.
 Following this are two Deformable Convolutional layers \citep{DaiDeformableConvolutionalNetworks2017} which produces the final output super resolution DeepBedMap\_DEM.
-This Generator model is trained to gradually improve its prediction by comparing the predicted output with groundtruth images in the training regions (see Figure \ref{fig:2}), using the total loss function defined in Equation \eqref{eq:A9}.
+This Generator model is trained to gradually improve its prediction by comparing the predicted output with groundtruth images in the training regions (see Fig. \ref{fig:2}), using the total loss function defined in Equation \eqref{eq:A9}.
 
 The main differences between the DeepBedMap Generator model and ESRGAN are the custom input block at the beginning, and the Deformable Convolutional layers at the end.
 The custom input block is designed to handle the prior low resolution BEDMAP2 image and conditional inputs (see Table \ref{table:datainputs}).
@@ -414,7 +413,7 @@ We compare the roughness of DeepBedMap\_DEM versus BedMachine Antarctica with gr
 We calculate the surface roughness for a single 250 m pixel from the standard deviation of elevation values over a square 1250x1250 m area (i.e. 5x5 pixels) surrounding the central pixel.
 Focusing on Thwaites Glacier, the spatial 2D view of the DeepBedMap\_DEM (Figure \ref{fig:5}a) shows a range of typical topographic features such as hills and canyons.
 The calculated 2D roughness for both DeepBedMap\_DEM (Figure \ref{fig:5}b) and the Groundtruth (Figure \ref{fig:5}c) lie in a similar range from 0 m to 400 m whereas the roughness of BedMachine Antarctica (Figure \ref{fig:5}d) is mostly in the 0 m to 200 m range (hence the different colour scale).
-Also, the roughness pattern for both DeepBedMap\_DEM and the Groundtruth has a more distributed cluster pattern made up of little pockets (especially towards the coastal region on the left, see Figure \ref{fig:5}b and \ref{fig:5}c), whereas the BedMachine Antarctica roughness pattern shows larger cluster pockets in isolated regions (see Figure \ref{fig:5}d).
+Also, the roughness pattern for both DeepBedMap\_DEM and the Groundtruth has a more distributed cluster pattern made up of little pockets (especially towards the coastal region on the left, see Fig. \ref{fig:5}b and \ref{fig:5}c), whereas the BedMachine Antarctica roughness pattern shows larger cluster pockets in isolated regions (see Fig. \ref{fig:5}d).
 
 \begin{figure}[htbp]
   \includegraphics[width=0.8\columnwidth]{figures/fig5_elevation_roughness_grids.eps}
@@ -430,7 +429,7 @@ Also, the roughness pattern for both DeepBedMap\_DEM and the Groundtruth has a m
   \label{fig:5}
 \end{figure}
 
-Taking a 1D transect over the 250 m resolution DeepBedMap\_DEM, BedMachine Antarctica and groundtruth grids, we illustrate the differences in bed topography and roughness from the coast towards the inland area of Thwaites Glacier with a flight trace from Operation IceBridge (see Figure \ref{fig:6}).
+Taking a 1D transect over the 250 m resolution DeepBedMap\_DEM, BedMachine Antarctica and groundtruth grids, we illustrate the differences in bed topography and roughness from the coast towards the inland area of Thwaites Glacier with a flight trace from Operation IceBridge (see Fig. \ref{fig:6}).
 For better comparison, we have calculated the Operation IceBridge groundtruth bed elevation and roughness values from a resampled 250 m grid instead of using its native along-track resolution.
 All three elevation profiles are shown to follow the same general trend from the relatively rough coastal region (Figure \ref{fig:6}a from -1550 to -1500 km on x-scale), along the retrograde slope (Figure \ref{fig:6}a from -1500 to -1450 km on x-scale), and into the interior region.
 DeepBedMap\_DEM features a relatively noisy elevation profile with multiple fine-scale (<10 km) bumps and throughs similar to the groundtruth, while BedMachine Antarctica shows a smoother profile that is almost a moving average of the groundtruth elevation (Figure \ref{fig:6}a).
@@ -439,7 +438,7 @@ Looking at the roughness statistic (Figure \ref{fig:6}b), both the DeepBedMap\_D
 \begin{figure}[htbp]
   \includegraphics[width=0.9\columnwidth]{figures/fig6_elevation_roughness_transect.eps}
   \caption{
-    Comparing bed elevation \textbf{a} and surface roughness \textbf{b} (standard deviation of elevation values) of each interpolated grid product (250 m resolution) over a transect (see Figure \ref{fig:5} for location of transect line).
+    Comparing bed elevation \textbf{a} and surface roughness \textbf{b} (standard deviation of elevation values) of each interpolated grid product (250 m resolution) over a transect (see Fig. \ref{fig:5} for location of transect line).
     Purple values are from the super resolution DeepBedMap\_DEM;
     Orange values are from tension spline interpolated Operation IceBridge groundtruth points;
     Green values are from bicubic interpolated BedMachine Antarctica.
@@ -452,7 +451,7 @@ Looking at the roughness statistic (Figure \ref{fig:6}b), both the DeepBedMap\_D
 
 \subsection{Bed Features}
 
-In Section \ref{section:deepbedmapdemtopography}, we show that the DeepBedMap model has produced a high resolution (250 m) result (see Figure \ref{fig:3}) that can capture a detailed picture of the underlying bed topography.
+In Section \ref{section:deepbedmapdemtopography}, we show that the DeepBedMap model has produced a high resolution (250 m) result (see Fig. \ref{fig:3}) that can capture a detailed picture of the underlying bed topography.
 The fine scale bumps and troughs are the result of the DeepBedMap Generator model learning to produce features that are similar to those found in the high resolution groundtruth datasets it was trained on.
 However, there are also artifacts produced by the model.
 For example, the winding terrace (\textbf{T}, Figure \ref{fig:4}) features are hard to explain, and though they resemble eskers \citep{DrewsActivelyevolvingsubglacial2017}, their placement along the sides of hills does not support this view.
@@ -473,12 +472,12 @@ In Section \ref{section:surfaceroughness}, we quantify that a well trained DeepB
 While the mass conservation technique used by BedMachine Antarctica \citep{MorlighemDeepglacialtroughs2019} improves upon ordinary interpolation techniques such as bicubic interpolation and kriging, their results are still inherently smooth by nature.
 The groundtruth grids show that rough areas do exist on a fine scale, and so the high resolution models we produce should reflect that.
 
-DeepBedMap\_DEM manages to capture much of the rough topography found in the Operation IceBridge groundtruth data, especially near the coast (see Figure \ref{fig:6}a, from -1550 to -1500 km on x-scale) where the terrain tends to be rougher.
-Along the retrograde slope (see Figure \ref{fig:6}a, from -1500 to -1450 km on x-scale), several of the fine-scale (<10 km) bumps and troughs in DeepBedMap\_DEM can be seen to correlate well in position with the groundtruth.
+DeepBedMap\_DEM manages to capture much of the rough topography found in the Operation IceBridge groundtruth data, especially near the coast (see Fig. \ref{fig:6}a, from -1550 to -1500 km on x-scale) where the terrain tends to be rougher.
+Along the retrograde slope (see Fig. \ref{fig:6}a, from -1500 to -1450 km on x-scale), several of the fine-scale (<10 km) bumps and troughs in DeepBedMap\_DEM can be seen to correlate well in position with the groundtruth.
 In contrast, the cubic interpolated BedMachine Antarctica product lacks such fine-scale (<10 km) bumps and troughs, appearing as a relatively smooth terrain over much of the transect.
-Previous studies that estimated basal shear stress over Thwaites Glacier have found a band of strong bed extending about 80-100 km from the grounding line, with pockets of weak bed interspersed between bands of strong bed further upstream \citep{JoughinBasalconditionsPine2009,SergienkoRegularPatternsFrictional2013}, a pattern that is broadly consistent with the DeepBedMap\_DEM roughness results (see Figure \ref{fig:5}b).
+Previous studies that estimated basal shear stress over Thwaites Glacier have found a band of strong bed extending about 80-100 km from the grounding line, with pockets of weak bed interspersed between bands of strong bed further upstream \citep{JoughinBasalconditionsPine2009,SergienkoRegularPatternsFrictional2013}, a pattern that is broadly consistent with the DeepBedMap\_DEM roughness results (see Fig. \ref{fig:5}b).
 
-In general, DeepBedMap\_DEM produces a topography that is rougher, with standard deviation values more in line with those observed in the groundtruth (see Figure \ref{fig:6}b).
+In general, DeepBedMap\_DEM produces a topography that is rougher, with standard deviation values more in line with those observed in the groundtruth (see Fig. \ref{fig:6}b).
 The roughness values for BedMachine Antarctica are consistently lower throughout the transect, a consequence of the mass conservation technique using regularization parameters that yields smooth results.
 We note that the DeepBedMap\_DEM does appear rougher than the groundtruth in certain areas.
 It is possible to tweak the training regime to incorporate roughness (or any statistical measure) into the loss function (see Appendix \ref{appendix:A}) to yield the desired surface, and this will be explored in future work (see Section \ref{section:futuredirections}).
@@ -491,15 +490,15 @@ However, if the ice flow direction and surface aspect is not associated with bed
 
 \subsection{Limitations}
 
-The DeepBedMap model is trained only on a small fraction of the area of Antarctica.
+The DeepBedMap model is trained only on a small fraction of the area of Antarctica, at less than 0.1\% of the grounded ice regions (excluding ice shelves and islands).
 This is because the pixel-based convolutional neural network cannot be trained on sparse survey point measurements, nor is it able to constrain itself with track-based radar data.
 As the along track resolution of radar bed picks are much smaller than the 250 m pixels, it is also not easy to preserve roughness from radar unless smaller pixels are used.
-The topography generated by the model is sensitive to the accuracy of its data inputs (see Table \ref{table:groundtruthdata} and \ref{table:datainputs}), and though this is a problem faced by other inverse methods, neural network models like the one presented can be particularly biased towards the training dataset.
+The topography generated by the model is sensitive to the accuracy of its data inputs (see Tables \ref{table:groundtruthdata} and \ref{table:datainputs}), and though this is a problem faced by other inverse methods, neural network models like the one presented can be particularly biased towards the training dataset.
 Specifically, the DeepBedMap model focuses on resolving short wavelength features important for sub-kilometre roughness, compared to BedMachine Antarctica \citep{MorlighemDeepglacialtroughs2019} which recovers large scale features like ridges and valleys well.
 
 An inherent assumption in this methodology is that the training data sets have sampled the variable bed lithology of Antarctica \citep{CoxGeoMAPdatasetAntarctic2018} sufficiently.
 This is unlikely to be true, introducing uncertainty in the result as different lithologies may cause the same macro-scale bed landscapes to result in a range of surface features.
-In particular, the experimental model's topography is likely skewed towards the distribution of the training regions that tend to reside in coastal regions, especially over ice streams in West Antarctica (see Figure \ref{fig:2}).
+In particular, the experimental model's topography is likely skewed towards the distribution of the training regions that tend to reside in coastal regions, especially over ice streams in West Antarctica (see Fig. \ref{fig:2}).
 While bed lithology could be used as an input to inform the DeepBedMap model's prediction, it is challenging to find a suitable geological map (or geopotential proxy) \citep[see e.g.][]{AitkensubglacialgeologyWilkes2014,CoxGeoMAPdatasetAntarctic2018} for the entire Antarctic continent that has a sufficiently high spatial resolution.
 Ideally, the lithological map (categorical/qualitative) would first be converted to a hardness map with an appropriate erosion law and history incorporated (quantitative).
 This is because it is easier to train Generative Adversarial Networks on quantitative data (e.g. hardness as a scale from 0 to 10) rather than categorical data variables (e.g. sedimentary, igneous or metamorphic rocks), the latter which would require a more elaborate model architecture and loss function design.
@@ -531,7 +530,7 @@ A sub-kilometre spatial resolution surface mass balance dataset will also prove 
 As the DeepBedMap model relies on data from multiple sources collected over different epochs, it has no proper sense of time.
 Ice elevation change captured using satellite altimeters such as from Cryosat-2 \citep{HelmElevationelevationchange2014}, ICESat-2 \citep{MarkusIceCloudland2017}, or the upcoming CRISTAL \citep{KernCopernicusPolarIce2020} could be added as an additional input to better account for temporal factors.
 
-The DeepBedMap model's modular design (see Section \ref{section:modeldesign}) means the different modules (see Figure \ref{fig:1}) can be improved on and adapted for future use cases.
+The DeepBedMap model's modular design (see Section \ref{section:modeldesign}) means the different modules (see Fig. \ref{fig:1}) can be improved on and adapted for future use cases.
 The Generator model architecture's input module can be modified to handle new datasets such as the ones suggested above, or redesigned to extract a greater amount of information for better performance.
 Similarly, the core and upsampling modules which are based on ESRGAN \citep{WangESRGANEnhancedSuperResolution2019} can be replaced with newer, better architectures as the need arises.
 The Discriminator model which is currently one designed for standard computer vision tasks can also be modified to incorporate glaciology specific criteria.
@@ -547,7 +546,7 @@ Unlike other inverse methods that rely on some explicit parameterization of ice-
 This makes the resulting model particularly sensitive to the training data set, emphasizing the value of densely spaced bed elevation datasets and the need for such sampling over a more diverse range of Antarctic substrate types.
 The use of Graphical Processing Units (GPUs) for training and inference allows the neural network method to scale easily, and the addition of more training datasets will allow it to perform better.
 
-The work here is not intended to discourage the usage of other inverse modelling or spatial statistical techniques, but to introduce an independent methodology, with an outlook towards combining each of their strengths.
+The work here is not intended to discourage the usage of other inverse modelling or spatial statistical techniques, but to introduce an alternative methodology, with an outlook towards combining each of their strengths.
 Once properly trained, the DeepBedMap model runs quickly (about 3 minutes for the whole Antarctic continent) and produces realistic rough topography.
 Combining the DeepBedMap model with more physically based mass conservation inverse approaches \citep[e.g.][]{MorlighemDeepglacialtroughs2019} will likely result in more efficient ways of generating accurate bed elevation maps of Antarctica.
 One side product resulting from this work is a test-driven development framework that can be used to measure and compare the performance of upcoming bed terrain models.
