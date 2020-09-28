@@ -10,7 +10,7 @@ Also a convenient [flat file](https://en.wikipedia.org/wiki/Flat-file_database) 
 [![Github Actions Build Status](https://img.shields.io/endpoint.svg?url=https%3A%2F%2Factions-badge.atrox.dev%2Fweiji14%2Fdeepbedmap%2Fbadge&style=flat)](https://github.com/weiji14/deepbedmap/actions)
 [![Dependabot Status](https://api.dependabot.com/badges/status?host=github&repo=weiji14/deepbedmap)](https://dependabot.com)
 
-![DeepBedMap DEM over entire Antarctic continent, EPSG:3031 projection](https://user-images.githubusercontent.com/23487320/65366151-56ace800-dc74-11e9-8071-412bccf07b51.png)
+![DeepBedMap DEM over entire Antarctic continent, EPSG:3031 projection](https://user-images.githubusercontent.com/23487320/94385232-16dee180-01a1-11eb-83ce-8793709079ff.png)
 
 ![DeepBedMap Pipeline](https://yuml.me/diagram/scruffy;dir:LR/class/[Data|Highres/Lowres/Misc]->[Preprocessing|data_prep.ipynb],[Preprocessing]->[Model-Training|srgan_train.ipynb],[Model-Training]->[Inference|deepbedmap.ipynb])
 

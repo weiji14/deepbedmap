@@ -517,6 +517,7 @@ region_thwaites = rasterio.coords.BoundingBox(
 training_tiles = gpd.read_file("model/train/tiles_3031.geojson")
 
 # %%
+key_figure: bool = True  # whether to produce key figure or Figure 2
 fig = gmt.Figure()
 # Plot DeepBedMap Digital Elevation Model (DEM)
 gmt.makecpt(cmap="oleron", series=[-2000, 4500])
@@ -538,26 +539,27 @@ fig.coast(
     # frame="ag",
 )
 # Plot Pine Island and Thwaites Glacier study regions, and Training Tile areas
-fig.plot(
-    data=pd.DataFrame([region_pineisle]).values,
-    region=[-2700000, 2800000, -2200000, 2300000],
-    projection="x1:30000000",
-    style="r+s",
-    pen="1.5p,purple2",
-    label='"Pine Island Glacier"',
-)
-fig.plot(
-    data=pd.DataFrame([region_thwaites]).values,
-    style="r+s",
-    pen="1.5p,yellow2",
-    label='"Thwaites Glacier"',
-)
-fig.plot(
-    data=training_tiles.bounds.values,
-    style="r+s",
-    pen="1p,orange2",
-    label='"Training Regions"',
-)
+if not key_figure:
+    fig.plot(
+        data=pd.DataFrame([region_pineisle]).values,
+        region=[-2700000, 2800000, -2200000, 2300000],
+        projection="x1:30000000",
+        style="r+s",
+        pen="1.5p,purple2",
+        label='"Pine Island Glacier"',
+    )
+    fig.plot(
+        data=pd.DataFrame([region_thwaites]).values,
+        style="r+s",
+        pen="1.5p,yellow2",
+        label='"Thwaites Glacier"',
+    )
+    fig.plot(
+        data=training_tiles.bounds.values,
+        style="r+s",
+        pen="1p,orange2",
+        label='"Training Regions"',
+    )
 # Plot map elements (colorbar, legend, frame)
 fig.colorbar(
     position="jBL+jBL+o2.0c/0.5c+w2.4c/0.3c+m",
@@ -566,7 +568,8 @@ fig.colorbar(
     cmap="+Uk",  # kilo-units, i.e. divide by 1000
     S=True,  # no lines inside color scalebar
 )
-fig.legend(position="jBL+jBL+o2.7c/0.2c", box="+gwhite+p0.5p")
+if not key_figure:
+    fig.legend(position="jBL+jBL+o2.7c/0.2c", box="+gwhite+p0.5p")
 fig.basemap(
     region=[-2700, 2800, -2200, 2300],
     projection="x1:30000",
@@ -575,8 +578,9 @@ fig.basemap(
     frame="WSne",
 )
 # Save and show the figure
-fig.savefig(fname="paper/figures/fig2_deepbedmap_dem.pdf", dpi=300)
-_ = pdfcompress(pdfpath="paper/figures/fig2_deepbedmap_dem")
+figname: str = "fig0_deepbedmap_dem" if key_figure else "fig2_deepbedmap_dem"
+fig.savefig(fname=f"paper/figures/{figname}.pdf", dpi=300)
+_ = pdfcompress(pdfpath=f"paper/figures/{figname}")
 fig.show()
 
 
