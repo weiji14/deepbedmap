@@ -824,7 +824,8 @@ fig = closeup_fig(
     fig=fig,
 )
 deepbedmap.subplot(directive="end")
-fig.savefig(fname=f"paper/figures/fig4_deepbedmap_closeups.eps", dpi=300)
+fig.savefig(fname="paper/figures/fig4_deepbedmap_closeups.eps")
+fig.savefig(fname="paper/figures/fig4_deepbedmap_closeups.pdf")
 fig.show()
 
 # %%
@@ -1070,7 +1071,8 @@ for letter, (name, grid) in zip(["b", "c", "d"], roughDict.items()):
     # fig.savefig(fname=f"paper/figures/fig5{letter}_roughness_{name.lower()}.png")
 
 deepbedmap.subplot(directive="end")
-fig.savefig(fname="paper/figures/fig5_elevation_roughness_grids.eps", dpi=300)
+fig.savefig(fname="paper/figures/fig5_elevation_roughness_grids.eps")
+fig.savefig(fname="paper/figures/fig5_elevation_roughness_grids.pdf")
 fig.show()
 
 # %%
@@ -1103,7 +1105,8 @@ for zvalue, yrange in (("elevation", [-1600, -400]), ("roughness", [0, 100])):
         )
     fig.legend(S=10)  # position="jTR+o0/0", box=True,
 deepbedmap.subplot(directive="end")
-fig.savefig(fname="paper/figures/fig6_elevation_roughness_transect.eps", dpi=300)
+fig.savefig(fname="paper/figures/fig6_elevation_roughness_transect.eps")
+fig.savefig(fname="paper/figures/fig6_elevation_roughness_transect.pdf")
 fig.show()
 
 # %%
