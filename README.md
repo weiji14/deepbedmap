@@ -1,4 +1,4 @@
-# DeepBedMap [[preprint]](https://doi.org/10.5194/tc-2020-74) [[poster]](https://github.com/weiji14/deepbedmap/issues/133)
+# DeepBedMap  [[paper]](https://doi.org/10.5194/tc-14-3687-2020) [[poster]](https://github.com/weiji14/deepbedmap/issues/133)
 
 Going beyond BEDMAP2 using a super resolution deep neural network.
 Also a convenient [flat file](https://en.wikipedia.org/wiki/Flat-file_database) data repository for high resolution bed elevation datasets around Antarctica.
@@ -10,7 +10,7 @@ Also a convenient [flat file](https://en.wikipedia.org/wiki/Flat-file_database) 
 [![Github Actions Build Status](https://img.shields.io/endpoint.svg?url=https%3A%2F%2Factions-badge.atrox.dev%2Fweiji14%2Fdeepbedmap%2Fbadge&style=flat)](https://github.com/weiji14/deepbedmap/actions)
 [![Dependabot Status](https://api.dependabot.com/badges/status?host=github&repo=weiji14/deepbedmap)](https://dependabot.com)
 
-![DeepBedMap DEM over entire Antarctic continent, EPSG:3031 projection](https://user-images.githubusercontent.com/23487320/65366151-56ace800-dc74-11e9-8071-412bccf07b51.png)
+![DeepBedMap DEM over entire Antarctic continent, EPSG:3031 projection](https://user-images.githubusercontent.com/23487320/94385232-16dee180-01a1-11eb-83ce-8793709079ff.png)
 
 ![DeepBedMap Pipeline](https://yuml.me/diagram/scruffy;dir:LR/class/[Data|Highres/Lowres/Misc]->[Preprocessing|data_prep.ipynb],[Preprocessing]->[Model-Training|srgan_train.ipynb],[Model-Training]->[Inference|deepbedmap.ipynb])
 
@@ -127,18 +127,20 @@ See also this [issue](https://github.com/pydata/xarray/issues/3185#issuecomment-
 
 ## Citing
 
-The preprint article is currently under open review at [The Cryosphere Discussions](https://www.the-cryosphere-discuss.net/discussion_papers.html) and can be referred to using the following BibTeX code:
+The paper is published at [The Cryosphere](https://www.the-cryosphere.net) and can be referred to using the following BibTeX code:
 
-    @Article{tc-2020-74,
+    @Article{tc-14-3687-2020,
         AUTHOR = {Leong, W. J. and Horgan, H. J.},
-        TITLE = {DeepBedMap: Using a deep neural network to better resolve the bed topography of Antarctica},
-        JOURNAL = {The Cryosphere Discussions},
-        VOLUME = {2020},
+        TITLE = {DeepBedMap: a deep neural network for resolving the bed topography of Antarctica},
+        JOURNAL = {The Cryosphere},
+        VOLUME = {14},
         YEAR = {2020},
-        PAGES = {1--27},
-        URL = {https://www.the-cryosphere-discuss.net/tc-2020-74/},
-        DOI = {10.5194/tc-2020-74}
+        NUMBER = {11},
+        PAGES = {3687--3705},
+        URL = {https://tc.copernicus.org/articles/14/3687/2020/},
+        DOI = {10.5194/tc-14-3687-2020}
     }
 
-The DeepBedMap Digital Elevation Model (DEM) dataset will be stored on the Open Science Framework (OSF) platform at https://doi.org/10.17605/OSF.IO/96APW.
-The DeepBedMap model code here on Github is also mirrored on Zenodo at https://doi.org/10.5281/zenodo.3752614.
+The DeepBedMap_DEM v1.1.0 dataset is available from Zenodo at https://doi.org/10.5281/zenodo.4054246.
+Neural network model training experiment runs are also recorded at https://www.comet.ml/weiji14/deepbedmap.
+Python code for the DeepBedMap model here on Github is also mirrored on Zenodo at https://doi.org/10.5281/zenodo.3752613.
