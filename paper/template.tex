@@ -266,6 +266,18 @@ This grid is further post-processed to mask out pixels that are more than 3~\uni
   $^{\mathrm{c}}$\,Originally 450\,\unit{m}; bilinear resampled to 500\,\unit{m}.} % Table Footnotes
 \end{table*}
 
+%F1
+\begin{figure*}[t]
+  \includegraphics[width=170mm]{figures/fig1_deepbedmap_architecture_compressed.pdf}
+  \caption{
+    DeepBedMap generator model architecture composed of three modules.
+    The input module processes each of the four inputs (BEDMAP2, \citealp{FretwellBedmap2improvedice2013}; REMA, \citealp{HowatReferenceElevationModel2019}; MEaSUREs Ice Velocity, \citealp{MouginotMEaSUREsPhaseMap2019}; snow accumulation, \citealp{ArthernAntarcticsnowaccumulation2006}; see also Table~\ref{table:datainputs}) into a consistent tensor.
+    The core module processes the rich information contained within the concatenated inputs.
+    The upsampling module scales the tensor up by 4 times and does some extra processing to produce the output DeepBedMap\_DEM.
+  }
+  \label{fig:1}
+\end{figure*}
+
 To create the training dataset, we use a sliding window to obtain square tiles cropped from the high-resolution (250\,\unit{m}) ground-truth bed elevation grids, with each tile required to be completely filled with data (i.e.
 no Not a Number -- NaN -- values).
 Besides these ground-truth bed elevation tiles, we also obtain other tiled inputs (see Table~\ref{table:datainputs}) corresponding to the same spatial bounding box area.
@@ -317,16 +329,18 @@ where for the discriminator~$D$, we maximize the expectation~$\mathbb{E}$ or the
 For the generator~$G$, we minimize the likelihood that the discriminator classifies the generator output $D(G(x))=0$ when $x \sim P_{G(x)}$; i.e. we do not want the discriminator to classify the super-resolution image as fake~(0) when the inputs~$x$ are in the distribution of generated images~$P_{G(x)}$.
 The overall goal of the entire network is to make the distribution of generated images~$G(x)$ as similar as possible to the ground truth~$y$ through optimizing the value function~$V$.
 
-%F1
+%F2
 \begin{figure*}[t]
-  \includegraphics[width=170mm]{figures/fig1_deepbedmap_architecture_compressed.pdf}
-  \caption{
-    DeepBedMap generator model architecture composed of three modules.
-    The input module processes each of the four inputs (BEDMAP2, \citealp{FretwellBedmap2improvedice2013}; REMA, \citealp{HowatReferenceElevationModel2019}; MEaSUREs Ice Velocity, \citealp{MouginotMEaSUREsPhaseMap2019}; snow accumulation, \citealp{ArthernAntarcticsnowaccumulation2006}; see also Table~\ref{table:datainputs}) into a consistent tensor.
-    The core module processes the rich information contained within the concatenated inputs.
-    The upsampling module scales the tensor up by 4 times and does some extra processing to produce the output DeepBedMap\_DEM.
-  }
-  \label{fig:1}
+    \includegraphics[width=120mm]{figures/fig2_deepbedmap_dem_compressed.pdf}
+    \caption{
+      DeepBedMap\_DEM over the entire Antarctic continent.
+      Plotted on an Antarctic stereographic projection (EPSG:3031) with elevation referenced to the WGS84 datum.
+      Grounding line is plotted as thin black line.
+      Purple box shows Pine Island Glacier extent used in Fig.~\ref{fig:3}.
+      Yellow box shows Thwaites Glacier extent used in Fig.~\ref{fig:5}.
+      Orange areas show locations of training tiles (see Table~\ref{table:groundtruthdata}).
+    }
+    \label{fig:2}
 \end{figure*}
 
 DeepBedMap's model architecture is adapted from the Enhanced Super-Resolution Generative Adversarial Network
@@ -359,20 +373,6 @@ More details of the neural network training setup can be found in Appendix~\ref{
 
 \subsection{DeepBedMap\_DEM Topography} \label{section:deepbedmapdemtopography}
 
-%F2
-\begin{figure*}[t]
-    \includegraphics[width=120mm]{figures/fig2_deepbedmap_dem_compressed.pdf}
-    \caption{
-      DeepBedMap\_DEM over the entire Antarctic continent.
-      Plotted on an Antarctic stereographic projection (EPSG:3031) with elevation referenced to the WGS84 datum.
-      Grounding line is plotted as thin black line.
-      Purple box shows Pine Island Glacier extent used in Fig.~\ref{fig:3}.
-      Yellow box shows Thwaites Glacier extent used in Fig.~\ref{fig:5}.
-      Orange areas show locations of training tiles (see Table~\ref{table:groundtruthdata}).
-    }
-    \label{fig:2}
-\end{figure*}
-
 Here we present the output digital elevation model (DEM) of the super-resolution DeepBedMap neural network model and compare it with bed topography produced by other methods.
 The resulting DEM has a 250\,\unit{m} spatial resolution and therefore a four-times upsampled bed elevation grid product of BEDMAP2 \citep{FretwellBedmap2improvedice2013}.
 In Fig.~\ref{fig:2}, we show that the full Antarctic-wide DeepBedMap\_DEM manages to capture general topographical features across the whole continent.
@@ -392,16 +392,7 @@ The transition from the DeepBedMap\_DEM to the bathymetry product across the gro
     \textbf{d} BedMachine Antarctica \citep{MorlighemMEaSUREsBedMachineAntarctica2019}, originally 500 m, bicubic interpolated to 250 m.
   }
   \label{fig:3}
-\end{figure}
-
-We now highlight some qualitative observations of DeepBedMap\_DEM's bed topography beneath Pine Island Glacier (Figure \ref{fig:3}) and other parts of Antarctica (Figure \ref{fig:4}).
-DeepBedMap\_DEM shows a terrain with realistic topographical features, having fine-scale bumps and troughs that makes it rougher than that of BEDMAP2 \citep{FretwellBedmap2improvedice2013} and BedMachine Antarctica \citep{MorlighemMEaSUREsBedMachineAntarctica2019} while still preserving the general topography of the area (Figure \ref{fig:3}).
-Over steep topographical areas such as the Transantarctic Mountains (Figure \ref{fig:4}a, \ref{fig:4}h), DeepBedMap produced speckle (\textbf{S}) texture patterns.
-Along fast flowing ice streams and glaciers (Figure \ref{fig:4}b, \ref{fig:4}c, \ref{fig:4}d, \ref{fig:4}e, \ref{fig:4}f, \ref{fig:4}g, \ref{fig:4}h), we can see ridges (\textbf{R}) aligned parallel to the sides of the valley, i.e. along flow.
-In some cases, the ridges are also oriented perpendicular to the flow direction such at Whillans Ice Stream (Figure \ref{fig:4}b), Bindschadler Ice Stream (Figure \ref{fig:4}c) and Totten Glacier (Figure \ref{fig:4}g), resulting in intersecting ridges that creates a box-like, honeycomb structure.
-Over relatively flat regions in both West and East Antarctica (e.g. Figure \ref{fig:4}g), there are some hummocky, wave-like (\textbf{W}) patterns occasionally represented in the terrain.
-Terrace (\textbf{T}) features can occasionally be found winding along the side of hills such as at the Gamburtsev Subglacial Mountains (Figure \ref{fig:4}i).
-
+\end{figure*}
 
 %F4
 \begin{figure*}[t]
@@ -417,13 +408,16 @@ Terrace (\textbf{T}) features can occasionally be found winding along the side o
   \label{fig:4}
 \end{figure*}
 
-\subsection{Surface Roughness} \label{section:surfaceroughness}
+We now highlight some qualitative observations of DeepBedMap\_DEM's bed topography beneath Pine Island Glacier (Figure \ref{fig:3}) and other parts of Antarctica (Figure \ref{fig:4}).
+DeepBedMap\_DEM shows a terrain with realistic topographical features, having fine-scale bumps and troughs that makes it rougher than that of BEDMAP2 \citep{FretwellBedmap2improvedice2013} and BedMachine Antarctica \citep{MorlighemMEaSUREsBedMachineAntarctica2019} while still preserving the general topography of the area (Figure \ref{fig:3}).
+Over steep topographical areas such as the Transantarctic Mountains (Figure \ref{fig:4}a, \ref{fig:4}h), DeepBedMap produced speckle (\textbf{S}) texture patterns.
+Along fast flowing ice streams and glaciers (Figure \ref{fig:4}b, \ref{fig:4}c, \ref{fig:4}d, \ref{fig:4}e, \ref{fig:4}f, \ref{fig:4}g, \ref{fig:4}h), we can see ridges (\textbf{R}) aligned parallel to the sides of the valley, i.e. along flow.
+In some cases, the ridges are also oriented perpendicular to the flow direction such at Whillans Ice Stream (Figure \ref{fig:4}b), Bindschadler Ice Stream (Figure \ref{fig:4}c) and Totten Glacier (Figure \ref{fig:4}g), resulting in intersecting ridges that creates a box-like, honeycomb structure.
+Over relatively flat regions in both West and East Antarctica (e.g. Figure \ref{fig:4}g), there are some hummocky, wave-like (\textbf{W}) patterns occasionally represented in the terrain.
+Terrace (\textbf{T}) features can occasionally be found winding along the side of hills such as at the Gamburtsev Subglacial Mountains (Figure \ref{fig:4}i).
 
-We compare the roughness of DeepBedMap\_DEM vs. BedMachine Antarctica with ground-truth grids from processed Operation IceBridge data \citep{ShiMultichannelCoherentRadar2010} using SD as a simple measure of roughness \citep{RippinBasalroughnessInstitute2014}.
-We calculate the surface roughness for a single 250\,\unit{m} pixel from the SD of elevation values over a square 1250\,\unit{m}\,$\times$\,1250\,\unit{m} area (i.e. 5~\unit{pixels}\,$\times$\,5~\unit{pixels}) surrounding the central pixel.
-Focusing on Thwaites Glacier, the spatial 2-D view of the DeepBedMap\_DEM (Fig.~\ref{fig:5}a) shows a range of typical topographic features such as hills and canyons.
-The calculated 2-D roughnesses for both DeepBedMap\_DEM (Fig.~\ref{fig:5}b) and the Ground truth (Fig.~\ref{fig:5}c) lie in a similar range from 0 to 400\,\unit{m}, whereas the roughness of BedMachine Antarctica (Fig.~\ref{fig:5}d) is mostly in the 0-to-200\,\unit{m} range (hence the different colour scale).
-Also, the roughness pattern for both DeepBedMap\_DEM and the ground truth has a more distributed cluster pattern made up of little pockets (especially towards the coastal region on the left; see Fig.~\ref{fig:5}b and~c), whereas the BedMachine Antarctica roughness pattern shows larger cluster pockets in isolated regions (see Fig.~\ref{fig:5}d).
+
+\subsection{Surface Roughness} \label{section:surfaceroughness}
 
 %F5
 \begin{figure*}[t]
@@ -438,7 +432,13 @@ Also, the roughness pattern for both DeepBedMap\_DEM and the ground truth has a 
     Orange points in~\textbf{(a)} correspond to transect sampling locations used in Fig.~\ref{fig:6}.
   }
   \label{fig:5}
-\end{figure}
+\end{figure*}
+
+We compare the roughness of DeepBedMap\_DEM vs. BedMachine Antarctica with ground-truth grids from processed Operation IceBridge data \citep{ShiMultichannelCoherentRadar2010} using SD as a simple measure of roughness \citep{RippinBasalroughnessInstitute2014}.
+We calculate the surface roughness for a single 250\,\unit{m} pixel from the SD of elevation values over a square 1250\,\unit{m}\,$\times$\,1250\,\unit{m} area (i.e. 5~\unit{pixels}\,$\times$\,5~\unit{pixels}) surrounding the central pixel.
+Focusing on Thwaites Glacier, the spatial 2-D view of the DeepBedMap\_DEM (Fig.~\ref{fig:5}a) shows a range of typical topographic features such as hills and canyons.
+The calculated 2-D roughnesses for both DeepBedMap\_DEM (Fig.~\ref{fig:5}b) and the Ground truth (Fig.~\ref{fig:5}c) lie in a similar range from 0 to 400\,\unit{m}, whereas the roughness of BedMachine Antarctica (Fig.~\ref{fig:5}d) is mostly in the 0-to-200\,\unit{m} range (hence the different colour scale).
+Also, the roughness pattern for both DeepBedMap\_DEM and the ground truth has a more distributed cluster pattern made up of little pockets (especially towards the coastal region on the left; see Fig.~\ref{fig:5}b and~c), whereas the BedMachine Antarctica roughness pattern shows larger cluster pockets in isolated regions (see Fig.~\ref{fig:5}d).
 
 Taking a 1-D transect over the 250\,\unit{m} resolution DeepBedMap\_DEM, BedMachine Antarctica and ground-truth grids, we illustrate the differences in bed topography and roughness from the coast towards the inland area of Thwaites Glacier with a flight trace from Operation IceBridge (see Fig.~\ref{fig:6}).
 For better comparison, we have calculated the Operation IceBridge ground-truth bed elevation and roughness values from a resampled 250\,\unit{m} grid instead of using its native along-track resolution.
@@ -474,7 +474,7 @@ For example, the ridges (R, Fig.~\ref{fig:4}) found along fast-flowing ice strea
 An alternative explanation is that the ridges, especially the honeycomb-shaped ones, are rhombohedral moraine deposits formed by soft sediment squeezed up into basal crevasses that are sometimes found at stagnant surging glaciers \citep{Dowdeswellvarietydistributionsubmarine2016,DowdeswellRhombohedralcrevassefillridges2016,SolheimSeafloormorphologyoutside1985}.
 We favour the first interpretation as the positions of these bed features coincide with the surface features and also because these ridges are more likely to be eroded away in these fast-flowing ice stream areas.
 
-\hack{\newpage}
+% \hack{\newpage}
 
 The hummocky wave-like (W) patterns we observe over the relatively flat and slower-flowing areas are likely to result from surface megadune structures \citep{ScambosSnowMegadune2014}.
 Alternatively, they may be ribbed or Rogen moraine features that are formed in an orientation transverse to the ice flow direction \citep{HattestrandRibbedmorainesSweden1997,HattestrandRibbedmoraineformation1999}.
@@ -572,36 +572,6 @@ The radioglaciology community has already begun to compile a new comprehensive b
 
 
 \hack{\clearpage}
-
-%% The following commands are for the statements about the availability of data sets and/or software code corresponding to the manuscript.
-%% It is strongly recommended to make use of these sections in case data sets and/or software code have been part of your research the article is based on.
-
-\codeavailability{
-  Python code for data preparation, neural network model training and visualization of model outputs is freely available at \url{https://github.com/weiji14/deepbedmap} (last access: 9~August~2020) and at \doi{10.5281/zenodo.3752613} \citep{LeongHorgan2020b}.
-  Neural network model training experiment runs are also recorded at \url{https://www.comet.ml/weiji14/deepbedmap} (last access: 9~August~2020).
-} %% use this section when having only software code available
-
-
-\dataavailability{
-  The DeepBedMap\_DEM is available from Zenodo at \doi{10.5281/zenodo.3752613}  \citep{LeongHorgan2020b}.
-  The Pine Island Glacier dataset \citep{BinghamDiverselandscapesPine2017} is available on request from Robert Bingham.
-  The Carlson Inlet dataset \citep{KingIcestreamnot2011} is available on request from Edward King.
-  Bed elevation datasets from Wilkes Subglacial Basin \citep{FerraccioliAirborneradarbed2018} and Rutford Ice Stream \citep{KingSubglaciallandformsRutford2016} are available from the British Antarctic Survey's Polar Data Centre (\url{https://ramadda.data.bas.ac.uk}, last access: 14~January~2020).
-  Other Antarctic bed elevation datasets are available from the Center for Remote Sensing of Ice Sheets (\url{https://data.cresis.ku.edu/data/rds}, last access: 15~August~2019) or from the National Snow and Ice Data Center (\url{https://nsidc.org/data/IRMCR2/versions/1}, last access: 15~August~2019).
-  BEDMAP2 \citep{FretwellBedmap2improvedice2013} and REMA \citep{HowatReferenceElevationModel2018} are available from the Polar Geospatial Center (\url{http://data.pgc.umn.edu}, last access: 30~August~2019).
-  MEaSUREs Ice Velocity data \citep{MouginotMEaSUREsPhaseMap2019} are available from NSIDC (\url{https://nsidc.org/data/nsidc-0754/versions/1}, last access: 31~August~2019).
-  Antarctic snow accumulation data \citep{ArthernAntarcticsnowaccumulation2006} are available from the British Antarctic Survey (\url{https://secure.antarctica.ac.uk/data/bedmap2/resources/Arthern_accumulation}, last access: 17~June~2019).
-} %% use this section when having only data sets available
-
-
-% \codedataavailability{TEXT} %% use this section when having data sets and software code available
-
-
-% \sampleavailability{TEXT} %% use this section when having geoscientific samples available
-
-
-% \videosupplement{TEXT} %% use this section when having video supplements available
-
 
 \appendix
 
@@ -701,7 +671,7 @@ This is using a batch size of 128 on a total of 3826 training image tiles, with 
 We next describe the method used to evaluate each DeepBedMap candidate model, as well as the high-level way in which we semi-automatically arrived at a good model via semi-automatic hyperparameter tuning.
 
 %TB1
-\begin{table}[h!]
+\begin{table}[b!]
   \hack{\hsize\textwidth}
   \caption{Optimized hyperparameter settings.}
   \label{table:B1}
@@ -743,7 +713,44 @@ The estimator first conducts 20 random experimental trials to scan the hyperpara
 We set each GPU to run a target of 60 experimental trials (i.e. a total of 240), though unpromising trials that have exploding or vanishing gradients are pruned prematurely using the Hyperband algorithm \citep{LiHyperbandNovelBanditBased2018} to save on time and computational resources.
 The top models from these experiments undergo further visual evaluation, and we continue to conduct further experiments until a suitable candidate model is found.
 
-\noappendix       %% use this to mark the end of the appendix section. Otherwise the figures might be numbered incorrectly (e.g. 10 instead of 1).
+% \noappendix       %% use this to mark the end of the appendix section. Otherwise the figures might be numbered incorrectly (e.g. 10 instead of 1).
+
+
+\hack{\clearpage}
+
+
+
+%% The following commands are for the statements about the availability of data sets and/or software code corresponding to the manuscript.
+%% It is strongly recommended to make use of these sections in case data sets and/or software code have been part of your research the article is based on.
+
+\codeavailability{
+  Python code for data preparation, neural network model training and visualization of model outputs is freely available at \url{https://github.com/weiji14/deepbedmap} (last access: 9~August~2020) and at \doi{10.5281/zenodo.3752613} \citep{LeongDeepBedMap2020}.
+  Neural network model training experiment runs are also recorded at \url{https://www.comet.ml/weiji14/deepbedmap} (last access: 9~August~2020).
+} %% use this section when having only software code available
+
+
+\dataavailability{
+  The DeepBedMap\_DEM is available from Zenodo at \doi{10.5281/zenodo.3752613}  \citep{LeongDeepBedMap2020}.
+  The Pine Island Glacier dataset \citep{BinghamDiverselandscapesPine2017} is available on request from Robert Bingham.
+  The Carlson Inlet dataset \citep{KingIcestreamnot2011} is available on request from Edward King.
+  Bed elevation datasets from Wilkes Subglacial Basin \citep{FerraccioliAirborneradarbed2018} and Rutford Ice Stream \citep{KingSubglaciallandformsRutford2016} are available from the British Antarctic Survey's Polar Data Centre (\url{https://ramadda.data.bas.ac.uk}, last access: 14~January~2020).
+  Other Antarctic bed elevation datasets are available from the Center for Remote Sensing of Ice Sheets (\url{https://data.cresis.ku.edu/data/rds}, last access: 15~August~2019) or from the National Snow and Ice Data Center (\url{https://nsidc.org/data/IRMCR2/versions/1}, last access: 15~August~2019).
+  BEDMAP2 \citep{FretwellBedmap2improvedice2013} and REMA \citep{HowatReferenceElevationModel2018} are available from the Polar Geospatial Center (\url{http://data.pgc.umn.edu}, last access: 30~August~2019).
+  MEaSUREs Ice Velocity data \citep{MouginotMEaSUREsPhaseMap2019} are available from NSIDC (\url{https://nsidc.org/data/nsidc-0754/versions/1}, last access: 31~August~2019).
+  Antarctic snow accumulation data \citep{ArthernAntarcticsnowaccumulation2006} are available from the British Antarctic Survey (\url{https://secure.antarctica.ac.uk/data/bedmap2/resources/Arthern_accumulation}, last access: 17~June~2019).
+} %% use this section when having only data sets available
+
+
+% \codedataavailability{TEXT} %% use this section when having data sets and software code available
+
+
+% \sampleavailability{TEXT} %% use this section when having geoscientific samples available
+
+
+% \videosupplement{TEXT} %% use this section when having video supplements available
+
+
+
 
 %% Regarding figures and tables in appendices, the following two options are possible depending on your general handling of figures and tables in the manuscript environment:
 
