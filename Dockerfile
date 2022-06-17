@@ -15,21 +15,18 @@ RUN adduser --disabled-password \
     --uid ${NB_UID} \
     ${NB_USER}
 
-# Setup conda
-ENV CONDA_DIR ${HOME}/.conda
-ENV NB_PYTHON_PREFIX ${CONDA_DIR}
-ENV MINICONDA_VERSION 4.7.10
+# Setup mamba
+ENV MAMBA_DIR ${HOME}/.mamba
+ENV NB_PYTHON_PREFIX ${MAMBA_DIR}
+ENV MAMBAFORGE_VERSION 4.11.0-0
 
 RUN cd /tmp && \
-    wget --quiet https://repo.continuum.io/miniconda/Miniconda3-${MINICONDA_VERSION}-Linux-x86_64.sh && \
-    echo "1c945f2b3335c7b2b15130b1b2dc5cf4 *Miniconda3-${MINICONDA_VERSION}-Linux-x86_64.sh" | md5sum -c - && \
-    /bin/bash Miniconda3-${MINICONDA_VERSION}-Linux-x86_64.sh -f -b -p $CONDA_DIR && \
-    rm Miniconda3-${MINICONDA_VERSION}-Linux-x86_64.sh && \
-    $CONDA_DIR/bin/conda config --system --prepend channels conda-forge && \
-    $CONDA_DIR/bin/conda config --system --set auto_update_conda false && \
-    $CONDA_DIR/bin/conda config --system --set show_channel_urls true && \
-    $CONDA_DIR/bin/conda clean --all --quiet --yes && \
-    $CONDA_DIR/bin/conda init --verbose
+    wget --quiet https://github.com/conda-forge/miniforge/releases/download/${MAMBAFORGE_VERSION}/Mambaforge-${MAMBAFORGE_VERSION}-Linux-x86_64.sh && \
+    echo "49268ee30d4418be4de852dda3aa4387f8c95b55a76f43fb1af68dcbf8b205c3 *Mambaforge-${MAMBAFORGE_VERSION}-Linux-x86_64.sh" | sha256sum -c - && \
+    /bin/bash Mambaforge-${MAMBAFORGE_VERSION}-Linux-x86_64.sh -f -b -p $MAMBA_DIR && \
+    rm Mambaforge-${MAMBAFORGE_VERSION}-Linux-x86_64.sh && \
+    $MAMBA_DIR/bin/mamba clean --all --quiet --yes && \
+    $MAMBA_DIR/bin/mamba init --verbose
 
 # Setup $HOME directory with correct permissions
 USER root
@@ -40,11 +37,11 @@ WORKDIR ${HOME}
 # Change to interactive bash shell, so that `conda activate base` works
 SHELL ["/bin/bash", "-ic"]
 
-# Install dependencies in environment.yml file using conda
+# Install dependencies in environment.yml file using mamba
 COPY environment.yml ${HOME}
-RUN conda env update -n base -f environment.yml && \
-    conda clean --all --yes && \
-    conda list -n base
+RUN mamba env update -n base -f environment.yml && \
+    mamba clean --all --yes && \
+    mamba list -n base
 
 # Install dependencies in Pipfile.lock using pipenv
 COPY Pipfile* ${HOME}/

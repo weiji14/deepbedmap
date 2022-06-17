@@ -98,7 +98,7 @@ def _download_model_weights_from_comet(
     Requires the COMET_REST_API_KEY environment variable to be set in the .env file
     """
     comet_api = comet_ml.API(
-        rest_api_key=base64.b64decode(s=os.environ["COMET_REST_API_KEY"])
+        # rest_api_key=base64.b64decode(s=os.environ["COMET_REST_API_KEY"])
     )
 
     # Get pointer to a DeepBedMap experiment on Comet ML
