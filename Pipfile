@@ -10,6 +10,7 @@ comet-ml = "==2.0.5"
 cupy-cuda100 = "==7.0.0"
 dask = {extras = ["array"],version = "==2.1.0"}
 descartes = "==1.1.0"
+filelock = ">=3.2"
 geopandas = "==0.5.1"
 joblib = "==0.13.2"
 jupyterlab = "==1.0.2"

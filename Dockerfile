@@ -34,7 +34,7 @@ RUN chown -R ${NB_UID} ${HOME}
 USER ${NB_USER}
 WORKDIR ${HOME}
 
-# Change to interactive bash shell, so that `mamba activate base` works
+# Change to interactive bash shell, so that `conda activate base` works
 SHELL ["/bin/bash", "-ic"]
 
 # Install dependencies in environment.yml file using mamba
@@ -45,7 +45,7 @@ RUN mamba env update -n base -f environment.yml && \
 
 # Install dependencies in Pipfile.lock using pipenv
 COPY Pipfile* ${HOME}/
-RUN mamba activate base && \
+RUN conda activate base && \
     export HDF5_DIR=${CONDA_PREFIX} && \
     export LD_LIBRARY_PATH=${CONDA_PREFIX}/lib && \
     pipenv install --python ${CONDA_PREFIX}/bin/python --dev --deploy && \
@@ -53,7 +53,7 @@ RUN mamba activate base && \
     pipenv graph
 
 # Setup DeepBedMap virtual environment properly
-RUN mamba activate base && \
+RUN conda activate base && \
     pipenv run python -m ipykernel install --user --name deepbedmap && \
     pipenv run jupyter kernelspec list --json
 
@@ -63,9 +63,9 @@ COPY --chown=1000:1000 . ${HOME}
 
 FROM base AS app
 
-# Run Jupyter Lab via pipenv in mamba environment
+# Run Jupyter Lab via pipenv in conda environment
 EXPOSE 8888
-RUN echo -e '#!/bin/bash -i\nset -e\nmamba activate\npipenv run "$@"' > .entrypoint.sh && \
+RUN echo -e '#!/bin/bash -i\nset -e\nconda activate\npipenv run "$@"' > .entrypoint.sh && \
     chmod +x .entrypoint.sh
 ENTRYPOINT ["./.entrypoint.sh"]
 CMD ["jupyter", "lab", "--ip", "0.0.0.0"]
