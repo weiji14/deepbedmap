@@ -1,4 +1,4 @@
-# DeepBedMap  [[paper]](https://doi.org/10.5194/tc-14-3687-2020) [[poster]](https://github.com/weiji14/deepbedmap/issues/133)
+# DeepBedMap  [[paper]](https://doi.org/10.5194/tc-14-3687-2020) [[poster]](https://github.com/weiji14/deepbedmap/issues/133) [[presentation]](https://hackmd.io/@weiji14/2022ML4Polar)
 
 Going beyond BEDMAP2 using a super resolution deep neural network.
 Also a convenient [flat file](https://en.wikipedia.org/wiki/Flat-file_database) data repository for high resolution bed elevation datasets around Antarctica.
@@ -58,9 +58,9 @@ Also a convenient [flat file](https://en.wikipedia.org/wiki/Flat-file_database) 
 
 ## Quickstart
 
-Launch in [Pangeo Binder](https://pangeo-binder.readthedocs.io) (Interactive jupyter notebook/lab environment in the cloud).
+Launch in [Binder](https://mybinder.readthedocs.io) (Interactive jupyter notebook/lab environment in the cloud).
 
-[![Binder](https://binder.pangeo.io/badge_logo.svg)](https://binder.pangeo.io/v2/gh/weiji14/deepbedmap/master)
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/weiji14/deepbedmap/master)
 [![Open All Collab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/weiji14/deepbedmap)
 
 ## Installation
