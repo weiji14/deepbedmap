@@ -1,146 +1,220 @@
-# DeepBedMap  [[paper]](https://doi.org/10.5194/tc-14-3687-2020) [[poster]](https://github.com/weiji14/deepbedmap/issues/133) [[presentation]](https://hackmd.io/@weiji14/2022ML4Polar)
+# DeepBedMap
 
-Going beyond BEDMAP2 using a super resolution deep neural network.
-Also a convenient [flat file](https://en.wikipedia.org/wiki/Flat-file_database) data repository for high resolution bed elevation datasets around Antarctica.
+[![Paper](https://img.shields.io/badge/paper-The%20Cryosphere-2f6f9f)](https://doi.org/10.5194/tc-14-3687-2020)
+[![Dataset](https://img.shields.io/badge/dataset-Zenodo-1682d4)](https://doi.org/10.5281/zenodo.4054246)
+[![CI](https://github.com/weiji14/deepbedmap/actions/workflows/ci.yml/badge.svg)](https://github.com/weiji14/deepbedmap/actions/workflows/ci.yml)
 
-[![DOI](https://zenodo.org/badge/147595013.svg)](https://zenodo.org/badge/latestdoi/147595013)
-![GitHub top language](https://img.shields.io/github/languages/top/weiji14/deepbedmap.svg)
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black)
-[![Comet.ML: experiments](https://img.shields.io/badge/Comet.ml-experiments-orange.svg?logo=data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABHNCSVQICAgIfAhkiAAAAhpJREFUOI2Nk01IVGEUhp/zzfW3sUgllUIEzVApS2JyIwStylYmlC3EWvWzcNGyhdAqiGpZy4ja2UYMrBgoatnCTCNRJBxBpNE0bcbx3rlviyycScF3d+B93nMO33eMPEkiRLEs9BRgdYDzUSKCDTl4bWY5/pwqlJoNBkllmjZevWVjYgrzA37V13LgwjnYUzwH9JlZPL8xodQlSWsPHynJES3VnFTiYLvelcQ0QptGiEl+Vpvqz5kglBoMplZvXsP/8J5I+X5WffiWFMpECANHai5Bx2ScaGPdX/asmY14kgAG088eE0y9IdJYSSif+ek03uJP/KQjRJR3tG+FAZ5IqrZAaowQTK5c2gv7GjEzFhPfsdPXqbnchzmPTHKJsqNN/60NdHtBSK99jkNlGoumMGUoPXaFqhu3/7kKa6q2gwHOuyJHbbY0pOjiLbyWNojOUtHVuxOQr1oHECy8xJ+5T6S1haLOu7gSt9sAXChmS07dofDEAwoarpJd/YorrdwtP+s2Ap6yNIqLHiKYeYEyK6yP3gPC3QQM2+Yzjq5/HGj1Ko4TqahHmR+4gkKIHgZvx2kWgGpnZqQDuovrO7HiMswV4pbjkJ2H9Bikxzf92fyAvpy7yAR/vrKmB6TUuLQ8LCWfS6kxKTUh+Qvaov78NAAkNUv6IklaiUtrn6RsaiuYkHRmK2PbhADE/ICeAo86wAEJYIhtzvk3y+cYpafNe/QAAAAASUVORK5CYII=)](https://www.comet.ml/weiji14/deepbedmap/)
-[![Github Actions Build Status](https://img.shields.io/endpoint.svg?url=https%3A%2F%2Factions-badge.atrox.dev%2Fweiji14%2Fdeepbedmap%2Fbadge&style=flat)](https://github.com/weiji14/deepbedmap/actions)
-[![Dependabot Status](https://api.dependabot.com/badges/status?host=github&repo=weiji14/deepbedmap)](https://dependabot.com)
+DeepBedMap uses a super-resolution neural network to resolve Antarctic bed
+topography beyond BEDMAP2. This repository now provides a project-local,
+Windows-first PyTorch inference runtime while retaining the original research
+notebooks, data catalogue, and published Chainer checkpoint for provenance.
 
-![DeepBedMap DEM over entire Antarctic continent, EPSG:3031 projection](https://user-images.githubusercontent.com/23487320/94385232-16dee180-01a1-11eb-83ce-8793709079ff.png)
+![DeepBedMap DEM over Antarctica in EPSG:3031](https://user-images.githubusercontent.com/23487320/94385232-16dee180-01a1-11eb-83ce-8793709079ff.png)
 
-![DeepBedMap Pipeline](https://yuml.me/diagram/scruffy;dir:LR/class/[Data|Highres/Lowres/Misc]->[Preprocessing|data_prep.ipynb],[Preprocessing]->[Model-Training|srgan_train.ipynb],[Model-Training]->[Inference|deepbedmap.ipynb])
+> [!IMPORTANT]
+> The modern runtime is for reproducible inference and checkpoint conversion.
+> The historical notebooks remain available for reference, but the old
+> Conda/Pipenv/Chainer/GMT workflow is not part of the supported runtime.
 
-<details>
-<summary>Directory structure</summary>
+## Windows quick start
 
+Requirements: x86-64 Windows, PowerShell, Git, and HTTPS access. A system Python,
+Conda, CUDA Toolkit, GMT, and administrator rights are **not** required. An NVIDIA
+GPU is optional.
+
+```powershell
+git clone https://github.com/weiji14/deepbedmap.git
+cd deepbedmap
 ```
-  deepbedmap/
-    ├── features/ (files describing the high level behaviour of various features)
-    │    ├── *.feature... (easily understandable specifications written using the Given-When-Then gherkin language)
-    │    └── README.md (markdown information on the feature files)
-    ├── highres/ (contains high resolution localized DEMs)
-    │    ├── *.txt/csv/grd/xyz... (input vector file containing the point-based bed elevation data)
-    │    ├── *.json (the pipeline file used to process the xyz point data)
-    │    ├── *.nc (output raster netcdf files)
-    │    └── README.md (markdown information on highres data sources)
-    ├── lowres/ (contains low resolution whole-continent DEMs)
-    │    ├── bedmap2_bed.tif (the low resolution DEM!)
-    │    └── README.md (markdown information on lowres data sources)
-    ├── misc/ (miscellaneous raster datasets)
-    │    ├── *.tif (Surface DEMs, Ice Flow Velocity, etc. See list in Issue #9)
-    │    └── README.md (markdown information on miscellaneous data sources)
-    ├── model/ (*hidden in git, neural network model related files)
-    │    ├── train/ (a place to store the raster tile bounds and model training data)
-    │    └── weights/ (contains the neural network model's architecture and weights)
-    ├── .env (environment variable config file used by pipenv)
-    ├── .<something>ignore (files ignored by a particular piece of software)
-    ├── .<something else> (stuff to make the code in this repo look and run nicely e.g. linters, CI/CD config files, etc)
-    ├── Dockerfile (set of commands to fully reproduce the software stack here into a docker image, used by binder)
-    ├── LICENSE.md (the license covering this repository)
-    ├── Pipfile (what you want, the summary list of core python dependencies)
-    ├── Pipfile.lock (what you need, all the pinned python dependencies for full reproducibility)
-    ├── README.md (the markdown file you're reading now)
-    ├── data_list.yml (human and machine readable list of the datasets and their metadata)
-    ├── data_prep.ipynb/py (paired jupyter notebook/python script that prepares the data)
-    ├── deepbedmap.ipynb/py (paired jupyter notebook/python script that predicts an Antarctic bed digital elevation model)
-    ├── environment.yml (conda binary packages to install)
-    ├── paper_figures.ipynb/py (paired jupyter notebook/python script to produce figures for DeepBedMap paper
-    ├── srgan_train.ipynb/py (paired jupyter notebook/python script that trains the ESRGAN neural network model)
-    └── test_ipynb.ipynb/py (paired jupyter notebook/python script that runs doctests in the other jupyter notebooks!)
+
+Then run three commands:
+
+```powershell
+# 1. Install uv, Python 3.12, and all runtime packages inside this repository.
+.\setup.ps1
+
+# 2. Download, verify, and convert the published v1.1 model weights.
+.\run.ps1 fetch-weights
+
+# 3. Run a real forward pass with the converted checkpoint.
+.\run.ps1 smoke
 ```
-</details>
 
-# Getting started
+`setup.ps1` selects CUDA when `nvidia-smi` reports a usable NVIDIA GPU;
+otherwise it installs the CPU build. Everything is contained in `.tools/`,
+`.venv/`, and `.cache/`, so it does not modify a global Python environment.
 
-## Quickstart
+Check exactly what was installed:
 
-Launch in [Binder](https://mybinder.readthedocs.io) (Interactive jupyter notebook/lab environment in the cloud).
+```powershell
+.\run.ps1 doctor
+.\run.ps1 list-assets
+```
 
-[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/weiji14/deepbedmap/master)
-[![Open All Collab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/weiji14/deepbedmap)
+If PowerShell blocks local scripts, use a process-scoped policy without changing
+the machine policy:
 
-## Installation
+```powershell
+Set-ExecutionPolicy -Scope Process Bypass
+```
 
-![Installation steps](https://yuml.me/diagram/scruffy/class/[Git|clone-repo]->[Conda|install-binaries-and-pipenv],[Conda]->[Pipenv|install-python-libs])
+## CPU and CUDA
 
-Start by cloning this [repo-url](/../../)
+Choose the runtime explicitly when needed:
 
-    git clone <repo-url>
+```powershell
+# Works on every supported Windows machine.
+.\setup.ps1 -Accelerator cpu
+.\run.ps1 smoke --device cpu
 
-Then I recommend [using conda](https://conda.io/projects/conda/en/latest/user-guide/install/index.html) to install the non-python binaries (e.g. GMT, CUDA, etc).
-The conda virtual environment will also be created with Python and [pipenv](https://pipenv.readthedocs.io) installed.
+# NVIDIA GPU path; PyTorch carries its required CUDA runtime libraries.
+.\setup.ps1 -Accelerator cuda
+.\run.ps1 smoke --device cuda
+```
 
-    cd deepbedmap
-    conda env create -f environment.yml
+`--device auto` is the default. It probes CUDA and falls back to CPU. Explicit
+`--device cuda` fails clearly when the installed runtime or driver cannot use the
+GPU. Use `doctor` to see the PyTorch build, CUDA availability, and selected device.
 
-Activate the conda environment first.
+## Commands
 
-    conda activate deepbedmap
+```powershell
+.\run.ps1 --help
+.\run.ps1 doctor [--json]
+.\run.ps1 fetch-weights [--offline] [--force]
+.\run.ps1 fetch-dem [--offline] [--force]
+.\run.ps1 list-assets [--json]
+.\run.ps1 smoke [--device auto|cpu|cuda] [--random]
+.\run.ps1 predict --help
+```
 
-Then set some environment variables **before** using pipenv to install the necessary python libraries,
-otherwise you may encounter some problems (see Common problems below).
-You may want to ensure that `which pipenv` returns something similar to ~/.conda/envs/deepbedmap/bin/pipenv.
+Downloads are resumable, cached under `.cache/deepbedmap/`, and verified against
+the release size and digest before use. `fetch-weights` also converts the public
+Chainer `.npz` into a metadata-rich native PyTorch checkpoint; Chainer and CuPy
+are not imported. The native v3 format validates its architecture metadata,
+finite tensors, and a canonical state digest when loaded.
 
-    export HDF5_DIR=$CONDA_PREFIX/
-    export LD_LIBRARY_PATH=$CONDA_PREFIX/lib/
-    pipenv install --python $CONDA_PREFIX/bin/python --dev
-    #or just
-    HDF5_DIR=$CONDA_PREFIX/ LD_LIBRARY_PATH=$CONDA_PREFIX/lib/ pipenv install --python $CONDA_PREFIX/bin/python --dev
+## Predict a local region
 
-Finally, double-check that the libraries have been installed.
+Prediction consumes five local, single-band rasters and one output extent. All
+rasters must have a declared `EPSG:3031` CRS, square pixels, and coverage of the
+requested region plus a 1 km model halo.
 
-    pipenv graph
+| Argument | Physical field | Model grid |
+| --- | --- | ---: |
+| `--bed` | BEDMAP2 bed elevation | 1,000 m |
+| `--surface` | REMA surface elevation | 100 m |
+| `--velocity-x` | Signed X ice velocity | 500 m |
+| `--velocity-y` | Signed Y ice velocity | 500 m |
+| `--accumulation` | Surface mass accumulation | 1,000 m |
 
-### Syncing/Updating to new dependencies
+Source rasters are reprojected/resampled onto those exact model grids. Velocity
+components remain signed; do not supply speed magnitude in their place. Output
+bounds are `LEFT BOTTOM RIGHT TOP` in metres in EPSG:3031, with width and height
+both integer multiples of 1 km.
 
-    conda env update -f environment.yml
-    pipenv sync --dev
+```powershell
+.\run.ps1 predict `
+  --bed D:\antarctica\bedmap2_bed.tif `
+  --surface D:\antarctica\REMA_100m_dem.tif `
+  --velocity-x D:\antarctica\velocity_x.tif `
+  --velocity-y D:\antarctica\velocity_y.tif `
+  --accumulation D:\antarctica\accumulation.tif `
+  --bounds -500000 -1000000 -480000 -980000 `
+  --output outputs\deepbedmap_tile.tif `
+  --device auto
+```
 
-### Common problems
+The output is a finite, float32 GeoTIFF in EPSG:3031 at 250 m resolution and does
+not declare a numeric NoData sentinel. Its tags and JSON summary include the
+actual checkpoint format, SHA256, and published/custom weight status. See
+[data and prediction](docs/DATA_AND_PREDICTION.md) before running a scientific
+region, especially when input rasters contain gaps.
 
-Note that the [.env](https://pipenv.readthedocs.io/en/latest/advanced/#configuration-with-environment-variables) file stores some environment variables.
-So if you run `conda activate deepbedmap` followed by some other command and get an `...error while loading shared libraries: libpython3.7m.so.1.0...`,
-you may need to run `pipenv shell` or do `pipenv run <cmd>` to have those environment variables registered properly.
-Or just run this first:
+## Scientific compatibility
 
-    export LD_LIBRARY_PATH=$CONDA_PREFIX/lib/
+The PyTorch generator preserves the published v1.1 architecture:
 
-Also, if you get a problem when using `pipenv` to install [netcdf4](https://github.com/Unidata/netcdf4-python), make sure you have done:
+- 12 residual-in-residual dense blocks and residual scaling of `0.2`;
+- 8,907,749 trainable parameters;
+- lossless loading of all 384 arrays in the public Chainer checkpoint;
+- an explicit Chainer-to-Torchvision deformable-convolution offset adapter; and
+- fixed-input numerical regression against a Chainer 7 CPU reference.
 
-    export HDF5_DIR=$CONDA_PREFIX/
+The regression is tolerance-based because CPU convolution implementations are not
+bit-for-bit identical across frameworks. A successful `smoke` proves that the
+runtime, checkpoint, and device can execute; it does **not** by itself validate a
+new scientific dataset, geographic extent, or full-continent product.
 
-and then you can try using `pipenv install` or `pipenv sync` again.
-See also this [issue](https://github.com/pydata/xarray/issues/3185#issuecomment-520693149) for more information.
+Details and the boundary between the new and historical stacks are documented in
+[migration and troubleshooting](docs/MIGRATION_AND_TROUBLESHOOTING.md).
 
-## Running jupyter lab
+## Development and Linux
 
-    conda activate deepbedmap
-    pipenv shell
+Add test tools on Windows and run the supported suite:
 
-    python -m ipykernel install --user --name deepbedmap  #to install conda env properly
-    jupyter kernelspec list --json                        #see if kernel is installed
-    jupyter lab &
+```powershell
+.\setup.ps1 -Dev
+.\run.ps1 test -q
+.\.venv\Scripts\python.exe -m ruff check .
+.\.venv\Scripts\python.exe -m ruff format --check .
+```
+
+Linux is supported through standard `uv` commands (the convenience PowerShell
+bootstrap is Windows-specific):
+
+```bash
+uv sync --frozen --extra cpu --dev
+uv run --frozen --extra cpu python -m pytest
+uv run --frozen --extra cpu deepbedmap smoke --device cpu --random
+```
+
+GitHub Actions cold-tests the PowerShell bootstrap on Windows and the locked CPU
+environment on Linux with Python 3.11, 3.12, and 3.13. Every job converts the
+published checkpoint and runs its numerical and GeoTIFF regressions. CI does not
+install Conda, GMT, Chainer, CuPy, or a system CUDA toolkit.
+
+## Repository map
+
+- `src/deepbedmap/`: supported PyTorch model, raster I/O, assets, and CLI.
+- `tests/`: cross-platform unit tests and optional checkpoint regression tests.
+- `setup.ps1` / `run.ps1`: project-local Windows entry points.
+- `data_list.yml`, `highres/`, `lowres/`, `misc/`: historical source catalogue.
+- `*.ipynb`, paired root `*.py`, and legacy environment files: original research
+  workflow, retained for auditability rather than used by the modern CLI.
+- `paper/`: publication material and figures.
+
+## Paper, data, and research record
+
+- Paper: [Leong and Horgan (2020), *The Cryosphere*](https://doi.org/10.5194/tc-14-3687-2020)
+- Published DeepBedMap DEM v1.1.0: [Zenodo](https://doi.org/10.5281/zenodo.4054246)
+- Archived source release: [Zenodo](https://doi.org/10.5281/zenodo.3752613)
+- Experiment record: [Comet](https://www.comet.ml/weiji14/deepbedmap/)
+- [Poster](https://github.com/weiji14/deepbedmap/issues/133) and
+  [ML4Polar presentation](https://hackmd.io/@weiji14/2022ML4Polar)
+
+The complete historical input inventory, literature references, file URLs, and
+digests remain in [`data_list.yml`](data_list.yml). The modern runtime downloads
+only the published weights or final DEM on explicit request; it does not silently
+download the multi-source training corpus.
 
 ## Citing
 
-The paper is published at [The Cryosphere](https://www.the-cryosphere.net) and can be referred to using the following BibTeX code:
+```bibtex
+@Article{tc-14-3687-2020,
+  AUTHOR = {Leong, W. J. and Horgan, H. J.},
+  TITLE = {DeepBedMap: a deep neural network for resolving the bed topography of Antarctica},
+  JOURNAL = {The Cryosphere},
+  VOLUME = {14},
+  YEAR = {2020},
+  NUMBER = {11},
+  PAGES = {3687--3705},
+  URL = {https://tc.copernicus.org/articles/14/3687/2020/},
+  DOI = {10.5194/tc-14-3687-2020}
+}
+```
 
-    @Article{tc-14-3687-2020,
-        AUTHOR = {Leong, W. J. and Horgan, H. J.},
-        TITLE = {DeepBedMap: a deep neural network for resolving the bed topography of Antarctica},
-        JOURNAL = {The Cryosphere},
-        VOLUME = {14},
-        YEAR = {2020},
-        NUMBER = {11},
-        PAGES = {3687--3705},
-        URL = {https://tc.copernicus.org/articles/14/3687/2020/},
-        DOI = {10.5194/tc-14-3687-2020}
-    }
+## License
 
-The DeepBedMap_DEM v1.1.0 dataset is available from Zenodo at https://doi.org/10.5281/zenodo.4054246.
-Neural network model training experiment runs are also recorded at https://www.comet.ml/weiji14/deepbedmap.
-Python code for the DeepBedMap model here on Github is also mirrored on Zenodo at https://doi.org/10.5281/zenodo.3752613.
+The code is distributed under the terms in [LICENSE.md](LICENSE.md). Input
+datasets keep their own licences and citation requirements.

@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows-bootstrap:
+    name: Windows bootstrap and CPU inference
+    runs-on: windows-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Run the supported project-local bootstrap
+        shell: pwsh
+        run: .\setup.ps1 -Accelerator cpu -Dev
+
+      - name: Fetch and convert the published checkpoint
+        shell: pwsh
+        run: .\run.ps1 fetch-weights
+
+      - name: Lint
+        shell: pwsh
+        run: .\.venv\Scripts\python.exe -m ruff check .
+
+      - name: Check formatting
+        shell: pwsh
+        run: .\.venv\Scripts\python.exe -m ruff format --check .
+
+      - name: Test through the Windows launcher
+        shell: pwsh
+        run: .\run.ps1 test -q
+
+      - name: Published-checkpoint launcher smoke test
+        shell: pwsh
+        run: .\run.ps1 smoke --device cpu
+
+  linux:
+    name: Linux Python ${{ matrix.python-version }} CPU
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    env:
+      DEEPBEDMAP_CACHE_DIR: ${{ github.workspace }}/.cache/deepbedmap
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Install pinned uv and Python
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          version: 0.11.29
+          python-version: ${{ matrix.python-version }}
+          enable-cache: true
+
+      - name: Install locked CPU environment
+        run: uv sync --frozen --python ${{ matrix.python-version }} --extra cpu --dev
+
+      - name: Fetch and convert the published checkpoint
+        run: uv run --frozen --extra cpu deepbedmap fetch-weights
+
+      - name: Lint
+        run: uv run --frozen --extra cpu ruff check .
+
+      - name: Check formatting
+        run: uv run --frozen --extra cpu ruff format --check .
+
+      - name: Test
+        run: uv run --frozen --extra cpu python -m pytest
+
+      - name: Published-checkpoint smoke test
+        run: uv run --frozen --extra cpu deepbedmap smoke --device cpu

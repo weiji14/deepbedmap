@@ -1,0 +1,123 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "deepbedmap"
+version = "2.0.0"
+description = "Modern, cross-platform DeepBedMap inference and geospatial tooling"
+readme = "README.md"
+requires-python = ">=3.11,<3.14"
+license = { file = "LICENSE.md" }
+authors = [
+  { name = "Wei Ji Leong and Huw Joseph Horgan" },
+]
+keywords = ["Antarctica", "digital elevation model", "super-resolution"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: Microsoft :: Windows",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Scientific/Engineering :: GIS",
+]
+dependencies = [
+  "numpy>=2.2,<3",
+  "rasterio>=1.4.3,<2",
+]
+
+[project.optional-dependencies]
+cpu = [
+  "torch==2.12.0",
+  "torchvision==0.27.0",
+]
+cuda = [
+  "torch==2.12.0",
+  "torchvision==0.27.0",
+]
+lab = [
+  "jupyterlab>=4.4,<5",
+  "matplotlib>=3.10,<4",
+]
+
+[dependency-groups]
+dev = [
+  "pytest>=8.4,<9",
+  "pytest-cov>=6.2,<7",
+  "ruff>=0.12,<1",
+]
+
+[project.scripts]
+deepbedmap = "deepbedmap.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/weiji14/deepbedmap"
+Dataset = "https://doi.org/10.5281/zenodo.4054246"
+Paper = "https://doi.org/10.5194/tc-14-3687-2020"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/deepbedmap"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "/.python-version",
+  "/LICENSE.md",
+  "/README.md",
+  "/docs",
+  "/pyproject.toml",
+  "/run.ps1",
+  "/setup.ps1",
+  "/src",
+  "/tests",
+  "/tools/chainer_reference.py",
+  "/uv.lock",
+]
+
+[tool.pytest.ini_options]
+addopts = "--strict-config --strict-markers -p no:cacheprovider"
+testpaths = ["tests"]
+markers = [
+  "integration: uses a downloaded public artifact",
+  "gpu: requires a CUDA-capable GPU",
+]
+
+[tool.coverage.run]
+source = ["deepbedmap"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+include = ["src/**/*.py", "tests/**/*.py", "tools/**/*.py"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.uv]
+conflicts = [
+  [
+    { extra = "cpu" },
+    { extra = "cuda" },
+  ],
+]
+
+[tool.uv.sources]
+torch = [
+  { index = "pytorch-cpu", extra = "cpu" },
+  { index = "pytorch-cu130", extra = "cuda" },
+]
+torchvision = [
+  { index = "pytorch-cpu", extra = "cpu" },
+  { index = "pytorch-cu130", extra = "cuda" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu130"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true
